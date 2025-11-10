@@ -1,0 +1,82 @@
+.header-root {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background-color: rgba(255, 255, 255, 0.70);
+  box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.03);
+  height: 80px;
+}
+
+.header-blur-alt {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.header-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #0A4834;
+  letter-spacing: -0.3px;
+  text-decoration: none;
+}
+
+.nav-link-alt {
+  position: relative;
+  transition: color 0.3s ease;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #000000;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.nav-link-alt:hover {
+  color: #9F8151;
+}
+
+.nav-link-alt-becomeseller {
+  position: relative;
+  transition: color 0.3s ease;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  color: #0A4834;
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+
+.nav-link-alt-becomeseller:hover {
+  color: #9F8151;
+}
+
+.account-icon-button {
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #0A4834;
+  padding: 8px;
+}
+
+.account-icon-button:hover {
+  color: #9F8151;
+}
+
+.collapsible-header {
+  transition: transform 0.3s ease-in-out;
+}
+
+.collapsible-header.hidden {
+  transform: translateY(-100%);
+}
+
+.header-spacer {
+  height: 80px;
+}

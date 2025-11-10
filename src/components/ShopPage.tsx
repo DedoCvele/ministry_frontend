@@ -8,6 +8,7 @@ import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { NewsletterPopup } from './NewsletterPopup';
 import { type Language, getTranslation } from '../translations';
+import './styles/ShopPage.css';
 
 interface Product {
   id: number;
@@ -225,162 +226,51 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   };
 
   return (
-    <div style={{
-      backgroundColor: '#F0ECE3',
-      minHeight: '100vh',
-      position: 'relative',
-    }}>
+    <div className="shop-root">
       {/* Grain Texture */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.02,
-        backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=\')',
-      }} />
+      <div className="shop-grain" />
 
       {/* Header */}
       <HeaderAlt />
 
       {/* Header Section */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{
-          backgroundColor: '#F0ECE3',
-          borderBottom: '1px solid rgba(159,129,81,0.1)',
-        }}
-      >
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '32px 64px 24px',
-          textAlign: 'center',
-        }}>
-          <h1 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '48px',
-            fontWeight: 600,
-            color: '#0A4834',
-            margin: '0 0 12px 0',
-          }}>
-            {t.shop.title}
-          </h1>
-          <p style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '18px',
-            color: '#9F8151',
-            margin: '0 0 24px 0',
-          }}>
-            {t.shop.subtitle}
-          </p>
-          <div style={{
-            width: '80px',
-            height: '2px',
-            backgroundColor: 'rgba(159,129,81,0.3)',
-            margin: '0 auto',
-          }} />
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="shop-header">
+        <div className="shop-header-inner">
+          <h1 className="shop-title">{t.shop.title}</h1>
+          <p className="shop-subtitle">{t.shop.subtitle}</p>
+          <div className="shop-hr" />
         </div>
 
         {/* Filter & Sort Bar */}
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '0 64px 24px',
-        }}>
-          <div style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: '16px',
-            padding: '32px',
-            boxShadow: '0px 4px 16px rgba(0,0,0,0.05)',
-          }}>
+        <div className="shop-filters-container">
+          <div className="shop-filters-card">
             {/* Search Bar */}
-            <div style={{
-              position: 'relative',
-              maxWidth: '500px',
-              margin: '0 auto 24px',
-              width: '100%',
-            }}>
-              <Search size={18} color="#9F8151" style={{
-                position: 'absolute',
-                left: '16px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-              }} />
+            <div className="search-container">
+              <Search size={18} color="#9F8151" className="search-icon" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t.shop.searchPlaceholder}
-                style={{
-                  width: '100%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '15px',
-                  color: '#000000',
-                  backgroundColor: '#F0ECE3',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '14px 16px 14px 48px',
-                  outline: 'none',
-                }}
+                className="search-input"
               />
             </div>
 
             {/* Filter Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '12px',
-              marginBottom: '16px',
-            }}>
+            <div className="filter-grid">
               {Object.entries(filterOptions).map(([filterName, options]) => (
-                <div key={filterName} style={{ position: 'relative' }}>
+                <div key={filterName} className="filter-col">
                   <motion.button
                     onClick={() => setShowFilterDropdown(showFilterDropdown === filterName ? null : filterName)}
+                    className="filter-button"
                     whileHover={{ backgroundColor: 'rgba(159,129,81,0.1)' }}
-                    style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                      color: '#0A4834',
-                      backgroundColor: 'transparent',
-                      border: '1px solid #DCD6C9',
-                      borderRadius: '12px',
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      transition: 'all 0.3s ease',
-                      width: '100%',
-                    }}
                   >
                     {filterName} <ChevronDown size={16} />
                   </motion.button>
 
                   <AnimatePresence>
                     {showFilterDropdown === filterName && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          marginTop: '8px',
-                          backgroundColor: '#FFFFFF',
-                          borderRadius: '12px',
-                          padding: '8px',
-                          boxShadow: '0px 8px 24px rgba(0,0,0,0.12)',
-                          minWidth: '150px',
-                          zIndex: 200,
-                        }}
-                      >
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="filter-dropdown">
                         {options.map((option) => (
                           <button
                             key={option}
@@ -392,21 +282,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                               }
                               setShowFilterDropdown(null);
                             }}
-                            style={{
-                              fontFamily: 'Manrope, sans-serif',
-                              fontSize: '14px',
-                              color: '#000000',
-                              backgroundColor: 'transparent',
-                              border: 'none',
-                              borderRadius: '8px',
-                              padding: '8px 12px',
-                              cursor: 'pointer',
-                              width: '100%',
-                              textAlign: 'left',
-                              transition: 'background-color 0.2s ease',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F0ECE3'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                            className="filter-option-btn"
                           >
                             {option}
                           </button>
@@ -419,79 +295,17 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
             </div>
 
             {/* Sort Dropdown - Separate Row */}
-            <div style={{ 
-              display: 'flex',
-              justifyContent: 'center',
-              paddingTop: '8px',
-            }}>
+            <div className="sort-row">
               <div style={{ position: 'relative', minWidth: '200px' }}>
-                <motion.button
-                  onClick={() => setShowFilterDropdown(showFilterDropdown === 'sort' ? null : 'sort')}
-                  whileHover={{ backgroundColor: 'rgba(159,129,81,0.1)' }}
-                  style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#9F8151',
-                    backgroundColor: 'transparent',
-                    border: '1px solid #9F8151',
-                    borderRadius: '12px',
-                    padding: '12px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                    width: '100%',
-                  }}
-                >
+                <motion.button onClick={() => setShowFilterDropdown(showFilterDropdown === 'sort' ? null : 'sort')} whileHover={{ backgroundColor: 'rgba(159,129,81,0.1)' }} className="sort-button">
                   {sortBy} <ChevronDown size={16} />
                 </motion.button>
 
                 <AnimatePresence>
                   {showFilterDropdown === 'sort' && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginTop: '8px',
-                        backgroundColor: '#FFFFFF',
-                        borderRadius: '12px',
-                        padding: '8px',
-                        boxShadow: '0px 8px 24px rgba(0,0,0,0.12)',
-                        minWidth: '180px',
-                        zIndex: 200,
-                      }}
-                    >
+                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="filter-dropdown" style={{ left: '50%', transform: 'translateX(-50%)', minWidth: '180px' }}>
                       {sortOptions.map((option) => (
-                        <button
-                          key={option}
-                          onClick={() => {
-                            setSortBy(option);
-                            setShowFilterDropdown(null);
-                          }}
-                          style={{
-                            fontFamily: 'Manrope, sans-serif',
-                            fontSize: '14px',
-                            color: '#000000',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            borderRadius: '8px',
-                            padding: '8px 12px',
-                            cursor: 'pointer',
-                            width: '100%',
-                            textAlign: 'left',
-                            transition: 'background-color 0.2s ease',
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#F0ECE3'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                        >
+                        <button key={option} onClick={() => { setSortBy(option); setShowFilterDropdown(null); }} className="filter-option-btn">
                           {option}
                         </button>
                       ))}
@@ -504,41 +318,11 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
 
           {/* Active Filters Pills */}
           {Object.keys(activeFilters).length > 0 && (
-            <div style={{
-              display: 'flex',
-              gap: '8px',
-              marginTop: '12px',
-              flexWrap: 'wrap',
-            }}>
+            <div className="active-filters">
               {Object.entries(activeFilters).map(([key, value]) => (
-                <motion.div
-                  key={key}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '13px',
-                    color: '#FFFFFF',
-                    backgroundColor: '#9F8151',
-                    borderRadius: '20px',
-                    padding: '6px 12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
+                <motion.div key={key} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="filter-pill">
                   {value}
-                  <button
-                    onClick={() => removeFilter(key)}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
+                  <button onClick={() => removeFilter(key)} className="filter-pill-close">
                     <X size={14} color="#FFFFFF" />
                   </button>
                 </motion.div>
@@ -549,221 +333,57 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
       </motion.div>
 
       {/* Product Grid */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '48px 64px 120px',
-      }}>
+      <div className="products-container">
         {loading ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '80px 20px',
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '18px',
-            color: '#0A4834',
-          }}>
-            Loading products...
-          </div>
+          <div className="loading-placeholder">Loading products...</div>
         ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '40px',
-          }}>
+          <div className="products-grid">
             {products.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: index * 0.1 }}
-              style={{
-                position: 'relative',
-              }}
+              className="product-motion-wrapper"
             >
               {/* Product Card */}
-              <div
-                onClick={() => handleProductClick(product.id)}
-                style={{
-                  cursor: 'pointer',
-                  position: 'relative',
-                }}
-              >
+              <div onClick={() => handleProductClick(product.id)} className="product-card">
                 {/* Image Container */}
-                <div
-                  className="product-image-container"
-                  style={{
-                    width: '100%',
-                    aspectRatio: '4/5',
-                    borderRadius: '16px',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    marginBottom: '16px',
-                  }}
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 0.5 }}
-                    style={{ width: '100%', height: '100%' }}
-                  >
-                    <ImageWithFallback
-                      src={product.image}
-                      alt={product.title}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                    />
+                <div className="product-image-container">
+                  <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.5 }} className="image-hover-wrap">
+                    <ImageWithFallback src={product.image} alt={product.title} className="product-image" />
                   </motion.div>
 
                   {/* Gold overlay on hover */}
-                  <div
-                    className="product-overlay"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: 'rgba(159,129,81,0)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.3s ease',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <span
-                      className="view-details-text"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#FFFFFF',
-                        opacity: 0,
-                        transform: 'translateY(10px)',
-                        transition: 'all 0.3s ease',
-                      }}
-                    >
-                      View Details →
-                    </span>
+                  <div className="product-overlay">
+                    <span className="view-details-text">View Details →</span>
                   </div>
 
                   {/* Wishlist Button */}
-                  <motion.button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleWishlist(product.id);
-                    }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    style={{
-                      position: 'absolute',
-                      top: '16px',
-                      right: '16px',
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                      backdropFilter: 'blur(8px)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0px 4px 12px rgba(0,0,0,0.1)',
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    <Heart
-                      size={18}
-                      color="#9F8151"
-                      fill={wishlist.includes(product.id) ? '#9F8151' : 'none'}
-                    />
+                  <motion.button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
+                    <Heart size={18} color="#9F8151" fill={wishlist.includes(product.id) ? '#9F8151' : 'none'} />
                   </motion.button>
                 </div>
 
                 {/* Product Info */}
                 <div>
-                  <h3 style={{
-                    fontFamily: 'Cormorant Garamond, serif',
-                    fontSize: '18px',
-                    fontWeight: 600,
-                    color: '#0A4834',
-                    margin: '0 0 8px 0',
-                  }}>
-                    {product.title}
-                  </h3>
+                  <h3 className="product-title">{product.title}</h3>
 
-                  <p style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '16px',
-                    fontWeight: 600,
-                    color: '#0A4834',
-                    margin: '0 0 12px 0',
-                  }}>
-                    €{product.price}
-                  </p>
+                  <p className="product-price">€{product.price}</p>
 
                   {/* Seller Info */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginBottom: '12px',
-                  }}>
-                    <div style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      backgroundColor: '#9F8151',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: '#FFFFFF',
-                    }}>
-                      {product.sellerAvatar}
-                    </div>
-                    <span style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                      color: '#9F8151',
-                    }}>
-                      @{product.seller}
-                    </span>
+                  <div className="seller-row">
+                    <div className="seller-avatar">{product.sellerAvatar}</div>
+                    <span className="seller-name">@{product.seller}</span>
                   </div>
 
                   {/* Divider */}
-                  <div style={{
-                    width: '100%',
-                    height: '1px',
-                    backgroundColor: 'rgba(159,129,81,0.2)',
-                    margin: '12px 0',
-                  }} />
+                  <div className="divider" />
 
                   {/* Tags */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '6px',
-                    flexWrap: 'wrap',
-                  }}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {product.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        style={{
-                          fontFamily: 'Manrope, sans-serif',
-                          fontSize: '11px',
-                          color: 'rgba(0,0,0,0.6)',
-                          backgroundColor: 'rgba(159,129,81,0.1)',
-                          borderRadius: '10px',
-                          padding: '4px 10px',
-                        }}
-                      >
-                        #{tag}
-                      </span>
+                      <span key={tag} className="tag">#{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -774,153 +394,49 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         )}
 
         {/* Load More / Show Additional Info Button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.6 }}
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginTop: '64px',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '24px',
-          }}
-        >
-          <motion.button
-            onClick={() => {
-              setShowAdditionalInfo(!showAdditionalInfo);
-            }}
-            whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }}
-            whileTap={{ scale: 0.98 }}
-            style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '15px',
-              fontWeight: 500,
-              color: '#9F8151',
-              backgroundColor: '#F0ECE3',
-              border: '1px solid #9F8151',
-              borderRadius: '16px',
-              padding: '14px 40px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="load-more-wrap">
+          <motion.button onClick={() => { setShowAdditionalInfo(!showAdditionalInfo); }} whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }} whileTap={{ scale: 0.98 }} className="toggle-info-btn">
             <Info size={18} />
             {showAdditionalInfo ? 'Hide Additional Info' : 'Show Additional Info'}
           </motion.button>
 
           {/* Additional Info Cards Display */}
           {showAdditionalInfo && products.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                width: '100%',
-                maxWidth: '1400px',
-                marginTop: '40px',
-              }}
-            >
-              <h3 style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                fontSize: '28px',
-                color: '#0A4834',
-                marginBottom: '32px',
-                textAlign: 'center',
-              }}>
-                Additional Product Information
-              </h3>
-              
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="additional-info-wrap">
+              <h3 className="additional-info-title">Additional Product Information</h3>
+
               {/* Grid of Additional Info Cards */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
-                gap: '24px',
-              }}>
+              <div className="additional-info-grid">
                 {products.filter(p => p.apiData).map((product) => (
-                  <motion.div
-                    key={`info-${product.id}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: '16px',
-                      padding: '24px',
-                      boxShadow: '0px 4px 16px rgba(0,0,0,0.08)',
-                      border: '1px solid rgba(159,129,81,0.2)',
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '16px',
-                      paddingBottom: '16px',
-                      borderBottom: '1px solid rgba(159,129,81,0.2)',
-                    }}>
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '8px',
-                        overflow: 'hidden',
-                      }}>
-                        <img
-                          src={product.image}
-                          alt={product.title}
-                          style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                          }}
-                        />
+                  <motion.div key={`info-${product.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="info-card">
+                    <div className="info-meta" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(159,129,81,0.2)' }}>
+                      <div className="info-image" style={{ width: 48, height: 48 }}>
+                        <img src={product.image} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       </div>
                       <div>
-                        <h4 style={{
-                          fontFamily: 'Cormorant Garamond, serif',
-                          fontSize: '18px',
-                          color: '#0A4834',
-                          margin: 0,
-                        }}>
-                          {product.title}
-                        </h4>
-                        <p style={{
-                          fontFamily: 'Manrope, sans-serif',
-                          fontSize: '14px',
-                          color: '#9F8151',
-                          margin: '4px 0 0 0',
-                        }}>
-                          ID: {product.id}
-                        </p>
+                        <h4 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 18, color: '#0A4834', margin: 0 }}>{product.title}</h4>
+                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#9F8151', margin: '4px 0 0 0' }}>ID: {product.id}</p>
                       </div>
                     </div>
 
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                    }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
                       {product.apiData.description && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Description:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Description:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.description}</span>
                         </div>
                       )}
                       
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         {product.apiData.brand_id && (
                           <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Brand ID:</strong>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Brand ID:</strong>
                             <span style={{ color: '#0A4834' }}>{product.apiData.brand_id}</span>
                           </div>
                         )}
                         {product.apiData.category_id && (
                           <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Category ID:</strong>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Category ID:</strong>
                             <span style={{ color: '#0A4834' }}>{product.apiData.category_id}</span>
                           </div>
                         )}
@@ -928,14 +444,8 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
 
                       {product.apiData.approval_state && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Approval State:</strong>
-                          <span style={{
-                            color: '#0A4834',
-                            backgroundColor: product.apiData.approval_state === 'approved' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            display: 'inline-block',
-                          }}>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Approval State:</strong>
+                          <span style={{ color: '#0A4834', backgroundColor: product.apiData.approval_state === 'approved' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
                             {product.apiData.approval_state}
                           </span>
                         </div>
@@ -943,51 +453,38 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
 
                       {product.apiData.brand && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Brand:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Brand:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.brand.name}</span>
                         </div>
                       )}
 
                       {product.apiData.category && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Category:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Category:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.category.name}</span>
                         </div>
                       )}
 
                       {product.apiData.user && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Seller:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Seller:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.user.name || product.apiData.user.email}</span>
                         </div>
                       )}
 
                       {product.apiData.created_at && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Created:</strong>
-                          <span style={{ color: '#0A4834' }}>
-                            {new Date(product.apiData.created_at).toLocaleDateString()}
-                          </span>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Created:</strong>
+                          <span style={{ color: '#0A4834' }}>{new Date(product.apiData.created_at).toLocaleDateString()}</span>
                         </div>
                       )}
 
                       {product.apiData.images && product.apiData.images.length > 1 && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '8px' }}>All Images ({product.apiData.images.length}):</strong>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>All Images ({product.apiData.images.length}):</strong>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             {product.apiData.images.map((img: string, idx: number) => (
-                              <img
-                                key={idx}
-                                src={`http://127.0.0.1:8000/storage/${img}`}
-                                alt={`Image ${idx + 1}`}
-                                style={{
-                                  width: '60px',
-                                  height: '60px',
-                                  objectFit: 'cover',
-                                  borderRadius: '6px',
-                                  border: '1px solid rgba(159,129,81,0.2)',
-                                }}
-                              />
+                              <img key={idx} src={`http://127.0.0.1:8000/storage/${img}`} alt={`Image ${idx + 1}`} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(159,129,81,0.2)' }} />
                             ))}
                           </div>
                         </div>
@@ -1001,55 +498,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         </motion.div>
 
         {/* Bottom CTA Strip */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          style={{
-            marginTop: '120px',
-            padding: '80px 64px',
-            backgroundColor: '#F0ECE3',
-            borderRadius: '24px',
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="bottom-cta">
           {/* Texture overlay */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0.03,
-            backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+\')',
-          }} />
+          <div className="bottom-cta-texture" />
 
-          <p style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '32px',
-            fontStyle: 'italic',
-            color: '#0A4834',
-            margin: 0,
-            position: 'relative',
-            zIndex: 1,
-          }}>
-            "Not old. Not new. Just you."
-          </p>
+          <p className="bottom-cta-quote">"Not old. Not new. Just you."</p>
         </motion.div>
       </div>
-
-      <style>{`
-        .product-image-container:hover .product-overlay {
-          background-color: rgba(159,129,81,0.3) !important;
-        }
-
-        .product-image-container:hover .view-details-text {
-          opacity: 1 !important;
-          transform: translateY(0) !important;
-        }
-      `}</style>
 
       {/* Footer */}
       <FooterAlt onNewsletterClick={() => setNewsletterOpen(true)} />

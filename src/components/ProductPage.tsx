@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dial
 import { HeaderAlt } from './HeaderAlt';
 import { ContactSellerPopup } from './ContactSellerPopup';
 import { type Language, getTranslation } from '../translations';
+import './styles/ProductPage.css';
 
 interface ProductPageProps {
   onBack?: () => void;
@@ -97,60 +98,34 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   ];
 
   return (
-    <div style={{ backgroundColor: '#FFFFFF', minHeight: '100vh' }}>
+    <div className="product-root">
       {/* Header */}
       <HeaderAlt />
 
       {/* Product Gallery and Details */}
-      <div style={{ 
-        maxWidth: '1400px', 
-        margin: '0 auto', 
-        padding: '120px 64px 80px',
-      }}>
+      <div className="product-inner">
         {/* Back Button */}
         <motion.button
           onClick={handleBack}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '15px',
-            color: '#0A4834',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            marginBottom: '48px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.4s ease-in-out',
-          }}
+          className="back-btn"
           whileHover={{ x: -4 }}
         >
           <ChevronLeft size={20} />
           Back to Shop
         </motion.button>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1.2fr 0.8fr',
-          gap: '80px',
-        }}>
+        <div className="product-grid">
           {/* Left: Gallery */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="gallery-col"
           >
             {/* Main Image */}
-            <div 
-              style={{
-                position: 'relative',
-                marginBottom: '24px',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                boxShadow: '0px 4px 12px rgba(0,0,0,0.06)',
-              }}
+            <div className="gallery-main"
               onMouseEnter={() => setIsHoveringImage(true)}
               onMouseLeave={() => {
                 setIsHoveringImage(false);
@@ -165,71 +140,20 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
               >
-                <ImageWithFallback
-                  src={productImages[selectedImage]}
-                  alt="Product main view"
-                  style={{
-                    width: '100%',
-                    height: '700px',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
+                <ImageWithFallback src={productImages[selectedImage]} alt="Product main view" className="gallery-image" />
               </motion.div>
 
               {/* Previous Image Preview */}
               {selectedImage > 0 && isHoveringPrev && (
-                <motion.div
-                  initial={{ opacity: 0, x: -100 }}
-                  animate={{ opacity: 0.3, x: -670 }}
-                  transition={{ duration: 0.4, ease: 'easeOut' }}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <ImageWithFallback
-                    src={productImages[selectedImage - 1]}
-                    alt="Previous view"
-                    style={{
-                      width: '100%',
-                      height: '700px',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
+                <motion.div initial={{ opacity: 0, x: -100 }} animate={{ opacity: 0.3, x: -670 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="preview-wrap">
+                  <ImageWithFallback src={productImages[selectedImage - 1]} alt="Previous view" className="gallery-image" />
                 </motion.div>
               )}
 
               {/* Next Image Preview */}
               {selectedImage < productImages.length - 1 && isHoveringNext && (
-                <motion.div
-                  initial={{ opacity: 0, x: 100 }}
-                  animate={{ opacity: 0.3, x: 670 }}
-                  transition={{ duration: 0.4, ease: 'easeOut' }}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <ImageWithFallback
-                    src={productImages[selectedImage + 1]}
-                    alt="Next view"
-                    style={{
-                      width: '100%',
-                      height: '700px',
-                      objectFit: 'cover',
-                      display: 'block',
-                    }}
-                  />
+                <motion.div initial={{ opacity: 0, x: 100 }} animate={{ opacity: 0.3, x: 670 }} transition={{ duration: 0.4, ease: 'easeOut' }} className="preview-wrap">
+                  <ImageWithFallback src={productImages[selectedImage + 1]} alt="Next view" className="gallery-image" />
                 </motion.div>
               )}
 
@@ -244,24 +168,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   onMouseLeave={() => setIsHoveringPrev(false)}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
-                  style={{
-                    position: 'absolute',
-                    left: '24px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'rgba(0,0,0,0.4)',
-                    backdropFilter: 'blur(8px)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '56px',
-                    height: '56px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    zIndex: 10,
-                  }}
+                  className="nav-arrow left"
                 >
                   <ChevronLeft size={28} color="#FFFFFF" strokeWidth={2.5} />
                 </motion.button>
@@ -277,69 +184,20 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   onMouseLeave={() => setIsHoveringNext(false)}
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
-                  style={{
-                    position: 'absolute',
-                    right: '24px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'rgba(0,0,0,0.4)',
-                    backdropFilter: 'blur(8px)',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '56px',
-                    height: '56px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    zIndex: 10,
-                  }}
+                  className="nav-arrow right"
                 >
                   <ChevronRight size={28} color="#FFFFFF" strokeWidth={2.5} />
                 </motion.button>
               )}
 
               {/* Wishlist Button */}
-              <motion.button
-                onClick={() => setIsWishlisted(!isWishlisted)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                style={{
-                  position: 'absolute',
-                  top: '24px',
-                  right: '24px',
-                  background: 'rgba(255,255,255,0.9)',
-                  backdropFilter: 'blur(12px)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '48px',
-                  height: '48px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0px 2px 8px rgba(0,0,0,0.1)',
-                  transition: 'all 0.3s ease',
-                  zIndex: 10,
-                }}
-              >
-                <Heart
-                  size={22}
-                  fill={isWishlisted ? '#9F8151' : 'none'}
-                  stroke={isWishlisted ? '#9F8151' : '#0A4834'}
-                  strokeWidth={2}
-                />
+              <motion.button onClick={() => setIsWishlisted(!isWishlisted)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
+                <Heart size={22} fill={isWishlisted ? '#9F8151' : 'none'} stroke={isWishlisted ? '#9F8151' : '#0A4834'} strokeWidth={2} />
               </motion.button>
             </div>
 
             {/* Seller Info */}
-            <div style={{
-              backgroundColor: '#F0ECE3',
-              padding: '20px',
-              borderRadius: '12px',
-              marginTop: '48px',
-            }}>
+            <div className="seller-card">
               <div style={{
                 fontFamily: 'Cormorant Garamond, serif',
                 fontSize: '18px',
@@ -350,105 +208,28 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 Seller Info
               </div>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '12px',
-              }}>
-                <div style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: '50%',
-                  backgroundColor: '#9F8151',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontFamily: 'Cormorant Garamond, serif',
-                  fontSize: '18px',
-                  color: '#FFFFFF',
-                }}>
-                  EC
-                </div>
+              <div className="seller-row">
+                <div className="seller-avatar-large">EC</div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '15px',
-                    fontWeight: 500,
-                    color: '#000000',
-                    marginBottom: '3px',
-                  }}>
-                    Elena C.
+                  <div className="seller-name-large">Elena C.</div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                    {[1,2,3,4,5].map((star) => (<Star key={star} size={12} fill="#9F8151" stroke="#9F8151" />))}
+                    <span className="seller-stats">142 sales</span>
                   </div>
 
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    marginBottom: '3px',
-                  }}>
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <Star key={star} size={12} fill="#9F8151" stroke="#9F8151" />
-                    ))}
-                    <span style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '12px',
-                      color: '#666',
-                      marginLeft: '6px',
-                    }}>
-                      142 sales
-                    </span>
-                  </div>
-
-                  <div style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '12px',
-                    color: '#9F8151',
-                    fontWeight: 500,
-                  }}>
-                    ✓ Verified Closet
-                  </div>
+                  <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#9F8151', fontWeight: 500 }}>✓ Verified Closet</div>
                 </div>
 
-                <a
-                  href="#"
-                  style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: 500,
-                    color: '#9F8151',
-                    textDecoration: 'none',
-                  }}
-                >
-                  View Closet →
-                </a>
+                <a href="#" className="view-closet-link">View Closet →</a>
               </div>
 
               <motion.button
                 onClick={() => setIsContactOpen(true)}
                 whileHover={{ backgroundColor: '#083D2C', y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                style={{
-                  width: '100%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#FFFFFF',
-                  backgroundColor: '#0A4834',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '12px 20px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  transition: 'all 0.4s ease-in-out',
-                  boxShadow: '0px 2px 8px rgba(10,72,52,0.2)',
-                }}
+                className="contact-btn"
               >
                 <MessageCircle size={16} />
                 Contact Seller
@@ -1119,8 +900,6 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
         sellerName="Elena C."
-        sellerPhone="+1 (555) 123-4567"
-        productTitle="Vintage Gucci Marmont Shoulder Bag"
       />
     </div>
   );

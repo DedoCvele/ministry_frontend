@@ -8,6 +8,7 @@ import { NewsletterPopup } from './NewsletterPopup';
 import { HeaderAlt } from './HeaderAlt';
 import { ShareModal } from './ShareModal';
 import { type Language, getTranslation } from '../translations';
+import './styles/ClosetsPage.css';
 
 interface Closet {
   id: number;
@@ -134,63 +135,19 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
   const featuredCloset = closets[0];
 
   return (
-    <div style={{
-      backgroundColor: '#F0ECE3',
-      minHeight: '100vh',
-    }}>
+    <div className="closets-root">
       {/* Grain Texture */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        pointerEvents: 'none',
-        opacity: 0.02,
-        backgroundImage: `url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=')`,
-      }} />
+      <div className="closet-grain" />
 
       {/* Header */}
       <HeaderAlt />
 
       {/* Page Header */}
-      <div style={{
-        backgroundColor: '#F0ECE3',
-        borderBottom: '1px solid rgba(159,129,81,0.1)',
-        padding: '48px 24px 32px',
-      }}>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            textAlign: 'center',
-          }}
-        >
-          <h1 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '48px',
-            fontWeight: 600,
-            color: '#0A4834',
-            margin: '0 0 12px 0',
-          }}>
-            Discover Closets
-          </h1>
-          <p style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '18px',
-            color: '#9F8151',
-            margin: '0 0 24px 0',
-          }}>
-            Explore unique wardrobes curated by our community.
-          </p>
-          <div style={{
-            width: '80px',
-            height: '2px',
-            backgroundColor: 'rgba(159,129,81,0.3)',
-            margin: '0 auto',
-          }} />
+      <div className="closets-page-header">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="closets-header-inner">
+          <h1 className="closets-h1">Discover Closets</h1>
+          <p className="closets-sub">Explore unique wardrobes curated by our community.</p>
+          <div className="closets-hr" />
         </motion.div>
       </div>
 
@@ -201,37 +158,14 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         padding: '48px 24px 120px',
       }}>
         {/* Filter Pills */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '12px',
-            marginBottom: '64px',
-            flexWrap: 'wrap',
-          }}
-        >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="closets-filters">
           {filters.map((filter) => (
             <motion.button
               key={filter}
               onClick={() => setActiveFilter(filter)}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: activeFilter === filter ? '#FFFFFF' : '#0A4834',
-                backgroundColor: activeFilter === filter ? '#9F8151' : '#F0ECE3',
-                border: '1px solid #DCD6C9',
-                borderRadius: '24px',
-                padding: '10px 24px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: activeFilter === filter ? '0px 4px 12px rgba(159,129,81,0.2)' : 'none',
-              }}
+              className={`closets-filter-btn ${activeFilter === filter ? 'active' : ''}`}
             >
               {filter}
             </motion.button>
@@ -239,12 +173,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         </motion.div>
 
         {/* Closet Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '32px',
-          marginBottom: '48px',
-        }}>
+        <div style={{ marginBottom: '48px' }}>
           {filteredClosets.map((closet, index) => (
             <motion.div
               key={closet.id}
@@ -253,243 +182,39 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
               transition={{ duration: 0.5, delay: index * 0.1 }}
             >
               {/* Closet Card */}
-              <div
-                className="closet-card"
-                style={{
-                  position: 'relative',
-                  borderRadius: '20px',
-                  overflow: 'hidden',
-                  cursor: 'pointer',
-                  backgroundColor: '#FFFFFF',
-                  boxShadow: '0px 8px 24px rgba(0,0,0,0.06)',
-                  transition: 'all 0.3s ease',
-                }}
-              >
+              <div className="closet-card">
                 {/* Cover Image */}
-                <div
-                  onClick={() => handleClosetClick(closet.id)}
-                  style={{
-                    width: '100%',
-                    aspectRatio: '1/1',
-                    position: 'relative',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ duration: 0.5 }}
-                    style={{ width: '100%', height: '100%' }}
-                  >
-                    <ImageWithFallback
-                      src={closet.coverImage}
-                      alt={closet.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                      }}
-                    />
+                <div onClick={() => handleClosetClick(closet.id)} className="closet-cover">
+                  <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.5 }} style={{ width: '100%', height: '100%' }}>
+                    <ImageWithFallback src={closet.coverImage} alt={closet.name} className="closet-cover-img" />
                   </motion.div>
 
                   {/* Bottom Gradient Overlay */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: '60%',
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-                  }} />
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'60%', background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)' }} />
 
-                  {/* Profile Info Overlay */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '24px',
-                    left: '24px',
-                    right: '24px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}>
-                    {/* Profile Photo */}
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      backgroundColor: '#9F8151',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontFamily: 'Cormorant Garamond, serif',
-                      fontSize: '24px',
-                      fontWeight: 600,
-                      color: '#FFFFFF',
-                      boxShadow: '0px 4px 12px rgba(0,0,0,0.2)',
-                      flexShrink: 0,
-                    }}>
-                      {closet.profilePhoto}
-                    </div>
-
-                    {/* Name & Username */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <h3 style={{
-                        fontFamily: 'Cormorant Garamond, serif',
-                        fontSize: '20px',
-                        fontWeight: 600,
-                        color: '#FFFFFF',
-                        margin: '0 0 4px 0',
-                        textShadow: '0px 2px 8px rgba(0,0,0,0.3)',
-                      }}>
-                        {closet.name}
-                      </h3>
-                      <p style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        color: 'rgba(255,255,255,0.9)',
-                        margin: 0,
-                        textShadow: '0px 2px 8px rgba(0,0,0,0.3)',
-                      }}>
-                        @{closet.username}
-                      </p>
+                  <div className="closet-cover-overlay">
+                    <div className="closet-profile-bubble">{closet.profilePhoto}</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <h3 className="closet-featured-quote" style={{ margin:'0 0 4px 0', textShadow: '0px 2px 8px rgba(0,0,0,0.3)', color:'#fff' }}>{closet.name}</h3>
+                      <p style={{ margin:0, color:'rgba(255,255,255,0.9)', textShadow:'0px 2px 8px rgba(0,0,0,0.3)' }}>@{closet.username}</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Card Content */}
-                <div style={{ padding: '24px' }}>
-                  {/* Tagline */}
-                  <p style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '14px',
-                    color: 'rgba(0,0,0,0.7)',
-                    lineHeight: '1.6',
-                    margin: '0 0 20px 0',
-                  }}>
-                    {closet.tagline}
-                  </p>
-
-                  {/* Stats Row */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '24px',
-                    marginBottom: '20px',
-                    paddingBottom: '20px',
-                    borderBottom: '1px solid #F0ECE3',
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}>
-                      <Package size={16} color="#9F8151" />
-                      <span style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                      }}>
-                        {closet.pieces} Pieces
-                      </span>
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                    }}>
-                      <Users size={16} color="#9F8151" />
-                      <span style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                      }}>
-                        {closet.followers} Followers
-                      </span>
-                    </div>
+                <div className="closet-card-content">
+                  <p className="closet-tagline">{closet.tagline}</p>
+                  <div className="closet-stats-row">
+                    <div className="closet-stat"><Package size={16} color="#9F8151" /><span>{closet.pieces} Pieces</span></div>
+                    <div className="closet-stat"><Users size={16} color="#9F8151" /><span>{closet.followers} Followers</span></div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div style={{
-                    display: 'flex',
-                    gap: '12px',
-                  }}>
-                    <motion.button
-                      onClick={() => handleClosetClick(closet.id)}
-                      whileHover={{ backgroundColor: '#083D2C' }}
-                      whileTap={{ scale: 0.98 }}
-                      style={{
-                        flex: 1,
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#FFFFFF',
-                        backgroundColor: '#0A4834',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '12px 20px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      View Closet <ArrowRight size={16} />
+                  <div className="closet-actions" style={{ display:'flex', gap:'12px' }}>
+                    <motion.button onClick={() => handleClosetClick(closet.id)} whileHover={{ backgroundColor: '#0A4834' }} whileTap={{ scale:0.98 }} className="closet-action-primary">View Closet <ArrowRight size={16} /></motion.button>
+                    <motion.button onClick={(e)=>{e.stopPropagation(); toggleFollow(closet.id);}} whileHover={{ borderColor: '#0A4834' }} whileTap={{ scale:0.98 }} className="closet-action-follow" style={{ border: following.includes(closet.id) ? '1px solid #0A4834' : '1px solid #9F8151', background: following.includes(closet.id) ? '#0A4834' : 'transparent', color: following.includes(closet.id) ? '#fff' : '#9F8151' }}>
+                      <Heart size={16} fill={following.includes(closet.id) ? '#FFFFFF' : 'none'} />{following.includes(closet.id) ? 'Following' : 'Follow'}
                     </motion.button>
-
-                    <motion.button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFollow(closet.id);
-                      }}
-                      whileHover={{ borderColor: '#0A4834' }}
-                      whileTap={{ scale: 0.98 }}
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: following.includes(closet.id) ? '#FFFFFF' : '#9F8151',
-                        backgroundColor: following.includes(closet.id) ? '#0A4834' : 'transparent',
-                        border: `1px solid ${following.includes(closet.id) ? '#0A4834' : '#9F8151'}`,
-                        borderRadius: '12px',
-                        padding: '12px 20px',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      <Heart
-                        size={16}
-                        fill={following.includes(closet.id) ? '#FFFFFF' : 'none'}
-                      />
-                      {following.includes(closet.id) ? 'Following' : 'Follow'}
-                    </motion.button>
-
-                    <motion.button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleShareCloset(closet);
-                      }}
-                      whileHover={{ borderColor: '#9F8151', color: '#9F8151' }}
-                      whileTap={{ scale: 0.98 }}
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        borderRadius: '12px',
-                        backgroundColor: 'transparent',
-                        border: '1px solid #DCD6C9',
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Share2 size={16} color="#0A4834" />
-                    </motion.button>
+                    <motion.button onClick={(e)=>{e.stopPropagation(); handleShareCloset(closet);}} whileHover={{ borderColor:'#9F8151', color:'#9F8151'}} whileTap={{scale:0.98}} className="closet-action-share"><Share2 size={16} color="#0A4834" /></motion.button>
                   </div>
                 </div>
               </div>

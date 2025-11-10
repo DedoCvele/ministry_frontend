@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { type Language, getTranslation } from '../translations';
+import './styles/HeaderAlt.css';
 
 interface HeaderAltProps {
   onAccountClick?: () => void;
@@ -126,11 +127,7 @@ export function HeaderAlt({
       
       <>
         <header 
-          className={`fixed top-0 left-0 right-0 z-50 header-blur-alt collapsible-header ${!isVisible ? 'hidden' : ''}`}
-          style={{ 
-            backgroundColor: 'rgba(255, 255, 255, 0.70)', 
-            boxShadow: '0px 1px 3px rgba(0,0,0,0.03)'
-          }}
+          className={`header-root header-blur-alt collapsible-header ${!isVisible ? 'hidden' : ''}`}
         >
           <div className="container mx-auto px-8" style={{ height: '80px' }}>
             <nav className="flex items-center justify-between h-full relative z-10">
@@ -138,7 +135,7 @@ export function HeaderAlt({
               <div className="flex items-center">
                 <Link 
                   to="/"
-                  style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '22px', fontWeight: 600, color: '#0A4834', letterSpacing: '-0.3px', textDecoration: 'none' }}
+                  className="header-logo"
                 >
                   MINISTRY
                 </Link>
@@ -151,14 +148,6 @@ export function HeaderAlt({
                     <Link
                       to="/shop"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                      }}
                     >
                       {t.nav.shop}
                     </Link>
@@ -167,14 +156,6 @@ export function HeaderAlt({
                     <Link
                       to="/closets"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                      }}
                     >
                       {t.nav.closets}
                     </Link>
@@ -183,14 +164,6 @@ export function HeaderAlt({
                     <Link
                       to="/blog"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                      }}
                     >
                       {t.nav.journal}
                     </Link>
@@ -198,15 +171,7 @@ export function HeaderAlt({
                   <li>
                     <Link
                       to="/become-seller"
-                      className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#0A4834',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                      }}
+                      className="nav-link-alt-becomeseller"
                     >
                       {t.nav.becomeSeller}
                     </Link>
@@ -220,13 +185,6 @@ export function HeaderAlt({
                 <button
                   onClick={handleAccountClick}
                   className="account-icon-button"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#0A4834',
-                    padding: '8px',
-                  }}
                   aria-label="Account"
                 >
                   <User size={22} strokeWidth={1.5} />
@@ -236,7 +194,7 @@ export function HeaderAlt({
           </div>
         </header>
         {/* Spacer to prevent content overlap */}
-        <div style={{ height: '80px' }} />
+        <div className="header-spacer" />
       </>
     </>
   );

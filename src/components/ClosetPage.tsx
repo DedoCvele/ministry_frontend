@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { MoreVertical, ArrowLeft, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import './styles/ClosetPage.css';
 
 interface ClosetItem {
   id: string;
@@ -180,29 +181,16 @@ export default function ClosetPage({
   };
 
   return (
-    <div className="min-h-screen bg-[#F0ECE3]">
+    <div className="closet-page-root">
       {/* Main scroll container */}
       <div 
         ref={scrollContainerRef}
-        className="h-screen overflow-y-auto"
+        className="scroll-container"
       >
         {/* Header - Simplified for smooth transitions */}
-        <header
-          className="sticky top-0 z-40 bg-[#F0ECE3]"
-          style={{
-            boxShadow: headerCollapsed ? '0 2px 12px rgba(0,0,0,0.06)' : 'none',
-            transition: 'box-shadow 0.2s ease',
-          }}
-        >
+        <header className={`sticky top-0 z-40 closet-header ${headerCollapsed ? 'closet-header-shadow' : ''}`}>
           {/* Collapsed Header State */}
-          <div 
-            style={{
-              height: headerCollapsed ? '64px' : '0',
-              opacity: headerCollapsed ? 1 : 0,
-              overflow: 'hidden',
-              transition: 'height 0.2s ease, opacity 0.2s ease',
-            }}
-          >
+          <div className={headerCollapsed ? 'closet-header-collapsed' : 'closet-header-collapsed hidden'}>
             <div className="h-16 px-6 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <ImageWithFallback
@@ -211,8 +199,7 @@ export default function ClosetPage({
                   className="w-10 h-10 rounded-full object-cover"
                 />
                 <span
-                  style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                  className="text-[#0A4834]"
+                  className="closet-font-cormorant text-[#0A4834]"
                 >
                   {userProfile.name}
                 </span>
@@ -225,22 +212,14 @@ export default function ClosetPage({
               </button>
             </div>
           </div>
-
           {/* Expanded Header State */}
-          <div 
-            style={{
-              opacity: headerCollapsed ? 0 : 1,
-              maxHeight: headerCollapsed ? '0' : '1000px',
-              overflow: headerCollapsed ? 'hidden' : 'visible',
-              transition: 'opacity 0.2s ease, max-height 0.2s ease',
-            }}
-          >
+          <div className={headerCollapsed ? 'closet-header-expanded hidden' : 'closet-header-expanded'}>
             <div className="px-6 pt-8 pb-6">
               {/* Back Button */}
               <button
                 onClick={handleBack}
                 className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors inline-flex items-center gap-2 text-[#0A4834]"
-                style={{ fontFamily: 'Manrope, sans-serif' }}
+                aria-label="Back"
               >
                 <ArrowLeft className="w-5 h-5" />
                 Back
@@ -272,8 +251,7 @@ export default function ClosetPage({
                   {/* Name + Menu */}
                   <div className="flex items-center justify-between mb-3">
                     <h1
-                      style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                      className="text-[#0A4834] text-[26px] leading-tight"
+                      className="closet-font-cormorant closet-name"
                     >
                       {userProfile.name}
                     </h1>
@@ -294,8 +272,7 @@ export default function ClosetPage({
                               e.stopPropagation();
                               setShowMenu(false);
                             }}
-                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-sm"
-                            style={{ fontFamily: 'Manrope, sans-serif' }}
+                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-sm closet-action-font"
                           >
                             Share Closet
                           </button>
@@ -304,8 +281,7 @@ export default function ClosetPage({
                               e.stopPropagation();
                               setShowMenu(false);
                             }}
-                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-[#d4183d] text-sm"
-                            style={{ fontFamily: 'Manrope, sans-serif' }}
+                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-[#d4183d] text-sm closet-action-font"
                           >
                             Report
                           </button>
@@ -317,8 +293,7 @@ export default function ClosetPage({
                   {/* Stats - Inline like Instagram */}
                   <div className="mb-3">
                     <p
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#0A4834] text-[14px]"
+                      className="closet-font-manrope closet-stats"
                     >
                       <span className="font-semibold">{userProfile.itemsCount}</span> items
                       <span className="mx-1 text-[#9F8151]">•</span>
@@ -331,14 +306,12 @@ export default function ClosetPage({
                   {/* Location + Bio */}
                   <div className="mb-4">
                     <p
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#9F8151] text-[13px] mb-1"
+                      className="closet-font-manrope closet-location"
                     >
                       📍 {userProfile.location}
                     </p>
                     <p
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#0A4834] text-[14px] leading-relaxed"
+                      className="closet-font-manrope closet-bio"
                     >
                       {userProfile.bio}
                     </p>
@@ -353,7 +326,8 @@ export default function ClosetPage({
                           ? 'bg-white text-[#9F8151] border-2 border-[#9F8151] hover:bg-[#9F8151]/5'
                           : 'bg-[#9F8151] text-white hover:bg-[#9F8151]/90'
                       }`}
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
+                      // keep font via CSS class
+                      style={undefined as any}
                     >
                       {isFollowing ? (
                         <>
@@ -368,7 +342,7 @@ export default function ClosetPage({
                       onClick={onContactSeller}
                       variant="outline"
                       className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5"
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
+                      style={undefined as any}
                     >
                       Contact Seller
                     </Button>
@@ -392,8 +366,7 @@ export default function ClosetPage({
                 selectedFilter === category
                   ? 'bg-[#9F8151] text-white'
                   : 'bg-white text-[#9F8151] border border-[#9F8151]'
-              }`}
-              style={{ fontFamily: 'Manrope, sans-serif' }}
+              } closet-filter-btn`}
             >
               {category}
             </button>
@@ -422,30 +395,15 @@ export default function ClosetPage({
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                   />
                   {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-[#0A4834]/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <span
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#9F8151]"
-                    >
-                      View Item →
-                    </span>
+                  <div className="absolute inset-0 view-item-overlay">
+                    <span className="view-item-text">View Item →</span>
                   </div>
                 </div>
 
                 {/* Caption */}
                 <div className="p-4">
-                  <h3
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
-                    className="text-[#0A4834] mb-1"
-                  >
-                    {item.title}
-                  </h3>
-                  <p
-                    style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                    className="text-[#9F8151]"
-                  >
-                    {item.price}
-                  </p>
+                  <h3 className="item-title">{item.title}</h3>
+                  <p className="item-price">{item.price}</p>
                 </div>
               </button>
             ))}
@@ -453,12 +411,7 @@ export default function ClosetPage({
 
           {/* Curated By Section */}
           <div className="mt-12 text-center">
-            <p
-              style={{ fontFamily: 'Cormorant Garamond, serif', fontStyle: 'italic' }}
-              className="text-[#9F8151] text-[18px]"
-            >
-              Curated by {userProfile.username} — a collection of timeless vintage finds.
-            </p>
+            <p className="curated-by">Curated by {userProfile.username} — a collection of timeless vintage finds.</p>
           </div>
         </div>
       </div>

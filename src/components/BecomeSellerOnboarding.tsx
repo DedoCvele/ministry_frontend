@@ -7,6 +7,7 @@ import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { type Language, getTranslation } from '../translations';
+import './styles/BecomeSellerOnboarding.css';
 
 interface BecomeSellerOnboardingProps {
   onClose: () => void;
@@ -82,15 +83,13 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
           <div className="flex items-center justify-between">
             <button
               onClick={onClose}
-              className="flex items-center gap-2 text-[#9F8151] hover:text-[#0A4834] transition-colors"
-              style={{ fontFamily: 'Manrope, sans-serif' }}
+              className="flex items-center gap-2 text-[#9F8151] hover:text-[#0A4834] transition-colors bs-manrope"
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Back to Home</span>
             </button>
             <div
-              style={{ fontFamily: 'Cormorant Garamond, serif' }}
-              className="text-[#0A4834] text-[20px]"
+              className="text-[#0A4834] text-[20px] bs-cormorant"
             >
               Seller Onboarding
             </div>
@@ -104,16 +103,10 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
           <div className="bg-white rounded-[24px] p-12 shadow-[0_6px_24px_rgba(0,0,0,0.06)] border-2 border-[#9F8151]/30">
             <div className="text-center mb-8">
               <Sparkles className="w-12 h-12 text-[#9F8151] mx-auto mb-4" />
-              <h1
-                style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                className="text-[#0A4834] text-[36px] mb-4"
-              >
+              <h1 className="text-[#0A4834] text-[36px] mb-4 bs-cormorant">
                 Become a Ministry Seller
               </h1>
-              <p
-                style={{ fontFamily: 'Manrope, sans-serif' }}
-                className="text-[#9F8151] text-[16px] max-w-lg mx-auto"
-              >
+              <p className="text-[#9F8151] text-[16px] max-w-lg mx-auto bs-manrope">
                 Join our circle of curated closets. Sell your pre-loved pieces effortlessly.
               </p>
             </div>
@@ -129,10 +122,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                   <div className="w-6 h-6 rounded-full bg-[#9F8151]/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                     <Check className="w-4 h-4 text-[#9F8151]" />
                   </div>
-                  <p
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
-                    className="text-[#0A4834] text-[15px]"
-                  >
+                  <p className="text-[#0A4834] text-[15px] bs-manrope">
                     {item}
                   </p>
                 </div>
@@ -142,8 +132,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
             <div className="text-center">
               <Button
                 onClick={handleContinueToInfo}
-                className="bg-[#9F8151] text-white hover:bg-[#9F8151]/90 rounded-xl px-10 py-6"
-                style={{ fontFamily: 'Manrope, sans-serif' }}
+                className="bg-[#9F8151] text-white hover:bg-[#9F8151]/90 rounded-xl px-10 py-6 bs-manrope"
               >
                 Start Application
               </Button>
@@ -153,16 +142,13 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
 
         {(step === 'info' || step === 'payment' || step === 'processing' || step === 'success') && (
           <div id="info-section" className="bg-white rounded-[24px] p-10 shadow-[0_6px_24px_rgba(0,0,0,0.06)] border-2 border-[#9F8151]/30 mb-8">
-            <h2
-              style={{ fontFamily: 'Cormorant Garamond, serif' }}
-              className="text-[#0A4834] text-[28px] mb-6"
-            >
+            <h2 className="text-[#0A4834] text-[28px] mb-6 bs-cormorant">
               Personal Information
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                <Label className="text-[#0A4834] mb-2 bs-manrope">
                   Full Name
                 </Label>
                 <Input
@@ -175,7 +161,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
               </div>
 
               <div>
-                <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                <Label className="text-[#0A4834] mb-2 bs-manrope">
                   Email Address
                 </Label>
                 <Input
@@ -189,7 +175,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
               </div>
 
               <div>
-                <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                <Label className="text-[#0A4834] mb-2 bs-manrope">
                   Phone Number
                 </Label>
                 <Input
@@ -203,7 +189,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
               </div>
 
               <div>
-                <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                <Label className="text-[#0A4834] mb-2 bs-manrope">
                   Location
                 </Label>
                 <div className="flex gap-2">
@@ -216,7 +202,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                   />
                   <Select
                     value={formData.country}
-                    onValueChange={(value) => setFormData({ ...formData, country: value })}
+                    onValueChange={(value: string) => setFormData({ ...formData, country: value })}
                     disabled={step !== 'info'}
                   >
                     <SelectTrigger className="bg-[#F0ECE3] border-none rounded-xl w-32">
@@ -235,7 +221,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
             </div>
 
             <div className="mt-6">
-              <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+              <Label className="text-[#0A4834] mb-2 bs-manrope">
                 Short Bio
               </Label>
               <Textarea
@@ -248,7 +234,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
             </div>
 
             <div className="mt-6">
-              <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+              <Label className="text-[#0A4834] mb-2 bs-manrope">
                 Social Link (Optional)
               </Label>
               <Input
@@ -266,15 +252,12 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={formData.termsAccepted}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked: boolean | 'indeterminate' | undefined) => 
                         setFormData({ ...formData, termsAccepted: checked as boolean })
                       }
                       className="mt-1"
                     />
-                    <label
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#0A4834] text-[14px]"
-                    >
+                    <label className="text-[#0A4834] text-[14px] bs-manrope">
                       I agree to Ministry's Seller Terms and Privacy Policy
                     </label>
                   </div>
@@ -282,15 +265,12 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={formData.ageConfirmed}
-                      onCheckedChange={(checked) => 
+                      onCheckedChange={(checked: boolean | 'indeterminate' | undefined) => 
                         setFormData({ ...formData, ageConfirmed: checked as boolean })
                       }
                       className="mt-1"
                     />
-                    <label
-                      style={{ fontFamily: 'Manrope, sans-serif' }}
-                      className="text-[#0A4834] text-[14px]"
-                    >
+                    <label className="text-[#0A4834] text-[14px] bs-manrope">
                       I confirm I am over 18 years old
                     </label>
                   </div>
@@ -299,8 +279,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                 <div className="mt-8">
                   <Button
                     onClick={handleContinueToPayment}
-                    className="w-full bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl py-6"
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
+                    className="w-full bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl py-6 bs-manrope"
                   >
                     Continue → Subscription Setup
                   </Button>
@@ -312,17 +291,11 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
 
         {(step === 'payment' || step === 'processing' || step === 'success') && (
           <div id="payment-section" className="bg-white rounded-[24px] p-10 shadow-[0_6px_24px_rgba(0,0,0,0.06)] border-2 border-[#9F8151]/30">
-            <h2
-              style={{ fontFamily: 'Cormorant Garamond, serif' }}
-              className="text-[#0A4834] text-[28px] mb-4"
-            >
+            <h2 className="text-[#0A4834] text-[28px] mb-4 bs-cormorant">
               Activate Your Seller Profile
             </h2>
             
-            <p
-              style={{ fontFamily: 'Manrope, sans-serif' }}
-              className="text-[#0A4834] text-[15px] mb-8 leading-relaxed"
-            >
+            <p className="text-[#0A4834] text-[15px] mb-8 leading-relaxed bs-manrope">
               To complete your onboarding, a one-time subscription fee of <span className="font-semibold">€2.00 EUR</span> is required. 
               This supports listing verification and community maintenance.
             </p>
@@ -330,7 +303,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
             {step === 'payment' && (
               <>
                 <div className="mb-6">
-                  <Label className="text-[#0A4834] mb-3" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                  <Label className="text-[#0A4834] mb-3 bs-manrope">
                     Payment Method
                   </Label>
                   <div className="space-y-3">
@@ -342,7 +315,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                         onChange={() => setFormData({ ...formData, paymentMethod: 'card' })}
                         className="w-4 h-4 text-[#9F8151]"
                       />
-                      <label style={{ fontFamily: 'Manrope, sans-serif' }} className="text-[#0A4834]">
+                      <label className="text-[#0A4834] bs-manrope">
                         Credit/Debit Card
                       </label>
                     </div>
@@ -354,7 +327,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                         onChange={() => setFormData({ ...formData, paymentMethod: 'paypal' })}
                         className="w-4 h-4 text-[#9F8151]"
                       />
-                      <label style={{ fontFamily: 'Manrope, sans-serif' }} className="text-[#0A4834]">
+                      <label className="text-[#0A4834] bs-manrope">
                         PayPal
                       </label>
                     </div>
@@ -364,7 +337,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                 {formData.paymentMethod === 'card' && (
                   <div className="space-y-4 mb-6">
                     <div>
-                      <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                      <Label className="text-[#0A4834] mb-2 bs-manrope">
                         Cardholder Name
                       </Label>
                       <Input
@@ -376,7 +349,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                     </div>
 
                     <div>
-                      <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                      <Label className="text-[#0A4834] mb-2 bs-manrope">
                         Card Number
                       </Label>
                       <Input
@@ -389,7 +362,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
 
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                        <Label className="text-[#0A4834] mb-2 bs-manrope">
                           Expiry Date
                         </Label>
                         <Input
@@ -400,7 +373,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                         />
                       </div>
                       <div>
-                        <Label className="text-[#0A4834] mb-2" style={{ fontFamily: 'Manrope, sans-serif' }}>
+                        <Label className="text-[#0A4834] mb-2 bs-manrope">
                           CVV
                         </Label>
                         <Input
@@ -416,15 +389,12 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                     <div className="flex items-start gap-3 mt-4">
                       <Checkbox
                         checked={formData.savePayment}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked: boolean | 'indeterminate' | undefined) => 
                           setFormData({ ...formData, savePayment: checked as boolean })
                         }
                         className="mt-1"
                       />
-                      <label
-                        style={{ fontFamily: 'Manrope, sans-serif' }}
-                        className="text-[#0A4834] text-[14px]"
-                      >
+                      <label className="text-[#0A4834] text-[14px] bs-manrope">
                         Save payment info for renewal
                       </label>
                     </div>
@@ -433,37 +403,23 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
 
                 <div className="bg-[#F0ECE3] rounded-xl p-6 mb-6">
                   <div className="flex justify-between items-center mb-2">
-                    <span style={{ fontFamily: 'Manrope, sans-serif' }} className="text-[#0A4834]">
-                      Subscription Fee
-                    </span>
-                    <span
-                      style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                      className="text-[#9F8151] text-[20px]"
-                    >
-                      €2.00 EUR
-                    </span>
+                    <span className="text-[#0A4834] bs-manrope">Subscription Fee</span>
+                    <span className="text-[#9F8151] text-[20px] bs-cormorant">€2.00 EUR</span>
                   </div>
-                  <p
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
-                    className="text-[#9F8151] text-[13px]"
-                  >
-                    Renews manually every 12 months
-                  </p>
+                  <p className="text-[#9F8151] text-[13px] bs-manrope">Renews manually every 12 months</p>
                 </div>
 
                 <div className="flex gap-3">
                   <Button
                     onClick={handlePayment}
-                    className="flex-1 bg-[#9F8151] text-white hover:bg-[#9F8151]/90 rounded-xl py-6"
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
+                    className="flex-1 bg-[#9F8151] text-white hover:bg-[#9F8151]/90 rounded-xl py-6 bs-manrope"
                   >
                     Pay & Subscribe
                   </Button>
                   <Button
                     onClick={onClose}
                     variant="outline"
-                    className="border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 rounded-xl px-8"
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
+                    className="border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 rounded-xl px-8 bs-manrope"
                   >
                     Cancel
                   </Button>
@@ -474,10 +430,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
             {step === 'processing' && (
               <div className="py-12 text-center">
                 <div className="w-16 h-16 border-4 border-[#9F8151]/30 border-t-[#9F8151] rounded-full animate-spin mx-auto mb-6"></div>
-                <p
-                  style={{ fontFamily: 'Manrope, sans-serif' }}
-                  className="text-[#9F8151] text-[16px]"
-                >
+                <p className="text-[#9F8151] text-[16px] bs-manrope">
                   Processing your subscription…
                 </p>
               </div>
@@ -488,32 +441,24 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
                 <div className="w-16 h-16 rounded-full bg-[#9F8151]/10 flex items-center justify-center mx-auto mb-6">
                   <Check className="w-8 h-8 text-[#9F8151]" />
                 </div>
-                <h3
-                  style={{ fontFamily: 'Cormorant Garamond, serif' }}
-                  className="text-[#0A4834] text-[28px] mb-4"
-                >
+                <h3 className="text-[#0A4834] text-[28px] mb-4 bs-cormorant">
                   Welcome to the Ministry Seller Circle ✨
                 </h3>
-                <p
-                  style={{ fontFamily: 'Manrope, sans-serif' }}
-                  className="text-[#9F8151] text-[15px] mb-8 max-w-md mx-auto"
-                >
+                <p className="text-[#9F8151] text-[15px] mb-8 max-w-md mx-auto bs-manrope">
                   Your subscription is confirmed. You can now upload items to your closet.
                 </p>
 
                 <div className="flex gap-3 justify-center">
                   <Button
                     onClick={onSuccess}
-                    className="bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl px-8 py-6"
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
+                    className="bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl px-8 py-6 bs-manrope"
                   >
                     Go to My Closet →
                   </Button>
                   <Button
                     onClick={onClose}
                     variant="outline"
-                    className="border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 rounded-xl px-8"
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
+                    className="border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 rounded-xl px-8 bs-manrope"
                   >
                     Return Home
                   </Button>

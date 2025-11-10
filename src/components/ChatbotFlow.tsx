@@ -1,6 +1,7 @@
 import { MessageCircle, Package, Truck, ArrowLeftRight, Upload as UploadIcon, User, Phone, X } from 'lucide-react';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
+import './styles/ChatbotFlow.css';
 
 interface ChatbotFlowProps {
   onClose?: () => void;
@@ -18,74 +19,31 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
   ];
 
   return (
-    <div style={{ backgroundColor: '#F0ECE3', minHeight: '100vh' }}>
+    <div className="chatbot-flow-root">
       <HeaderAlt />
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 40px 80px' }}>
+      <div className="chatbot-flow-content">
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <h1
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '48px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '16px',
-              marginTop: 0,
-            }}
-          >
+        <div className="chatbot-header">
+          <h1 className="bs-cormorant chatbot-title">
             Chatbot Flow Visualization
           </h1>
-          <p
-            style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '16px',
-              color: '#000000',
-              opacity: 0.7,
-              marginTop: 0,
-            }}
-          >
+          <p className="chatbot-subtitle">
             FAQ Assistant + Talk to Human Support
           </p>
         </div>
 
         {/* Intent Categories */}
-        <section style={{ marginBottom: '60px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '32px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '32px',
-              marginTop: 0,
-            }}
-          >
+        <section className="intents-section">
+          <h2 className="bs-cormorant intents-section-title">
             Support Intents
           </h2>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '20px',
-            }}
-          >
+          <div className="intents-grid">
             {intents.map((intent, index) => (
               <div
                 key={index}
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  padding: '24px',
-                  borderRadius: '16px',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '12px',
-                  transition: 'transform 0.3s ease',
-                  cursor: 'pointer',
-                }}
+                className="intent-card"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-4px)';
                 }}
@@ -94,25 +52,14 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
                 }}
               >
                 <div
+                  className="intent-icon-box"
                   style={{
-                    width: '48px',
-                    height: '48px',
-                    borderRadius: '12px',
                     backgroundColor: `${intent.color}15`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                   }}
                 >
                   <intent.icon size={24} color={intent.color} />
                 </div>
-                <span
-                  style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '14px',
-                    color: '#0A4834',
-                  }}
-                >
+                <span className="bs-manrope intent-label">
                   {intent.label}
                 </span>
               </div>
@@ -121,122 +68,42 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
         </section>
 
         {/* Example Flow */}
-        <section style={{ marginBottom: '60px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '32px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '32px',
-              marginTop: 0,
-            }}
-          >
+        <section className="flow-section">
+          <h2 className="bs-cormorant flow-section-title">
             Example Conversation Flow
           </h2>
 
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              padding: '40px',
-              borderRadius: '16px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-            }}
-          >
+          <div className="flow-container">
             {/* User Question */}
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <div
-                style={{
-                  backgroundColor: '#0A4834',
-                  color: '#FFFFFF',
-                  padding: '16px 20px',
-                  borderRadius: '16px 16px 4px 16px',
-                  maxWidth: '70%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="message-row message-row-user">
+              <div className="message-bubble message-bubble-user">
                 Where is my order?
               </div>
             </div>
 
             {/* Bot Response */}
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-start' }}>
-              <div
-                style={{
-                  backgroundColor: '#F0ECE3',
-                  color: '#000000',
-                  padding: '16px 20px',
-                  borderRadius: '16px 16px 16px 4px',
-                  maxWidth: '70%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="message-row message-row-bot">
+              <div className="message-bubble message-bubble-bot">
                 I can help you track your order! Please provide your order number, or I can look up recent orders for you.
               </div>
             </div>
 
             {/* User Question 2 */}
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-              <div
-                style={{
-                  backgroundColor: '#0A4834',
-                  color: '#FFFFFF',
-                  padding: '16px 20px',
-                  borderRadius: '16px 16px 4px 16px',
-                  maxWidth: '70%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="message-row message-row-user">
+              <div className="message-bubble message-bubble-user">
                 Can you help me contact the seller?
               </div>
             </div>
 
             {/* Bot Fallback */}
-            <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'flex-start' }}>
-              <div
-                style={{
-                  backgroundColor: '#F0ECE3',
-                  color: '#000000',
-                  padding: '16px 20px',
-                  borderRadius: '16px 16px 16px 4px',
-                  maxWidth: '70%',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                }}
-              >
+            <div className="message-row message-row-bot">
+              <div className="message-bubble message-bubble-bot">
                 For seller-specific questions, you can contact them directly through their profile. Would you like to speak with a human support agent instead?
-                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                  <button
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#9F8151',
-                      color: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                    }}
-                  >
+                <div className="message-actions">
+                  <button className="message-action-btn message-action-btn-primary">
                     Talk to Human
                   </button>
-                  <button
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: 'transparent',
-                      color: '#0A4834',
-                      border: '1px solid #0A4834',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                    }}
-                  >
+                  <button className="message-action-btn message-action-btn-secondary">
                     Continue with Bot
                   </button>
                 </div>
@@ -247,59 +114,18 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
 
         {/* UI Mockups */}
         <section>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '32px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '32px',
-              marginTop: 0,
-            }}
-          >
+          <h2 className="bs-cormorant ui-mockups-title">
             Chat Widget UI
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px' }}>
+          <div className="mockups-grid">
             {/* Closed State */}
             <div>
-              <h3
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '16px',
-                  color: '#0A4834',
-                  marginBottom: '16px',
-                  marginTop: 0,
-                }}
-              >
+              <h3 className="bs-manrope mockup-label">
                 Sticky Button (Closed)
               </h3>
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  padding: '40px',
-                  borderRadius: '16px',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-                  position: 'relative',
-                  height: '200px',
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '20px',
-                    right: '20px',
-                    width: '60px',
-                    height: '60px',
-                    backgroundColor: '#0A4834',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 4px 16px rgba(10, 72, 52, 0.3)',
-                    cursor: 'pointer',
-                  }}
-                >
+              <div className="mockup-closed-state">
+                <div className="chat-button">
                   <MessageCircle size={28} color="#FFFFFF" />
                 </div>
               </div>
@@ -307,85 +133,36 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
 
             {/* Open State */}
             <div>
-              <h3
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '16px',
-                  color: '#0A4834',
-                  marginBottom: '16px',
-                  marginTop: 0,
-                }}
-              >
+              <h3 className="bs-manrope mockup-label">
                 Chat Window (Open)
               </h3>
-              <div
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: '16px',
-                  boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-                  overflow: 'hidden',
-                }}
-              >
+              <div className="mockup-open-state">
                 {/* Header */}
-                <div
-                  style={{
-                    backgroundColor: '#0A4834',
-                    color: '#FFFFFF',
-                    padding: '16px 20px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="chat-header">
+                  <div className="chat-header-content">
                     <MessageCircle size={20} />
-                    <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}>
+                    <span className="chat-header-text">
                       Ministry Support
                     </span>
                   </div>
-                  <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: '4px',
-                    }}
-                  >
+                  <button className="chat-close-btn">
                     <X size={20} color="#FFFFFF" />
                   </button>
                 </div>
 
                 {/* Messages */}
-                <div style={{ padding: '20px', minHeight: '200px', backgroundColor: '#F0ECE3' }}>
-                  <div
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      padding: '12px 16px',
-                      borderRadius: '12px 12px 12px 4px',
-                      marginBottom: '12px',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                    }}
-                  >
+                <div className="chat-messages">
+                  <div className="chat-message-bubble">
                     Hi! How can I help you today?
                   </div>
                 </div>
 
                 {/* Input */}
-                <div style={{ padding: '16px', borderTop: '1px solid #00000010' }}>
+                <div className="chat-input-area">
                   <input
                     type="text"
                     placeholder="Type your message..."
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '14px',
-                      border: '1px solid #00000020',
-                      borderRadius: '12px',
-                      outline: 'none',
-                      backgroundColor: '#F0ECE3',
-                    }}
+                    className="chat-input"
                   />
                 </div>
               </div>
@@ -394,119 +171,35 @@ export function ChatbotFlow({ onClose }: ChatbotFlowProps) {
         </section>
 
         {/* Triggers */}
-        <section style={{ marginTop: '60px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '32px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '32px',
-              marginTop: 0,
-            }}
-          >
+        <section className="triggers-section">
+          <h2 className="bs-cormorant triggers-title">
             Automatic Triggers
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                padding: '24px',
-                borderRadius: '16px',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-              }}
-            >
-              <h3
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '16px',
-                  color: '#0A4834',
-                  marginBottom: '12px',
-                  marginTop: 0,
-                }}
-              >
+          <div className="triggers-grid">
+            <div className="trigger-card">
+              <h3 className="bs-manrope trigger-card-title">
                 Exit-Intent
               </h3>
-              <p
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#000000',
-                  opacity: 0.7,
-                  marginTop: 0,
-                  marginBottom: 0,
-                  lineHeight: '1.6',
-                }}
-              >
+              <p className="trigger-card-desc">
                 Chatbot appears when user moves cursor to leave the page: "Before you go, is there anything I can help you with?"
               </p>
             </div>
 
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                padding: '24px',
-                borderRadius: '16px',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-              }}
-            >
-              <h3
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '16px',
-                  color: '#0A4834',
-                  marginBottom: '12px',
-                  marginTop: 0,
-                }}
-              >
+            <div className="trigger-card">
+              <h3 className="bs-manrope trigger-card-title">
                 Cart Inactivity
               </h3>
-              <p
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#000000',
-                  opacity: 0.7,
-                  marginTop: 0,
-                  marginBottom: 0,
-                  lineHeight: '1.6',
-                }}
-              >
+              <p className="trigger-card-desc">
                 If user hasn't completed checkout after 2 minutes: "Need help completing your purchase?"
               </p>
             </div>
 
-            <div
-              style={{
-                backgroundColor: '#FFFFFF',
-                padding: '24px',
-                borderRadius: '16px',
-                boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-              }}
-            >
-              <h3
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '16px',
-                  color: '#0A4834',
-                  marginBottom: '12px',
-                  marginTop: 0,
-                }}
-              >
+            <div className="trigger-card">
+              <h3 className="bs-manrope trigger-card-title">
                 Page-Specific
               </h3>
-              <p
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#000000',
-                  opacity: 0.7,
-                  marginTop: 0,
-                  marginBottom: 0,
-                  lineHeight: '1.6',
-                }}
-              >
+              <p className="trigger-card-desc">
                 Contextual help based on current page (e.g., upload tips on Upload page, shipping info on Checkout)
               </p>
             </div>

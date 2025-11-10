@@ -1,0 +1,32 @@
+.avatar-header {
+  /* header container spacing preserved from inline styles */
+}
+
+.avatar-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.25rem; /* similar visual size to previous usage */
+  line-height: 1.1;
+}
+
+.avatar-subtitle,
+.avatar-tooltip,
+.avatar-btn {
+  font-family: 'Manrope', sans-serif;
+}
+
+.avatar-tooltip {
+  color: #9F8151;
+  font-size: 0.75rem;
+  background: #ffffff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+}
+
+.avatar-btn {
+  /* ensure consistent font for action buttons */
+}
+
+.avatar-btn-primary {
+  /* primary save button specifics if needed */
+}

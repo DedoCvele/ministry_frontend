@@ -6,12 +6,13 @@ import { BecomeSellerSection } from './BecomeSellerSection';
 import { JournalSpread } from './JournalSpread';
 import { FooterAlt } from './FooterAlt';
 import { useNavigate } from 'react-router-dom';
+import './styles/HomePage.css';
 
 export function HomePage() {
   const navigate = useNavigate();
   
   return (
-    <div style={{ backgroundColor: '#FFFFFF' }}>
+    <div className="home-page-root">
       <HeaderAlt 
         language="en"
         onAccountClick={() => {}} // This will be handled by the parent component
