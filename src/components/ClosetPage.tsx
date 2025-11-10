@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { MoreVertical, ArrowLeft, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -30,15 +31,28 @@ interface ClosetPageProps {
   onContactSeller?: () => void;
   onItemClick?: (itemId: string) => void;
   onAvatarClick?: () => void;
+  language?: 'en' | 'mk';
 }
 
 export default function ClosetPage({
-  userId,
+  userId: propUserId,
   onBack,
   onContactSeller,
   onItemClick,
   onAvatarClick,
+  language = 'en',
 }: ClosetPageProps) {
+  const { closetId } = useParams<{ closetId: string }>();
+  const navigate = useNavigate();
+  const userId = propUserId || closetId || '1';
+  
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/closets');
+    }
+  };
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
@@ -223,16 +237,14 @@ export default function ClosetPage({
           >
             <div className="px-6 pt-8 pb-6">
               {/* Back Button */}
-              {onBack && (
-                <button
-                  onClick={onBack}
-                  className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors inline-flex items-center gap-2 text-[#0A4834]"
-                  style={{ fontFamily: 'Manrope, sans-serif' }}
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                  Back
-                </button>
-              )}
+              <button
+                onClick={handleBack}
+                className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors inline-flex items-center gap-2 text-[#0A4834]"
+                style={{ fontFamily: 'Manrope, sans-serif' }}
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </button>
 
               {/* Profile Section - Redesigned */}
               <div className="flex gap-6 items-start">

@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
 
 interface NavigationProps {
-  currentPage: string;
-  onNavigate: (page: string) => void;
   onProfileClick: () => void;
 }
 
-export function Navigation({ currentPage, onNavigate, onProfileClick }: NavigationProps) {
+export function Navigation({ onProfileClick }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollYRef = useRef(0);
   const ticking = useRef(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -56,30 +56,33 @@ export function Navigation({ currentPage, onNavigate, onProfileClick }: Navigati
       <div className="max-w-7xl mx-auto px-6 py-5">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <button
-            onClick={() => onNavigate('home')}
+          <Link
+            to="/"
             style={{ fontFamily: 'Cormorant Garamond, serif' }}
             className="text-[#0A4834] text-[24px] hover:text-[#9F8151] transition-colors"
           >
             Ministry of Second Hand
-          </button>
+          </Link>
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
+                to={`/${item.id === 'home' ? '' : item.id}`}
                 style={{ fontFamily: 'Manrope, sans-serif' }}
                 className={`text-[14px] transition-all relative ${
-                  currentPage === item.id || 
-                  (item.id === 'blog' && currentPage === 'article')
+                  (location.pathname === '/' && item.id === 'home') || 
+                  location.pathname === `/${item.id}` ||
+                  (item.id === 'blog' && location.pathname.startsWith('/blog/'))
                     ? 'text-[#0A4834]'
                     : 'text-[#0A4834]/70 hover:text-[#0A4834]'
                 }`}
               >
                 {item.label}
-                {(currentPage === item.id || (item.id === 'blog' && currentPage === 'article')) && (
+                {((location.pathname === '/' && item.id === 'home') || 
+                  location.pathname === `/${item.id}` ||
+                  (item.id === 'blog' && location.pathname.startsWith('/blog/'))) && (
                   <div 
                     className="absolute -bottom-1 left-0 right-0 h-[2px] bg-[#9F8151]"
                     style={{
@@ -87,7 +90,7 @@ export function Navigation({ currentPage, onNavigate, onProfileClick }: Navigati
                     }}
                   />
                 )}
-              </button>
+              </Link>
             ))}
 
             {/* Profile Icon */}

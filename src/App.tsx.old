@@ -1,12 +1,83 @@
-import { useState } from 'react';
-import { Toaster, toast } from 'sonner';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { HeaderAlt } from './components/HeaderAlt';
-import { HeroSectionAlt } from './components/HeroSectionAlt';
-import { VintageBanner } from './components/VintageBanner';
-import { ShopTheFinds } from './components/ShopTheFinds';
-import { BecomeSellerSection } from './components/BecomeSellerSection';
-import { JournalSpread } from './components/JournalSpread';
-import { FooterAlt } from './components/FooterAlt';
+
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+}
+
+function ShopPageComponent() {
+  return <h1>Shop Page</h1>;
+}
+
+function Layout() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/shop" element={<ShopPageComponent />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Layout />
+    </BrowserRouter>
+  );
+}
+
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+}
+
+function ShopPage() {
+  return <h1>Shop Page</h1>;
+}
+
+function Layout() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/shop" element={<ShopPage />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Layout />
+    </BrowserRouter>
+  );
+}
 import { ProductPage } from './components/ProductPage';
 import { ChatWidget } from './components/ChatWidget';
 import { JournalHomepage } from './components/JournalHomepage';
@@ -44,17 +115,31 @@ interface CartItem {
   condition: string;
 }
 
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [language, setLanguage] = useState<Language>('en');
-  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
-  const [newsletterOpen, setNewsletterOpen] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [signupOpen, setSignupOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [isSeller, setIsSeller] = useState(true); // Combined profile with seller features
-  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
-  const [contactSellerOpen, setContactSellerOpen] = useState(false);
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </BrowserRouter>
+  );
   
   // Cart state
   const [cartItems, setCartItems] = useState<CartItem[]>([]);

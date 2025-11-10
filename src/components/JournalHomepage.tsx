@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Heart, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
@@ -18,12 +19,21 @@ interface Article {
 }
 
 interface JournalHomepageProps {
-  onArticleClick: (articleId: number) => void;
+  onArticleClick?: (articleId: number) => void;
   language?: Language;
   onClose?: () => void;
 }
 
 export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: JournalHomepageProps) {
+  const navigate = useNavigate();
+  
+  const handleArticleClick = (articleId: number) => {
+    if (onArticleClick) {
+      onArticleClick(articleId);
+    } else {
+      navigate(`/blog/${articleId}`);
+    }
+  };
   const t = getTranslation(language);
   const [email, setEmail] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -185,7 +195,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          onClick={() => onArticleClick(featuredArticle.id)}
+          onClick={() => handleArticleClick(featuredArticle.id)}
           style={{
             position: 'relative',
             height: '600px',
@@ -334,7 +344,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 * index }}
-              onClick={() => onArticleClick(article.id)}
+              onClick={() => handleArticleClick(article.id)}
               style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: '12px',

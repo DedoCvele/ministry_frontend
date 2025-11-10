@@ -1,0 +1,654 @@
+Overview
+
+Base URL: http://127.0.0.1:8000
+API prefix: /api (routes defined in routes/api.php are available under /api/*)
+Default middleware: Laravel's `api` middleware group with Sanctum authentication enabled.
+
+Authentication with Laravel Sanctum
+The API uses Laravel Sanctum for authentication. Two authentication methods are supported:
+1. SPA (Cookie-based) Authentication
+2. API Token Authentication
+
+1. SPA Authentication Setup
+- Frontend Origin: http://localhost:3000 (configured in SANCTUM_STATEFUL_DOMAINS)
+- CSRF Protection: Required for cookie-based auth
+- Credentials: Must be sent with all requests (credentials: 'include')
+
+Authentication Endpoints:
+- POST /api/register
+  Request body: { "name": "string", "email": "string", "password": "string", "password_confirmation": "string" }
+  Response: { "user": {...}, "token": "string" }
+
+- POST /api/login
+  Request body: { "email": "string", "password": "string" }
+  Response: { "user": {...}, "token": "string" }
+
+- POST /api/logout (requires auth)
+  Response: { "message": "Logged out successfully" }
+
+- GET /api/user (requires auth)
+  Response: { user data }
+
+Testing Authentication:
+
+1. Using fetch (Cookie-based auth for SPA):
+```javascript
+// 1. First, get the CSRF cookie
+await fetch('http://127.0.0.1:8000/sanctum/csrf-cookie', {
+    credentials: 'include'
+});
+
+// 2. Login
+const loginResponse = await fetch('http://127.0.0.1:8000/api/login', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+    credentials: 'include',
+    body: JSON.stringify({
+        email: 'user@example.com',
+        password: 'password'
+    })
+});
+
+// 3. Test authenticated endpoint
+const userResponse = await fetch('http://127.0.0.1:8000/api/user', {
+    credentials: 'include'
+});
+```
+
+2. Using curl (Token-based auth):
+```bash
+# Register
+curl -X POST http://127.0.0.1:8000/api/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test User","email":"test@example.com","password":"password","password_confirmation":"password"}'
+
+# Login and get token
+curl -X POST http://127.0.0.1:8000/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password"}'
+
+# Use token for authenticated requests
+curl -X GET http://127.0.0.1:8000/api/user \
+  -H "Authorization: Bearer YOUR_TOKEN_HERE"
+```
+
+Protected Routes:
+All routes marked with (requires auth) need authentication. Send either:
+- Cookie-based: Include credentials: 'include' in fetch options
+- Token-based: Add Authorization: Bearer <token> header
+
+CORS Configuration:
+The API is configured to allow cross-origin requests from http://localhost:3000:
+- Allowed Methods: GET, POST, PUT, PATCH, DELETE
+- Allowed Headers: Content-Type, X-XSRF-TOKEN, Authorization
+- Credentials: Allowed
+- Max Age: 1440 minutes (24 hours)
+
+How to call examples (replace host if different)
+- Fetch (GET):
+  fetch('http://127.0.0.1:8000/api/items')
+    .then(r=>r.json()).then(console.log)
+
+- Fetch with POST JSON:
+  fetch('http://127.0.0.1:8000/api/items', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'T-shirt', price: 9.99 })
+  }).then(r=>r.json())
+
+- curl GET:
+  curl -X GET http://127.0.0.1:8000/api/items
+
+- curl POST JSON:
+  curl -X POST http://127.0.0.1:8000/api/items -H "Content-Type: application/json" -d '{"title":"T-shirt","price":9.99}'
+
+
+API ROUTES (from routes/api.php)
+
+1) Items (CRUD)
+- GET /api/items
+  - Description: Return all items with their brand, category and user relations.
+  - Auth: Public endpoint
+  - Request: none
+  - Response: 200 OK, JSON array of items. Each item includes fields from `items` table and nested `brand`, `category`, `user` objects.
+  - Example fetch:
+      fetch('http://127.0.0.1:8000/api/items')
+  - Example curl:
+      curl http://127.0.0.1:8000/api/items
+
+- GET /api/items/{id}
+  - Description: Return a single item by ID (with brand, category and user).
+  - Auth: Public endpoint
+  - Response: 200 with JSON object on success, 404 { message: 'Item not found' } if missing.
+  - Example: GET /api/items/5
+
+- POST /api/items (requires auth)
+  - Description: Create a new item using request payload.
+  - Auth: Requires authentication (Sanctum)
+  - Request: expects form fields corresponding to the Item model. Fields:
+    - title (required): string
+    - description (required): string
+    - price (required): numeric
+    - brand_id (required): integer
+    - category_id (required): integer
+    - approval_state: string (default: 'pending')
+    - images[]: file (optional, multiple allowed)
+  - Content-Type: multipart/form-data for image uploads, application/json otherwise
+  - Response: 201 Created with the created item as JSON
+  - Example with fetch (cookie auth):
+      const form = new FormData();
+      form.append('title', 'Blue Jeans');
+      form.append('description', 'Nice jeans');
+      form.append('price', '25.00');
+      form.append('brand_id', '1');
+      form.append('category_id', '2');
+      // Add images if any
+      form.append('images[]', fileInput.files[0]);
+      
+      fetch('http://127.0.0.1:8000/api/items', {
+          method: 'POST',
+          body: form,
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X POST http://127.0.0.1:8000/api/items \
+        -H "Authorization: Bearer YOUR_TOKEN" \
+        -F "title=Blue Jeans" \
+        -F "description=Nice jeans" \
+        -F "price=25.00" \
+        -F "brand_id=1" \
+        -F "category_id=2" \
+        -F "images[]=@/path/to/image.jpg"
+
+- PUT /api/items/{id} (requires auth)
+  - Description: Update an item. Only the owner of the item can update it.
+  - Auth: Requires authentication (Sanctum)
+  - Request: JSON body with fields to update
+  - Response: 200 with updated item, 404 if not found, 403 if not owner
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/items/3', {
+          method: 'PUT',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ price: 19.99 })
+      })
+
+  - Example with curl (token auth):
+      curl -X PUT http://127.0.0.1:8000/api/items/3 \
+        -H "Authorization: Bearer YOUR_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"price":19.99}'
+
+- DELETE /api/items/{id} (requires auth)
+  - Description: Delete an item. Only the owner of the item can delete it.
+  - Auth: Requires authentication (Sanctum)
+  - Response: 200 { message: 'Item deleted successfully' }, 404 if not found, 403 if not owner
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/items/3', {
+          method: 'DELETE',
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X DELETE http://127.0.0.1:8000/api/items/3 \
+        -H "Authorization: Bearer YOUR_TOKEN"
+
+Notes about Items endpoints
+- The controller uses mass assignment (Item::create($request->all())). Ensure your model's $fillable includes only allowed fields to avoid security issues.
+- No validation is enforced in the API controller for items by default; when calling POST/PUT, provide valid fields and types.
+
+
+2) Admin API (requires auth + admin)
+All admin endpoints require both authentication and admin privileges.
+
+- GET /api/admin/pending-items
+  - Description: Returns pending items (approval_state = 'pending'), with user/brand/category
+  - Auth: Requires authentication + admin role
+  - Response: 200 { status: 'success', count: <n>, data: [ ...items... ] }
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/admin/pending-items', {
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X GET http://127.0.0.1:8000/api/admin/pending-items \
+        -H "Authorization: Bearer YOUR_TOKEN"
+
+- PUT /api/admin/approve/{id}
+  - Description: Set approval_state = 'approved'
+  - Auth: Requires authentication + admin role
+  - Response: 200 { status: 'success', message, item } or 404
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/admin/approve/5', {
+          method: 'PUT',
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X PUT http://127.0.0.1:8000/api/admin/approve/5 \
+        -H "Authorization: Bearer YOUR_TOKEN"
+
+- PUT /api/admin/decline/{id}
+  - Description: Set approval_state = 'declined'
+  - Auth: Requires authentication + admin role
+  - Response: 200 { status: 'success', message, item } or 404
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/admin/decline/5', {
+          method: 'PUT',
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X PUT http://127.0.0.1:8000/api/admin/decline/5 \
+        -H "Authorization: Bearer YOUR_TOKEN"
+
+Notes: Admin endpoints are protected by both auth:sanctum middleware and admin middleware.
+
+
+3) Blogs
+- GET /api/blogs
+  - Description: Returns published blogs sorted newest first.
+  - Response: 200 { status: 'success', count: n, data: [ ...blogs... ] }
+  - Example: curl http://127.0.0.1:8000/api/blogs
+
+- POST /api/blogs
+  - Description: Create a blog post. Validates title and content, optional image upload.
+  - Request: multipart/form-data (if uploading image) or JSON (without image). Fields: title (required), content (required), image (optional file).
+  - Auth: Controller tries to use Auth::id() but falls back to user_id = 1 if unauthenticated. In production you should require auth.
+  - Response: 201 on success with { status: 'success', message: 'Blog created successfully', data: <blog> }
+  - Example (curl multipart):
+      curl -X POST http://127.0.0.1:8000/api/blogs -F "title=My post" -F "content=Hello" -F "image=@/path/to/pic.jpg"
+
+- GET /api/blogs/{id}
+  - Description: Return a single published blog. 404 if not found or not published.
+
+
+4) Profile (requires auth)
+All profile endpoints require authentication.
+
+- GET /api/profile
+  - Description: Returns the authenticated user's info
+  - Auth: Requires authentication (Sanctum)
+  - Response: { status: 'success', user: <user> }
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/profile', {
+          credentials: 'include'
+      })
+
+  - Example with curl (token auth):
+      curl -X GET http://127.0.0.1:8000/api/profile \
+        -H "Authorization: Bearer YOUR_TOKEN"
+
+- PUT /api/profile
+  - Description: Update the authenticated user's profile
+  - Auth: Requires authentication (Sanctum)
+  - Request: JSON body with fields:
+    - name (optional): string
+    - email (optional): valid email address
+    - current_password (required if changing password): string
+    - password (optional): string, min 8 chars
+    - password_confirmation (required if password provided): string
+  - Note: If email changes, email_verified_at is nulled
+  - Response: 200 { status: 'success', message: 'Profile updated successfully', user: <user> }
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/profile', {
+          method: 'PUT',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+              name: 'New Name',
+              email: 'new@example.com'
+          })
+      })
+
+  - Example with curl (token auth):
+      curl -X PUT http://127.0.0.1:8000/api/profile \
+        -H "Authorization: Bearer YOUR_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"New Name","email":"new@example.com"}'
+
+- DELETE /api/profile
+  - Description: Delete the authenticated user's account
+  - Auth: Requires authentication (Sanctum)
+  - Request: { password: "current-password" }
+  - Response: 200 { status: 'success', message: 'Account deleted successfully' }
+  - Warning: This logs out and permanently deletes the user account
+  - Example with fetch (cookie auth):
+      fetch('http://127.0.0.1:8000/api/profile', {
+          method: 'DELETE',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+              password: 'your-current-password'
+          })
+      })
+
+  - Example with curl (token auth):
+      curl -X DELETE http://127.0.0.1:8000/api/profile \
+        -H "Authorization: Bearer YOUR_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"password":"your-current-password"}'
+
+Complete Testing Guide
+
+1. Start the Laravel backend:
+```bash
+cd /path/to/project
+php artisan serve
+```
+
+2. Test Registration (new user):
+```javascript
+// Using fetch API
+const registerUser = async () => {
+    await fetch('http://127.0.0.1:8000/sanctum/csrf-cookie', {
+        credentials: 'include'
+    });
+
+    const response = await fetch('http://127.0.0.1:8000/api/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+            name: 'Test User',
+            email: 'test@example.com',
+            password: 'password123',
+            password_confirmation: 'password123'
+        })
+    });
+
+    const data = await response.json();
+    console.log('Registration response:', data);
+    // data should contain user object and token
+};
+```
+
+3. Test Login (existing user):
+```javascript
+// Using fetch API
+const loginUser = async () => {
+    await fetch('http://127.0.0.1:8000/sanctum/csrf-cookie', {
+        credentials: 'include'
+    });
+
+    const response = await fetch('http://127.0.0.1:8000/api/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+            email: 'test@example.com',
+            password: 'password123'
+        })
+    });
+
+    const data = await response.json();
+    console.log('Login response:', data);
+    // data should contain user object and token
+};
+```
+
+4. Test Protected Routes:
+```javascript
+// Using fetch API with cookie authentication
+const testProtectedRoutes = async () => {
+    // Test get profile
+    const profileResponse = await fetch('http://127.0.0.1:8000/api/profile', {
+        credentials: 'include'
+    });
+    console.log('Profile:', await profileResponse.json());
+
+    // Test create item
+    const formData = new FormData();
+    formData.append('title', 'Test Item');
+    formData.append('description', 'Test Description');
+    formData.append('price', '99.99');
+    formData.append('brand_id', '1');
+    formData.append('category_id', '1');
+
+    const itemResponse = await fetch('http://127.0.0.1:8000/api/items', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+    });
+    console.log('Created item:', await itemResponse.json());
+};
+```
+
+5. Test Admin Routes (requires admin user):
+```javascript
+// Using fetch API with cookie authentication
+const testAdminRoutes = async () => {
+    const response = await fetch('http://127.0.0.1:8000/api/admin/pending-items', {
+        credentials: 'include'
+    });
+    console.log('Pending items:', await response.json());
+};
+```
+
+6. Test Logout:
+```javascript
+// Using fetch API
+const logoutUser = async () => {
+    const response = await fetch('http://127.0.0.1:8000/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+    });
+    console.log('Logout response:', await response.json());
+};
+```
+
+Save this code as `test-api.js` and run it in your browser's console or using Node.js to test the API functionality.
+
+
+Testing with Postman
+==================
+
+Initial Setup
+------------
+1. Create a new collection: "SecondHand API"
+2. Create a new environment: "SecondHand Local"
+3. Add environment variables:
+   - base_url: http://127.0.0.1:8000
+   - token: [leave empty, will be auto-filled after login]
+
+Authentication Requests
+---------------------
+
+1. Register New User
+```
+POST {{base_url}}/api/register
+Headers:
+  Content-Type: application/json
+  Accept: application/json
+Body (raw JSON):
+{
+    "name": "Test User",
+    "email": "test@example.com",
+    "password": "password123",
+    "password_confirmation": "password123"
+}
+Expected Response: 201 Created
+```
+
+2. Login
+```
+POST {{base_url}}/api/login
+Headers:
+  Content-Type: application/json
+  Accept: application/json
+Body (raw JSON):
+{
+    "email": "test@example.com",
+    "password": "password123"
+}
+Expected Response: 200 OK
+
+[Add to Tests tab in Postman]
+if (pm.response.code === 200) {
+    var jsonData = pm.response.json();
+    pm.environment.set("token", jsonData.token);
+}
+```
+
+Protected Routes Examples
+-----------------------
+
+1. Get User Profile
+```
+GET {{base_url}}/api/profile
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Expected Response: 200 OK
+```
+
+2. Create Item with Images
+```
+POST {{base_url}}/api/items
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Body (form-data):
+  title: Test Item
+  description: Test Description
+  price: 99.99
+  brand_id: 1
+  category_id: 1
+  images[]: [Select File]
+Expected Response: 201 Created
+```
+
+3. Update Profile
+```
+PUT {{base_url}}/api/profile
+Headers:
+  Accept: application/json
+  Content-Type: application/json
+  Authorization: Bearer {{token}}
+Body (raw JSON):
+{
+    "name": "Updated Name"
+}
+Expected Response: 200 OK
+```
+
+Admin Routes
+-----------
+
+1. View Pending Items
+```
+GET {{base_url}}/api/admin/pending-items
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Expected Response: 200 OK
+```
+
+2. Approve Item
+```
+PUT {{base_url}}/api/admin/approve/5
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Expected Response: 200 OK
+```
+
+3. Decline Item
+```
+PUT {{base_url}}/api/admin/decline/5
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Expected Response: 200 OK
+```
+
+Logout
+------
+```
+POST {{base_url}}/api/logout
+Headers:
+  Accept: application/json
+  Authorization: Bearer {{token}}
+Expected Response: 200 OK
+```
+
+Testing Tips
+-----------
+1. Always include the Authorization header for protected routes
+2. For file uploads, use form-data and set the correct field type
+3. Keep environment variables updated (especially after login)
+4. Check response status codes and body format
+5. Test error cases:
+   - Wrong credentials
+   - Invalid data
+   - Unauthorized access
+   - Missing required fields
+6. For admin routes, ensure you're logged in with an admin account
+
+
+Web routes (routes/web.php) — brief summary
+- GET / (home) -> ItemController@index (returns a view with listing)
+- GET /items and GET /items/{id} -> public views
+- Auth-protected web routes (dashboard, create item, profile edit) render Blade views and use standard session auth (not JSON API responses)
+- Admin web routes are protected by AdminMiddleware; these are for admin dashboard and approve/decline actions (PATCH endpoints returning web redirects/views)
+- Blogs web routes exist and map to BlogController (view-based)
+
+These web routes return HTML views, not API JSON. Use the API endpoints above if you need JSON.
+
+
+Errors & status codes (common)
+- 200 OK: Successful GET, PUT, DELETE (where appropriate)
+- 201 Created: Successful resource creation (POST for items/blogs)
+- 404 Not Found: Resource not found
+- 422 Unprocessable Entity: Validation failed (FormRequest for blog store / profile update)
+- 401 Unauthorized / 403 Forbidden: If you protect routes with auth or admin middleware and the caller is not authenticated/authorized
+
+
+Practical examples (from a client running at http://localhost:3000)
+
+1) Simple public fetch of items:
+fetch('http://127.0.0.1:8000/api/items')
+  .then(r => r.json())
+  .then(data => console.log(data));
+
+2) Create a blog (multipart) example using fetch (needs CORS allow and auth if enforced):
+const form = new FormData();
+form.append('title', 'Hello');
+form.append('content', 'Body text');
+form.append('image', fileInput.files[0]);
+fetch('http://127.0.0.1:8000/api/blogs', {
+  method: 'POST',
+  body: form,
+  credentials: 'include' // if using cookies + Sanctum
+}).then(r => r.json()).then(console.log);
+
+3) Using bearer token with fetch:
+fetch('http://127.0.0.1:8000/api/profile', {
+  headers: { 'Authorization': 'Bearer YOUR_TOKEN' }
+}).then(r => r.json()).then(console.log);
+
+
+Recommendations to make the API cross-origin friendly and secure
+- Install and configure Laravel Sanctum for SPA authentication. Set `SANCTUM_STATEFUL_DOMAINS` to include localhost:3000 and configure `config/cors.php` to allow that origin and credentials.
+- Protect endpoints that change data (POST/PUT/DELETE) with `auth:sanctum` middleware or a custom token guard.
+- Add input validation for ItemController store/update (currently missing).
+- Add explicit API resources or transformers to control response shapes (instead of returning full Eloquent models with relations
+
+
+--- End of file

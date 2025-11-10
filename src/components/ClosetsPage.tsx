@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, ArrowRight, Users, Package, Share2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { FooterAlt } from './FooterAlt';
 import { NewsletterPopup } from './NewsletterPopup';
@@ -21,11 +22,20 @@ interface Closet {
 }
 
 interface ClosetsPageProps {
-  onClosetClick: () => void;
+  onClosetClick?: (id: number) => void;
   language?: Language;
 }
 
 export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps) {
+  const navigate = useNavigate();
+  
+  const handleClosetClick = (closetId: number) => {
+    if (onClosetClick) {
+      onClosetClick(closetId);
+    } else {
+      navigate(`/closets/${closetId}`);
+    }
+  };
   const t = getTranslation(language);
   const [following, setFollowing] = useState<number[]>([]);
   const [activeFilter, setActiveFilter] = useState('All Closets');
@@ -257,7 +267,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
               >
                 {/* Cover Image */}
                 <div
-                  onClick={onClosetClick}
+                  onClick={() => handleClosetClick(closet.id)}
                   style={{
                     width: '100%',
                     aspectRatio: '1/1',
@@ -404,7 +414,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                     gap: '12px',
                   }}>
                     <motion.button
-                      onClick={onClosetClick}
+                      onClick={() => handleClosetClick(closet.id)}
                       whileHover={{ backgroundColor: '#083D2C' }}
                       whileTap={{ scale: 0.98 }}
                       style={{
@@ -559,7 +569,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                       </p>
 
                       <motion.button
-                        onClick={onClosetClick}
+                        onClick={() => handleClosetClick(featuredCloset.id)}
                         whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }}
                         whileTap={{ scale: 0.98 }}
                         style={{

@@ -1,18 +1,30 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
 
 interface ArticleDetailProps {
-  articleId: number;
-  onBack: () => void;
+  articleId?: number;
+  onBack?: () => void;
   language?: Language;
 }
 
-export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDetailProps) {
+export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en' }: ArticleDetailProps) {
+  const { articleId: paramArticleId } = useParams<{ articleId: string }>();
+  const navigate = useNavigate();
+  const articleId = propArticleId || (paramArticleId ? parseInt(paramArticleId, 10) : 1);
+  
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/blog');
+    }
+  };
   const t = getTranslation(language);
   const [liked, setLiked] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -148,7 +160,7 @@ export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDet
 
       {/* Back Button */}
       <motion.button
-        onClick={onBack}
+        onClick={handleBack}
         whileHover={{ x: -4 }}
         whileTap={{ scale: 0.95 }}
         style={{
