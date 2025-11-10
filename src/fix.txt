@@ -1,0 +1,51 @@
+State variables to add after line 44:
+  const [perpetratorAgeRange, setPerpetratorAgeRange] = useState("");
+  const [perpetratorAgeCustom, setPerpetratorAgeCustom] = useState("");
+  const [perpetratorHeight, setPerpetratorHeight] = useState("");
+  const [perpetratorWeight, setPerpetratorWeight] = useState("");
+  const [perpetratorHairColor, setPerpetratorHairColor] = useState("");
+  const [perpetratorDistinctiveFeatures, setPerpetratorDistinctiveFeatures] = useState("");
+
+Fix line 559 - change:
+setPerpetratorAgeCustom(\\"\\");
+to:
+setPerpetratorAgeCustom("");
+
+Fix line 587 - change:
+setPerpetratorAgeRange(\\"\\");
+to:
+setPerpetratorAgeRange("");
+
+Add to reset function (after line 82):
+    setPerpetratorAgeRange("");
+    setPerpetratorAgeCustom("");
+    setPerpetratorHeight("");
+    setPerpetratorWeight("");
+    setPerpetratorHairColor("");
+    setPerpetratorDistinctiveFeatures("");
+
+Add to Review step (before closing div of step 7):
+                  <div className="border-l-4 border-[#2b9aef] pl-4 py-2">
+                    <h3 className="text-[#0a2849] mb-1">Perpetrator Age</h3>
+                    <p className="text-gray-700">{perpetratorAgeRange || perpetratorAgeCustom || "Not provided"}</p>
+                  </div>
+
+                  <div className="border-l-4 border-[#2b9aef] pl-4 py-2">
+                    <h3 className="text-[#0a2849] mb-1">Perpetrator Height</h3>
+                    <p className="text-gray-700">{perpetratorHeight || "Not provided"}</p>
+                  </div>
+
+                  <div className="border-l-4 border-[#2b9aef] pl-4 py-2">
+                    <h3 className="text-[#0a2849] mb-1">Perpetrator Weight</h3>
+                    <p className="text-gray-700">{perpetratorWeight || "Not provided"}</p>
+                  </div>
+
+                  <div className="border-l-4 border-[#2b9aef] pl-4 py-2">
+                    <h3 className="text-[#0a2849] mb-1">Perpetrator Hair Color</h3>
+                    <p className="text-gray-700">{perpetratorHairColor || "Not provided"}</p>
+                  </div>
+
+                  <div className="border-l-4 border-[#2b9aef] pl-4 py-2">
+                    <h3 className="text-[#0a2849] mb-1">Perpetrator Distinctive Features</h3>
+                    <p className="text-gray-700">{perpetratorDistinctiveFeatures || "Not provided"}</p>
+                  </div>

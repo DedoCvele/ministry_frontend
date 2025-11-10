@@ -1,0 +1,661 @@
+import { useState } from 'react';
+import { Toaster, toast } from 'sonner@2.0.3';
+import { HeaderAlt } from './components/HeaderAlt';
+import { HeroSectionAlt } from './components/HeroSectionAlt';
+import { VintageBanner } from './components/VintageBanner';
+import { ShopTheFinds } from './components/ShopTheFinds';
+import { BecomeSellerSection } from './components/BecomeSellerSection';
+import { JournalSpread } from './components/JournalSpread';
+import { FooterAlt } from './components/FooterAlt';
+import { ProductPage } from './components/ProductPage';
+import { ChatWidget } from './components/ChatWidget';
+import { JournalHomepage } from './components/JournalHomepage';
+import { ArticleDetail } from './components/ArticleDetail';
+import { ShopPage } from './components/ShopPage';
+import { ClosetsPage } from './components/ClosetsPage';
+import { NewsletterPopup } from './components/NewsletterPopup';
+import { LoginDialog } from './components/LoginDialog';
+import { SignupDialog } from './components/SignupDialog';
+import { ProfilePage } from './components/ProfilePage';
+import { UploadItem } from './components/UploadItem';
+import { SearchResultsPage } from './components/SearchResultsPage';
+import { ProductDetailPage } from './components/ProductDetailPage';
+import { CartPage } from './components/CartPage';
+import { CheckoutPage } from './components/CheckoutPage';
+import { PaymentProcessing } from './components/PaymentProcessing';
+import { NewOrderConfirmation } from './components/NewOrderConfirmation';
+import { SimpleReviewModal } from './components/SimpleReviewModal';
+import { ChatbotFlow } from './components/ChatbotFlow';
+import ClosetPage from './components/ClosetPage';
+import AvatarSelectionModal from './components/AvatarSelectionModal';
+import { ContactSellerPopup } from './components/ContactSellerPopup';
+import { Navigation } from './components/Navigation';
+import { BecomeSellerOnboarding } from './components/BecomeSellerOnboarding';
+import { type Language, getTranslation } from './translations';
+
+type Page = 'home' | 'product' | 'blog' | 'article' | 'shop' | 'closets' | 'profile' | 'upload' | 'search' | 'product-detail' | 'cart' | 'checkout' | 'payment-processing' | 'order-confirmation' | 'chatbot-flow' | 'closet' | 'become-seller';
+
+interface CartItem {
+  id: number;
+  image: string;
+  title: string;
+  seller: string;
+  price: number;
+  condition: string;
+}
+
+export default function App() {
+  const [currentPage, setCurrentPage] = useState<Page>('home');
+  const [language, setLanguage] = useState<Language>('en');
+  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
+  const [newsletterOpen, setNewsletterOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [isSeller, setIsSeller] = useState(true); // Combined profile with seller features
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
+  const [contactSellerOpen, setContactSellerOpen] = useState(false);
+  
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
+  const handleArticleClick = (articleId: number) => {
+    setSelectedArticleId(articleId);
+    setCurrentPage('article');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSwitchToSignup = () => {
+    setLoginOpen(false);
+    setTimeout(() => setSignupOpen(true), 150);
+  };
+
+  const handleSwitchToLogin = () => {
+    setSignupOpen(false);
+    setTimeout(() => setLoginOpen(true), 150);
+  };
+
+  const handleAddToCart = () => {
+    // Mock product data - in real app, this would come from product page
+    const mockProduct: CartItem = {
+      id: Date.now(),
+      image: 'https://images.unsplash.com/photo-1760624089496-01ae68a92d58?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwaGFuZGJhZ3xlbnwxfHx8fDE3NjE1NzAzODR8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      title: 'Vintage Gucci Marmont',
+      seller: 'Elena C.',
+      price: 890,
+      condition: 'Excellent',
+    };
+    
+    setCartItems([...cartItems, mockProduct]);
+    toast('Item added to your Cart 👜', {
+      style: {
+        background: '#FFFFFF',
+        color: '#0A4834',
+        border: '1px solid #9F8151',
+        fontFamily: 'Manrope, sans-serif',
+      },
+    });
+    
+    // Navigate to cart after short delay
+    setTimeout(() => {
+      setCurrentPage('cart');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 800);
+  };
+
+  const handleRemoveFromCart = (id: number) => {
+    setCartItems(cartItems.filter(item => item.id !== id));
+  };
+
+  return (
+    <>
+      <Toaster position="top-center" />
+      <style>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        html {
+          scroll-behavior: smooth;
+        }
+
+        body {
+          margin: 0;
+          padding: 0;
+          overflow-x: hidden;
+        }
+
+        /* Subtle grain texture */
+        body::before {
+          content: '';
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          pointer-events: none;
+          opacity: 0.015;
+          z-index: 9999;
+          background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=');
+        }
+
+        /* Parallax effect on scroll */
+        @media (prefers-reduced-motion: no-preference) {
+          .parallax {
+            will-change: transform;
+          }
+        }
+      `}</style>
+
+      {/* Page Switcher for Demo */}
+      <div 
+        style={{
+          position: 'fixed',
+          bottom: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          backgroundColor: '#FFFFFF',
+          padding: '6px',
+          borderRadius: '8px',
+          boxShadow: '0px 2px 12px rgba(0,0,0,0.12)',
+        }}
+      >
+        {/* Language Switcher */}
+        <div style={{
+          display: 'flex',
+          gap: '4px',
+          paddingBottom: '6px',
+          borderBottom: '1px solid #F0ECE3',
+        }}>
+          <button
+            onClick={() => setLanguage('en')}
+            style={{
+              fontFamily: 'Manrope, sans-serif',
+              fontSize: '10px',
+              fontWeight: 600,
+              padding: '4px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: language === 'en' ? '#9F8151' : 'transparent',
+              color: language === 'en' ? '#FFFFFF' : '#0A4834',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            v.1 English
+          </button>
+          <button
+            onClick={() => setLanguage('mk')}
+            style={{
+              fontFamily: 'Manrope, sans-serif',
+              fontSize: '10px',
+              fontWeight: 600,
+              padding: '4px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              backgroundColor: language === 'mk' ? '#9F8151' : 'transparent',
+              color: language === 'mk' ? '#FFFFFF' : '#0A4834',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            v.2 Македонски
+          </button>
+        </div>
+        
+        {/* Page Navigation */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '4px',
+          maxWidth: '700px',
+          maxHeight: '80px',
+          overflowY: 'auto',
+          justifyContent: 'center',
+        }}>
+        <button
+          onClick={() => setCurrentPage('home')}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'home' ? '#0A4834' : 'transparent',
+            color: currentPage === 'home' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Home
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('shop');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'shop' ? '#0A4834' : 'transparent',
+            color: currentPage === 'shop' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Shop
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('closets');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'closets' ? '#0A4834' : 'transparent',
+            color: currentPage === 'closets' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Closets
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('blog');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'blog' || currentPage === 'article' ? '#0A4834' : 'transparent',
+            color: currentPage === 'blog' || currentPage === 'article' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Blog
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('profile');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'profile' ? '#0A4834' : 'transparent',
+            color: currentPage === 'profile' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Profile
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('upload');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'upload' ? '#0A4834' : 'transparent',
+            color: currentPage === 'upload' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Upload
+        </button>
+
+        <button
+          onClick={() => {
+            setCurrentPage('cart');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'cart' ? '#0A4834' : 'transparent',
+            color: currentPage === 'cart' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Cart
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('checkout');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'checkout' ? '#0A4834' : 'transparent',
+            color: currentPage === 'checkout' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Checkout
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('order-confirmation');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'order-confirmation' ? '#0A4834' : 'transparent',
+            color: currentPage === 'order-confirmation' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Order
+        </button>
+        <button
+          onClick={() => setReviewModalOpen(true)}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: 'transparent',
+            color: '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Review
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('chatbot-flow');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'chatbot-flow' ? '#0A4834' : 'transparent',
+            color: currentPage === 'chatbot-flow' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Chatbot
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('closet');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'closet' ? '#0A4834' : 'transparent',
+            color: currentPage === 'closet' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Closet
+        </button>
+        <button
+          onClick={() => {
+            setCurrentPage('become-seller');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '10px',
+            fontWeight: 500,
+            padding: '4px 8px',
+            border: 'none',
+            borderRadius: '4px',
+            backgroundColor: currentPage === 'become-seller' ? '#0A4834' : 'transparent',
+            color: currentPage === 'become-seller' ? '#FFFFFF' : '#0A4834',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Become Seller
+        </button>
+        </div>
+      </div>
+      
+      {currentPage === 'home' ? (
+        <div style={{ backgroundColor: '#FFFFFF' }}>
+          <HeaderAlt 
+            language={language}
+            onAccountClick={() => setLoginOpen(true)}
+            onShopClick={() => {
+              setCurrentPage('shop');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onClosetsClick={() => {
+              setCurrentPage('closets');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onJournalClick={() => {
+              setCurrentPage('blog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onBecomeSellerClick={() => {
+              setCurrentPage('become-seller');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+          
+          {/* Hero Section */}
+          <HeroSectionAlt language={language} />
+          
+          {/* Vintage Banner */}
+          <VintageBanner language={language} />
+          
+          {/* Shop The Finds */}
+          <ShopTheFinds language={language} />
+          
+          {/* Become Seller Section */}
+          <BecomeSellerSection language={language} />
+          
+          {/* Journal Spread */}
+          <JournalSpread language={language} />
+          
+          {/* Footer */}
+          <FooterAlt language={language} />
+        </div>
+      ) : currentPage === 'blog' ? (
+        <JournalHomepage language={language} onArticleClick={(id) => {
+          setSelectedArticleId(id);
+          setCurrentPage('article');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }} />
+      ) : currentPage === 'article' ? (
+        <ArticleDetail language={language} articleId={selectedArticleId} onBack={() => {
+          setCurrentPage('blog');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }} />
+      ) : currentPage === 'shop' ? (
+        <ShopPage language={language} />
+      ) : currentPage === 'closets' ? (
+        <ClosetsPage language={language} />
+      ) : currentPage === 'product' ? (
+        <>
+          <HeaderAlt 
+            language={language}
+            onAccountClick={() => setLoginOpen(true)}
+            onShopClick={() => {
+              setCurrentPage('shop');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onClosetsClick={() => {
+              setCurrentPage('closets');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onJournalClick={() => {
+              setCurrentPage('blog');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onBecomeSellerClick={() => {
+              setCurrentPage('become-seller');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+          <ProductPage 
+            onBack={() => {
+              setCurrentPage('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onCheckout={handleAddToCart}
+          />
+          <FooterAlt 
+            onNewsletterClick={() => setNewsletterOpen(true)}
+            onBecomeSellerClick={() => {
+              setCurrentPage('become-seller');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
+        </>
+      ) : currentPage === 'cart' ? (
+        <CartPage language={language} items={cartItems} onRemove={handleRemoveFromCart} onCheckout={() => setCurrentPage('checkout')} />
+      ) : currentPage === 'checkout' ? (
+        <CheckoutPage language={language} items={cartItems} onSubmit={() => setCurrentPage('payment-processing')} />
+      ) : currentPage === 'payment-processing' ? (
+        <PaymentProcessing language={language} onSuccess={() => {
+          setCurrentPage('order-confirmation');
+          setCartItems([]);
+        }} />
+      ) : currentPage === 'profile' ? (
+        <ProfilePage language={language} />
+      ) : currentPage === 'upload' ? (
+        <UploadItem language={language} onClose={() => setCurrentPage('profile')} />
+      ) : currentPage === 'search' ? (
+        <SearchResultsPage language={language} searchQuery="vintage bags" onClose={() => setCurrentPage('home')} />
+      ) : currentPage === 'product-detail' ? (
+        <ProductDetailPage language={language} />
+      ) : currentPage === 'order-confirmation' ? (
+        <NewOrderConfirmation language={language} orderNumber="MOS-2024-0012" onContinueShopping={() => setCurrentPage('shop')} />
+      ) : currentPage === 'chatbot-flow' ? (
+        <ChatbotFlow language={language} onClose={() => setCurrentPage('home')} />
+      ) : currentPage === 'closet' ? (
+        <ClosetPage language={language} />
+      ) : currentPage === 'become-seller' ? (
+        <BecomeSellerOnboarding language={language} onClose={() => setCurrentPage('home')} onSuccess={() => setCurrentPage('profile')} />
+      ) : null}
+
+      {/* Global Chat Widget - appears on all pages */}
+      <ChatWidget />
+
+      {/* Auth Dialogs */}
+      <NewsletterPopup
+        isOpen={newsletterOpen}
+        onClose={() => setNewsletterOpen(false)}
+        language={language}
+      />
+
+      <LoginDialog
+        isOpen={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSwitchToSignup={handleSwitchToSignup}
+      />
+
+      <SignupDialog
+        isOpen={signupOpen}
+        onClose={() => setSignupOpen(false)}
+        onSwitchToLogin={handleSwitchToLogin}
+      />
+
+      <SimpleReviewModal
+        isOpen={reviewModalOpen}
+        onClose={() => setReviewModalOpen(false)}
+        onSubmit={(rating, comment) => {
+          console.log('Review submitted:', rating, comment);
+        }}
+      />
+
+      {/* Avatar Selection Modal */}
+      <AvatarSelectionModal
+        isOpen={avatarModalOpen}
+        onClose={() => setAvatarModalOpen(false)}
+        onSelect={(avatarId) => {
+          console.log('Avatar selected:', avatarId);
+        }}
+      />
+
+      {/* Contact Seller Popup */}
+      <ContactSellerPopup
+        isOpen={contactSellerOpen}
+        onClose={() => setContactSellerOpen(false)}
+        sellerName="Elena Marković"
+        language={language}
+      />
+    </>
+  );
+}
