@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Heart, MessageCircle, ChevronDown, Package, RotateCcw, Leaf, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
@@ -20,6 +21,24 @@ interface ProductPageProps {
 }
 
 export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPageProps) {
+  const { productId } = useParams<{ productId: string }>();
+  const navigate = useNavigate();
+  
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/shop');
+    }
+  };
+  
+  const handleCheckout = () => {
+    if (onCheckout) {
+      onCheckout();
+    } else {
+      navigate('/cart');
+    }
+  };
   const t = getTranslation(language);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -89,30 +108,28 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         padding: '120px 64px 80px',
       }}>
         {/* Back Button */}
-        {onBack && (
-          <motion.button
-            onClick={onBack}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '15px',
-              color: '#0A4834',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              marginBottom: '48px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.4s ease-in-out',
-            }}
-            whileHover={{ x: -4 }}
-          >
-            <ChevronLeft size={20} />
-            Back to Shop
-          </motion.button>
-        )}
+        <motion.button
+          onClick={handleBack}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          style={{
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '15px',
+            color: '#0A4834',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            marginBottom: '48px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.4s ease-in-out',
+          }}
+          whileHover={{ x: -4 }}
+        >
+          <ChevronLeft size={20} />
+          Back to Shop
+        </motion.button>
 
         <div style={{
           display: 'grid',
@@ -619,7 +636,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
             <motion.button
               whileHover={{ backgroundColor: '#083D2C', y: -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={onCheckout}
+              onClick={handleCheckout}
               style={{
                 width: '100%',
                 fontFamily: 'Manrope, sans-serif',

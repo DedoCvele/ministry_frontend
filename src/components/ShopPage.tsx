@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { Search, SlidersHorizontal, X, Heart, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { Search, SlidersHorizontal, X, Heart, ChevronDown, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
@@ -19,6 +21,7 @@ interface Product {
   brand: string;
   size: string;
   condition: string;
+  apiData?: any; // Store full API response for additional details
 }
 
 interface ShopPageProps {
@@ -27,6 +30,15 @@ interface ShopPageProps {
 }
 
 export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
+  const navigate = useNavigate();
+  
+  const handleProductClick = (productId: number) => {
+    if (onProductClick) {
+      onProductClick(productId);
+    } else {
+      navigate(`/product/${productId}`);
+    }
+  };
   const t = getTranslation(language);
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,8 +46,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   const [sortBy, setSortBy] = useState('Newest');
   const [showFilterDropdown, setShowFilterDropdown] = useState<string | null>(null);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
+  const [apiProducts, setApiProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
+  const [selectedProductDetails, setSelectedProductDetails] = useState<any>(null);
 
-  const products: Product[] = [
+  // Mock products as fallback
+  const mockProducts: Product[] = [
     {
       id: 1,
       title: 'Vintage Leather Blazer',
@@ -127,6 +144,71 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   };
 
   const sortOptions = ['Newest', 'Trending', 'Lowest Price', 'Highest Price', 'Highest Rated'];
+
+  // Fetch items from API
+  useEffect(() => {
+    const fetchItems = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('http://127.0.0.1:8000/api/items');
+        
+        // Console log the full response
+        console.log('=== AXIOS RESPONSE ===');
+        console.log('Full response:', response);
+        console.log('Response data:', response.data);
+        console.log('Response data type:', typeof response.data);
+        console.log('Is array?', Array.isArray(response.data));
+        console.log('Number of items:', Array.isArray(response.data) ? response.data.length : 'Not an array');
+        
+        const items = response.data;
+        
+        // Log first item structure if available
+        if (Array.isArray(items) && items.length > 0) {
+          console.log('First item structure:', items[0]);
+          console.log('First item keys:', Object.keys(items[0]));
+        }
+        
+        // Map API response to Product interface
+        const mappedProducts: Product[] = items.map((item: any) => {
+          console.log('Mapping item:', item.id, item.title);
+          return {
+          id: item.id,
+          title: item.title || 'Untitled Item',
+          price: parseFloat(item.price) || 0,
+          seller: item.user?.name || item.user?.email || 'Unknown Seller',
+          sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
+          image: item.images && item.images.length > 0 
+            ? `http://127.0.0.1:8000/storage/${item.images[0]}` 
+            : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400',
+          tags: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) : [],
+          category: item.category?.name || 'Uncategorized',
+          brand: item.brand?.name || 'Unknown',
+          size: item.size || 'One Size',
+          condition: item.condition || 'Good',
+          // Store full API data for additional info
+          apiData: item,
+          };
+        });
+        
+        console.log('Mapped products:', mappedProducts);
+        console.log('Number of mapped products:', mappedProducts.length);
+        console.log('First mapped product:', mappedProducts[0]);
+        
+        setApiProducts(mappedProducts);
+      } catch (error) {
+        console.error('Error fetching items:', error);
+        // Use mock products as fallback
+        setApiProducts(mockProducts);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItems();
+  }, []);
+
+  // Use API products if available, otherwise use mock products
+  const products = apiProducts.length > 0 ? apiProducts : mockProducts;
 
   const toggleWishlist = (productId: number) => {
     setWishlist(prev => 
@@ -472,12 +554,23 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         margin: '0 auto',
         padding: '48px 64px 120px',
       }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '40px',
-        }}>
-          {products.map((product, index) => (
+        {loading ? (
+          <div style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '18px',
+            color: '#0A4834',
+          }}>
+            Loading products...
+          </div>
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '40px',
+          }}>
+            {products.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
@@ -489,7 +582,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
             >
               {/* Product Card */}
               <div
-                onClick={() => onProductClick?.(product.id)}
+                onClick={() => handleProductClick(product.id)}
                 style={{
                   cursor: 'pointer',
                   position: 'relative',
@@ -677,19 +770,27 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
               </div>
             </motion.div>
           ))}
-        </div>
+          </div>
+        )}
 
-        {/* Load More Button */}
+        {/* Load More / Show Additional Info Button */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
           style={{
-            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
             marginTop: '64px',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '24px',
           }}
         >
           <motion.button
+            onClick={() => {
+              setShowAdditionalInfo(!showAdditionalInfo);
+            }}
             whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }}
             whileTap={{ scale: 0.98 }}
             style={{
@@ -703,10 +804,200 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
               padding: '14px 40px',
               cursor: 'pointer',
               transition: 'all 0.3s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
             }}
           >
-            {t.shop.loadMore}
+            <Info size={18} />
+            {showAdditionalInfo ? 'Hide Additional Info' : 'Show Additional Info'}
           </motion.button>
+
+          {/* Additional Info Cards Display */}
+          {showAdditionalInfo && products.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              style={{
+                width: '100%',
+                maxWidth: '1400px',
+                marginTop: '40px',
+              }}
+            >
+              <h3 style={{
+                fontFamily: 'Cormorant Garamond, serif',
+                fontSize: '28px',
+                color: '#0A4834',
+                marginBottom: '32px',
+                textAlign: 'center',
+              }}>
+                Additional Product Information
+              </h3>
+              
+              {/* Grid of Additional Info Cards */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+                gap: '24px',
+              }}>
+                {products.filter(p => p.apiData).map((product) => (
+                  <motion.div
+                    key={`info-${product.id}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '16px',
+                      padding: '24px',
+                      boxShadow: '0px 4px 16px rgba(0,0,0,0.08)',
+                      border: '1px solid rgba(159,129,81,0.2)',
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '16px',
+                      paddingBottom: '16px',
+                      borderBottom: '1px solid rgba(159,129,81,0.2)',
+                    }}>
+                      <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                      }}>
+                        <img
+                          src={product.image}
+                          alt={product.title}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <h4 style={{
+                          fontFamily: 'Cormorant Garamond, serif',
+                          fontSize: '18px',
+                          color: '#0A4834',
+                          margin: 0,
+                        }}>
+                          {product.title}
+                        </h4>
+                        <p style={{
+                          fontFamily: 'Manrope, sans-serif',
+                          fontSize: '14px',
+                          color: '#9F8151',
+                          margin: '4px 0 0 0',
+                        }}>
+                          ID: {product.id}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      fontFamily: 'Manrope, sans-serif',
+                      fontSize: '13px',
+                    }}>
+                      {product.apiData.description && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Description:</strong>
+                          <span style={{ color: '#0A4834' }}>{product.apiData.description}</span>
+                        </div>
+                      )}
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        {product.apiData.brand_id && (
+                          <div>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Brand ID:</strong>
+                            <span style={{ color: '#0A4834' }}>{product.apiData.brand_id}</span>
+                          </div>
+                        )}
+                        {product.apiData.category_id && (
+                          <div>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Category ID:</strong>
+                            <span style={{ color: '#0A4834' }}>{product.apiData.category_id}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {product.apiData.approval_state && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Approval State:</strong>
+                          <span style={{
+                            color: '#0A4834',
+                            backgroundColor: product.apiData.approval_state === 'approved' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            display: 'inline-block',
+                          }}>
+                            {product.apiData.approval_state}
+                          </span>
+                        </div>
+                      )}
+
+                      {product.apiData.brand && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Brand:</strong>
+                          <span style={{ color: '#0A4834' }}>{product.apiData.brand.name}</span>
+                        </div>
+                      )}
+
+                      {product.apiData.category && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Category:</strong>
+                          <span style={{ color: '#0A4834' }}>{product.apiData.category.name}</span>
+                        </div>
+                      )}
+
+                      {product.apiData.user && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Seller:</strong>
+                          <span style={{ color: '#0A4834' }}>{product.apiData.user.name || product.apiData.user.email}</span>
+                        </div>
+                      )}
+
+                      {product.apiData.created_at && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '4px' }}>Created:</strong>
+                          <span style={{ color: '#0A4834' }}>
+                            {new Date(product.apiData.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      )}
+
+                      {product.apiData.images && product.apiData.images.length > 1 && (
+                        <div>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: '8px' }}>All Images ({product.apiData.images.length}):</strong>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {product.apiData.images.map((img: string, idx: number) => (
+                              <img
+                                key={idx}
+                                src={`http://127.0.0.1:8000/storage/${img}`}
+                                alt={`Image ${idx + 1}`}
+                                style={{
+                                  width: '60px',
+                                  height: '60px',
+                                  objectFit: 'cover',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(159,129,81,0.2)',
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Bottom CTA Strip */}
