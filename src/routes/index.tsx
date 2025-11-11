@@ -1,6 +1,8 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { RootLayout } from '../layouts/RootLayout';
 import { HomePage } from '../pages/HomePage';
+import { LoginPage } from '../pages/LoginPage';
+import { RegisterPage } from '../pages/RegisterPage';
 import { ShopPage } from '../components/ShopPage';
 import { ClosetsPage } from '../components/ClosetsPage';
 import { JournalHomepage } from '../components/JournalHomepage';
@@ -80,6 +82,22 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        path: 'upload',
+        element: <UploadItem language="en" onClose={() => '/'} />,
+      },
+      {
+        path: 'login',
+        element: <LoginPage />,
+      },
+      {
+        path: 'register',
+        element: <RegisterPage />,
+      },
+      {
+        path: 'order',
+        element: <NewOrderConfirmation onContinueShopping={() => '/shop'} />,
+      },
+      {
         path: 'product/:productId',
         element: <ProductPage onBack={() => '/'} onCheckout={() => '/cart'} />,
       },
@@ -97,7 +115,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'order-confirmation',
-        element: <NewOrderConfirmation language="en" orderNumber="MOS-2024-0012" onContinueShopping={() => '/shop'} />,
+        element: <NewOrderConfirmation onContinueShopping={() => '/shop'} />,
       },
       {
         path: 'become-seller',
