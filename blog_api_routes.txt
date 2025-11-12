@@ -1,0 +1,495 @@
+==========================================
+BLOG API ROUTES - USAGE GUIDE
+==========================================
+
+Base URL: http://localhost:8000/api
+
+All routes return JSON responses.
+
+==========================================
+1. GET ALL BLOGS
+==========================================
+Endpoint: GET /api/blogs
+
+Description: Retrieve all blogs
+
+Example (JavaScript/Fetch):
+----------------------------------------
+fetch('http://localhost:8000/api/blogs')
+  .then(response => response.json())
+  .then(data => {
+    console.log(data);
+    // data.data contains array of blogs
+  })
+  .catch(error => console.error('Error:', error));
+
+Example (Axios):
+----------------------------------------
+axios.get('http://localhost:8000/api/blogs')
+  .then(response => {
+    console.log(response.data);
+    // response.data.data contains array of blogs
+  })
+  .catch(error => console.error('Error:', error));
+
+Response:
+----------------------------------------
+{
+  "status": "success",
+  "count": 2,
+  "data": [
+    {
+      "id": 1,
+      "title": "Blog Title",
+      "category": "Technology",
+      "short_summary": "Short summary here",
+      "full_story": "Full story content here",
+      "image_url": "https://example.com/image.jpg",
+      "user_id": 1,
+      "status": "published",
+      "created_at": "2025-11-12T17:33:25.000000Z",
+      "updated_at": "2025-11-12T17:33:25.000000Z"
+    }
+  ]
+}
+
+
+==========================================
+2. GET SINGLE BLOG
+==========================================
+Endpoint: GET /api/blogs/{id}
+
+Description: Retrieve a single blog by ID
+
+Example (JavaScript/Fetch):
+----------------------------------------
+const blogId = 1;
+fetch(`http://localhost:8000/api/blogs/${blogId}`)
+  .then(response => response.json())
+  .then(data => {
+    console.log(data);
+    // data.data contains the blog object
+  })
+  .catch(error => console.error('Error:', error));
+
+Example (Axios):
+----------------------------------------
+const blogId = 1;
+axios.get(`http://localhost:8000/api/blogs/${blogId}`)
+  .then(response => {
+    console.log(response.data);
+    // response.data.data contains the blog object
+  })
+  .catch(error => console.error('Error:', error));
+
+Response (Success):
+----------------------------------------
+{
+  "status": "success",
+  "data": {
+    "id": 1,
+    "title": "Blog Title",
+    "category": "Technology",
+    "short_summary": "Short summary here",
+    "full_story": "Full story content here",
+    "image_url": "https://example.com/image.jpg",
+    "user_id": 1,
+    "status": "published",
+    "created_at": "2025-11-12T17:33:25.000000Z",
+    "updated_at": "2025-11-12T17:33:25.000000Z"
+  }
+}
+
+Response (Not Found):
+----------------------------------------
+{
+  "status": "error",
+  "message": "Blog not found"
+}
+Status Code: 404
+
+
+==========================================
+3. CREATE BLOG (POST)
+==========================================
+Endpoint: POST /api/blogs
+
+Description: Create a new blog post
+
+Required Fields:
+- title (string, max 255 characters)
+- full_story (string)
+
+Optional Fields:
+- category (string, max 255 characters)
+- short_summary (string)
+- image_url (string, valid URL, max 500 characters)
+
+Example (JavaScript/Fetch):
+----------------------------------------
+fetch('http://localhost:8000/api/blogs', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    title: 'My Blog Post',
+    category: 'Technology',
+    short_summary: 'This is a short summary of my blog post',
+    full_story: 'This is the full story content of my blog post. It can be as long as needed.',
+    image_url: 'https://example.com/image.jpg'
+  })
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Blog created:', data);
+  })
+  .catch(error => console.error('Error:', error));
+
+Example (Axios):
+----------------------------------------
+axios.post('http://localhost:8000/api/blogs', {
+  title: 'My Blog Post',
+  category: 'Technology',
+  short_summary: 'This is a short summary of my blog post',
+  full_story: 'This is the full story content of my blog post. It can be as long as needed.',
+  image_url: 'https://example.com/image.jpg'
+})
+  .then(response => {
+    console.log('Blog created:', response.data);
+  })
+  .catch(error => {
+    console.error('Error:', error.response?.data || error.message);
+  });
+
+Request Body:
+----------------------------------------
+{
+  "title": "My Blog Post",
+  "category": "Technology",
+  "short_summary": "This is a short summary",
+  "full_story": "This is the full story content",
+  "image_url": "https://example.com/image.jpg"
+}
+
+Response (Success):
+----------------------------------------
+{
+  "status": "success",
+  "message": "Blog created successfully",
+  "data": {
+    "id": 1,
+    "title": "My Blog Post",
+    "category": "Technology",
+    "short_summary": "This is a short summary",
+    "full_story": "This is the full story content",
+    "image_url": "https://example.com/image.jpg",
+    "user_id": 1,
+    "status": "published",
+    "created_at": "2025-11-12T17:33:25.000000Z",
+    "updated_at": "2025-11-12T17:33:25.000000Z"
+  }
+}
+Status Code: 201
+
+
+==========================================
+4. UPDATE BLOG (PUT)
+==========================================
+Endpoint: PUT /api/blogs/{id}
+
+Description: Update an existing blog post
+
+All fields are optional - only send the fields you want to update.
+
+Example (JavaScript/Fetch):
+----------------------------------------
+const blogId = 1;
+fetch(`http://localhost:8000/api/blogs/${blogId}`, {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    title: 'Updated Blog Title',
+    category: 'Updated Category',
+    short_summary: 'Updated summary',
+    full_story: 'Updated full story content',
+    image_url: 'https://example.com/new-image.jpg'
+  })
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Blog updated:', data);
+  })
+  .catch(error => console.error('Error:', error));
+
+Example (Axios):
+----------------------------------------
+const blogId = 1;
+axios.put(`http://localhost:8000/api/blogs/${blogId}`, {
+  title: 'Updated Blog Title',
+  category: 'Updated Category',
+  short_summary: 'Updated summary',
+  full_story: 'Updated full story content',
+  image_url: 'https://example.com/new-image.jpg'
+})
+  .then(response => {
+    console.log('Blog updated:', response.data);
+  })
+  .catch(error => {
+    console.error('Error:', error.response?.data || error.message);
+  });
+
+Request Body (all fields optional):
+----------------------------------------
+{
+  "title": "Updated Blog Title",
+  "category": "Updated Category",
+  "short_summary": "Updated summary",
+  "full_story": "Updated full story content",
+  "image_url": "https://example.com/new-image.jpg"
+}
+
+Partial Update Example (only update title):
+----------------------------------------
+{
+  "title": "Only Title Updated"
+}
+
+Response (Success):
+----------------------------------------
+{
+  "status": "success",
+  "message": "Blog updated successfully",
+  "data": {
+    "id": 1,
+    "title": "Updated Blog Title",
+    "category": "Updated Category",
+    "short_summary": "Updated summary",
+    "full_story": "Updated full story content",
+    "image_url": "https://example.com/new-image.jpg",
+    "user_id": 1,
+    "status": "published",
+    "created_at": "2025-11-12T17:33:25.000000Z",
+    "updated_at": "2025-11-12T18:00:00.000000Z"
+  }
+}
+
+Response (Not Found):
+----------------------------------------
+{
+  "status": "error",
+  "message": "Blog not found"
+}
+Status Code: 404
+
+
+==========================================
+5. DELETE BLOG
+==========================================
+Endpoint: DELETE /api/blogs/{id}
+
+Description: Delete a blog post
+
+Example (JavaScript/Fetch):
+----------------------------------------
+const blogId = 1;
+fetch(`http://localhost:8000/api/blogs/${blogId}`, {
+  method: 'DELETE'
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Blog deleted:', data);
+  })
+  .catch(error => console.error('Error:', error));
+
+Example (Axios):
+----------------------------------------
+const blogId = 1;
+axios.delete(`http://localhost:8000/api/blogs/${blogId}`)
+  .then(response => {
+    console.log('Blog deleted:', response.data);
+  })
+  .catch(error => {
+    console.error('Error:', error.response?.data || error.message);
+  });
+
+Response (Success):
+----------------------------------------
+{
+  "status": "success",
+  "message": "Blog deleted successfully"
+}
+
+Response (Not Found):
+----------------------------------------
+{
+  "status": "error",
+  "message": "Blog not found"
+}
+Status Code: 404
+
+
+==========================================
+COMPLETE REACT EXAMPLE
+==========================================
+Here's a complete example of how to use these routes in a React component:
+
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const BlogManager = () => {
+  const [blogs, setBlogs] = useState([]);
+  const [formData, setFormData] = useState({
+    title: '',
+    category: '',
+    short_summary: '',
+    full_story: '',
+    image_url: ''
+  });
+
+  // GET all blogs
+  useEffect(() => {
+    fetchBlogs();
+  }, []);
+
+  const fetchBlogs = async () => {
+    try {
+      const response = await axios.get('http://localhost:8000/api/blogs');
+      setBlogs(response.data.data);
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+    }
+  };
+
+  // POST create blog
+  const createBlog = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post('http://localhost:8000/api/blogs', formData);
+      console.log('Blog created:', response.data);
+      setFormData({ title: '', category: '', short_summary: '', full_story: '', image_url: '' });
+      fetchBlogs(); // Refresh list
+    } catch (error) {
+      console.error('Error creating blog:', error);
+    }
+  };
+
+  // PUT update blog
+  const updateBlog = async (id) => {
+    try {
+      const response = await axios.put(`http://localhost:8000/api/blogs/${id}`, {
+        title: 'Updated Title'
+      });
+      console.log('Blog updated:', response.data);
+      fetchBlogs(); // Refresh list
+    } catch (error) {
+      console.error('Error updating blog:', error);
+    }
+  };
+
+  // DELETE blog
+  const deleteBlog = async (id) => {
+    try {
+      const response = await axios.delete(`http://localhost:8000/api/blogs/${id}`);
+      console.log('Blog deleted:', response.data);
+      fetchBlogs(); // Refresh list
+    } catch (error) {
+      console.error('Error deleting blog:', error);
+    }
+  };
+
+  return (
+    <div>
+      <form onSubmit={createBlog}>
+        <input
+          type="text"
+          placeholder="Title"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          required
+        />
+        <input
+          type="text"
+          placeholder="Category"
+          value={formData.category}
+          onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+        />
+        <textarea
+          placeholder="Short Summary"
+          value={formData.short_summary}
+          onChange={(e) => setFormData({ ...formData, short_summary: e.target.value })}
+        />
+        <textarea
+          placeholder="Full Story"
+          value={formData.full_story}
+          onChange={(e) => setFormData({ ...formData, full_story: e.target.value })}
+          required
+        />
+        <input
+          type="url"
+          placeholder="Image URL"
+          value={formData.image_url}
+          onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+        />
+        <button type="submit">Create Blog</button>
+      </form>
+
+      <div>
+        {blogs.map(blog => (
+          <div key={blog.id}>
+            <h3>{blog.title}</h3>
+            <p>{blog.short_summary}</p>
+            <button onClick={() => updateBlog(blog.id)}>Update</button>
+            <button onClick={() => deleteBlog(blog.id)}>Delete</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default BlogManager;
+
+
+==========================================
+CORS CONFIGURATION
+==========================================
+If you encounter CORS errors when calling from localhost:3000, 
+make sure your Laravel CORS configuration allows requests from your frontend.
+
+Check: config/cors.php
+
+You may need to add:
+'allowed_origins' => ['http://localhost:3000'],
+
+
+==========================================
+ERROR HANDLING
+==========================================
+All endpoints return appropriate HTTP status codes:
+- 200: Success (GET, PUT, DELETE)
+- 201: Created (POST)
+- 404: Not Found
+- 422: Validation Error (if validation fails)
+
+Validation errors will return:
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "title": ["The title field is required."],
+    "full_story": ["The full story field is required."]
+  }
+}
+
+
+==========================================
+NOTES
+==========================================
+- All routes are currently public (no authentication required)
+- The user_id field defaults to 1 if no user is authenticated
+- All blogs are automatically set to 'published' status
+- The image_url field must be a valid URL format
+- Created_at and updated_at are automatically managed by Laravel
+

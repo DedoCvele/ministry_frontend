@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Check,
@@ -8,8 +8,11 @@ import {
   LogOut,
   Search,
   ShieldCheck,
+  Trash2,
   X,
+  Loader2,
 } from 'lucide-react';
+import axios from 'axios';
 import { HeaderAlt } from '../components/HeaderAlt';
 import { FooterAlt } from '../components/FooterAlt';
 import { useAuth } from '../context/AuthContext';
@@ -57,7 +60,7 @@ const APPROVAL_QUEUE: ApprovalItem[] = [
   },
 ];
 
-const BLOG_CATEGORIES = [
+const DEFAULT_BLOG_CATEGORIES = [
   'Market Insights',
   'Seller Spotlights',
   'Trend Reports',
@@ -65,18 +68,112 @@ const BLOG_CATEGORIES = [
   'Sustainability',
 ];
 
+const STORAGE_KEY_CATEGORIES = 'ministry_blog_categories';
+
+interface Blog {
+  id: number;
+  title: string;
+  category: string;
+  short_summary: string;
+  full_story: string;
+  image_url: string;
+  user_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+const API_BASE_URL = 'http://localhost:8000/api';
+
 export function AdminPage() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'approve' | 'add-blog'>('approve');
+  const [activeTab, setActiveTab] = useState<'approve' | 'add-blog' | 'manage-blogs'>('approve');
   const [query, setQuery] = useState('');
   const [items, setItems] = useState(APPROVAL_QUEUE);
   const [blogForm, setBlogForm] = useState({
     title: '',
-    category: BLOG_CATEGORIES[0] ?? '',
+    category: DEFAULT_BLOG_CATEGORIES[0] ?? '',
     summary: '',
     content: '',
     heroImage: '',
   });
+  const [blogs, setBlogs] = useState<Blog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingBlogId, setEditingBlogId] = useState<number | null>(null);
+  const [blogQuery, setBlogQuery] = useState('');
+  const [categories, setCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_CATEGORIES);
+      if (saved) {
+        const customCategories = JSON.parse(saved);
+        return [...DEFAULT_BLOG_CATEGORIES, ...customCategories];
+      }
+      return DEFAULT_BLOG_CATEGORIES;
+    } catch {
+      return DEFAULT_BLOG_CATEGORIES;
+    }
+  });
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+
+  // Fetch blogs on component mount and when switching to manage-blogs tab
+  useEffect(() => {
+    if (activeTab === 'manage-blogs') {
+      fetchBlogs();
+    }
+  }, [activeTab]);
+
+  // Load draft from localStorage on component mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('blog_draft');
+      if (savedDraft) {
+        const draft = JSON.parse(savedDraft);
+        // If draft has a category that's not in our list, add it
+        if (draft.category && !categories.includes(draft.category)) {
+          const updatedCategories = [...categories, draft.category];
+          setCategories(updatedCategories);
+          
+          // Save to localStorage if it's not a default category
+          if (!DEFAULT_BLOG_CATEGORIES.includes(draft.category)) {
+            const customCategories = updatedCategories.filter(
+              cat => !DEFAULT_BLOG_CATEGORIES.includes(cat)
+            );
+            localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(customCategories));
+          }
+        }
+        setBlogForm(draft);
+      }
+    } catch (error) {
+      console.error('Error loading draft:', error);
+    }
+  }, []);
+
+  const fetchBlogs = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/blogs`);
+      // API returns { status: "success", data: [...] }
+      if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+        setBlogs(response.data.data);
+      } else if (Array.isArray(response.data)) {
+        // Fallback if response structure is different
+        setBlogs(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching blogs:', error);
+      toast.error('Failed to load blogs', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredItems = useMemo(() => {
     if (!query.trim()) {
@@ -90,6 +187,19 @@ export function AdminPage() {
         item.category.toLowerCase().includes(lowered),
     );
   }, [items, query]);
+
+  const filteredBlogs = useMemo(() => {
+    if (!blogQuery.trim()) {
+      return blogs;
+    }
+    const lowered = blogQuery.toLowerCase();
+    return blogs.filter(
+      (blog) =>
+        blog.title.toLowerCase().includes(lowered) ||
+        blog.category.toLowerCase().includes(lowered) ||
+        blog.short_summary.toLowerCase().includes(lowered),
+    );
+  }, [blogs, blogQuery]);
 
   const handleDecision = (id: string, decision: 'approved' | 'rejected') => {
     setItems((prev) => prev.filter((item) => item.id !== id));
@@ -108,22 +218,260 @@ export function AdminPage() {
     );
   };
 
-  const handleBlogSubmit = (event: React.FormEvent) => {
+  const saveDraftToLocalStorage = () => {
+    try {
+      localStorage.setItem('blog_draft', JSON.stringify(blogForm));
+      toast.success('Draft saved locally ✨', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      toast.error('Failed to save draft', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    }
+  };
+
+  const handleSaveDraft = (event: React.FormEvent) => {
     event.preventDefault();
-    toast.success('Draft saved to editorial queue ✨', {
+    saveDraftToLocalStorage();
+  };
+
+  const handlePostBlog = async () => {
+    if (!blogForm.title.trim() || !blogForm.content.trim()) {
+      toast.error('Title and Full Story are required', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Map form fields to API fields
+      const payload: {
+        title: string;
+        full_story: string;
+        category?: string;
+        short_summary?: string;
+        image_url?: string;
+      } = {
+        title: blogForm.title,
+        full_story: blogForm.content,
+      };
+
+      // Add optional fields if they have values
+      if (blogForm.category) {
+        payload.category = blogForm.category;
+      }
+      if (blogForm.summary) {
+        payload.short_summary = blogForm.summary;
+      }
+      if (blogForm.heroImage) {
+        payload.image_url = blogForm.heroImage;
+      }
+
+      if (editingBlogId) {
+        // Update existing blog
+        const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+        toast.success('Blog updated successfully ✨', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+        setEditingBlogId(null);
+      } else {
+        // Create new blog
+        const response = await axios.post(`${API_BASE_URL}/blogs`, payload);
+        toast.success('Blog posted successfully ✨', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+      }
+
+      // Clear localStorage draft after successful post
+      localStorage.removeItem('blog_draft');
+
+      // Reset form
+      setBlogForm({
+        title: '',
+        category: categories[0] ?? '',
+        summary: '',
+        content: '',
+        heroImage: '',
+      });
+
+      // Refresh blogs list if on manage-blogs tab
+      if (activeTab === 'manage-blogs') {
+        fetchBlogs();
+      }
+    } catch (error: any) {
+      console.error('Error posting blog:', error);
+      const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.errors ||
+        error.message ||
+        'Failed to post blog';
+      
+      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Failed to post blog', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEditBlog = (blog: Blog) => {
+    setEditingBlogId(blog.id);
+    
+    // If the blog has a category that's not in our list, add it
+    if (blog.category && !categories.includes(blog.category)) {
+      const updatedCategories = [...categories, blog.category];
+      setCategories(updatedCategories);
+      
+      // Save to localStorage if it's not a default category
+      if (!DEFAULT_BLOG_CATEGORIES.includes(blog.category)) {
+        const customCategories = updatedCategories.filter(
+          cat => !DEFAULT_BLOG_CATEGORIES.includes(cat)
+        );
+        localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(customCategories));
+      }
+    }
+    
+    setBlogForm({
+      title: blog.title,
+      category: blog.category || (categories[0] ?? ''),
+      summary: blog.short_summary || '',
+      content: blog.full_story,
+      heroImage: blog.image_url || '',
+    });
+    setActiveTab('add-blog');
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteBlog = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this blog?')) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await axios.delete(`${API_BASE_URL}/blogs/${id}`);
+      toast.success('Blog deleted successfully', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      fetchBlogs();
+    } catch (error: any) {
+      console.error('Error deleting blog:', error);
+      toast.error('Failed to delete blog', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingBlogId(null);
+    setBlogForm({
+      title: '',
+      category: categories[0] ?? '',
+      summary: '',
+      content: '',
+      heroImage: '',
+    });
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategory.trim()) {
+      toast.error('Please enter a category name', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
+    const trimmedCategory = newCategory.trim();
+    
+    // Check if category already exists
+    if (categories.some(cat => cat.toLowerCase() === trimmedCategory.toLowerCase())) {
+      toast.error('This category already exists', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
+    // Add to categories list
+    const updatedCategories = [...categories, trimmedCategory];
+    setCategories(updatedCategories);
+
+    // Save custom categories to localStorage (only the ones not in default list)
+    const customCategories = updatedCategories.filter(
+      cat => !DEFAULT_BLOG_CATEGORIES.includes(cat)
+    );
+    localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(customCategories));
+
+    // Set the new category as selected
+    setBlogForm(prev => ({ ...prev, category: trimmedCategory }));
+
+    // Reset add category form
+    setNewCategory('');
+    setShowAddCategory(false);
+
+    toast.success('Category added successfully ✨', {
       style: {
         background: '#FFFFFF',
         color: '#0A4834',
         border: '1px solid #9F8151',
         fontFamily: 'Manrope, sans-serif',
       },
-    });
-    setBlogForm({
-      title: '',
-      category: BLOG_CATEGORIES[0] ?? '',
-      summary: '',
-      content: '',
-      heroImage: '',
     });
   };
 
@@ -203,11 +551,26 @@ export function AdminPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('add-blog')}
+                onClick={() => {
+                  setActiveTab('add-blog');
+                  handleCancelEdit();
+                }}
                 className={`admin-tab-button ${activeTab === 'add-blog' ? 'is-active' : ''}`}
               >
                 <FilePlus2 />
-                Add Blog
+                {editingBlogId ? 'Edit Blog' : 'Add Blog'}
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setActiveTab('manage-blogs');
+                  handleCancelEdit();
+                }}
+                className={`admin-tab-button ${activeTab === 'manage-blogs' ? 'is-active' : ''}`}
+              >
+                <Edit3 />
+                Manage Blogs
               </motion.button>
             </div>
 
@@ -283,14 +646,16 @@ export function AdminPage() {
                     </div>
                   )}
                 </>
-              ) : (
+              ) : activeTab === 'add-blog' ? (
                 <>
                   <div className="admin-content-header">
-                    <h3>Create an editorial draft</h3>
-                    <div className="admin-form-hint">Autosaves every 30s while you type.</div>
+                    <h3>{editingBlogId ? 'Edit blog post' : 'Create an editorial draft'}</h3>
+                    <div className="admin-form-hint">
+                      {editingBlogId ? 'Update the blog post below' : 'Autosaves every 30s while you type.'}
+                    </div>
                   </div>
 
-                  <form className="admin-form" onSubmit={handleBlogSubmit}>
+                  <form className="admin-form" onSubmit={handleSaveDraft}>
                     <div className="admin-form-row">
                       <div className="admin-field">
                         <label htmlFor="blog-title">Title</label>
@@ -307,19 +672,75 @@ export function AdminPage() {
                       </div>
                       <div className="admin-field">
                         <label htmlFor="blog-category">Category</label>
-                        <select
-                          id="blog-category"
-                          value={blogForm.category}
-                          onChange={(event) =>
-                            setBlogForm((prev) => ({ ...prev, category: event.target.value }))
-                          }
-                        >
-                          {BLOG_CATEGORIES.map((category) => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                        </select>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                          <select
+                            id="blog-category"
+                            value={blogForm.category}
+                            onChange={(event) =>
+                              setBlogForm((prev) => ({ ...prev, category: event.target.value }))
+                            }
+                            style={{ flex: 1 }}
+                          >
+                            {categories.map((category) => (
+                              <option key={category} value={category}>
+                                {category}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddCategory(!showAddCategory)}
+                            className="admin-submit"
+                            style={{ 
+                              background: showAddCategory ? '#9F8151' : 'rgba(255,255,255,0.15)',
+                              padding: '8px 16px',
+                              whiteSpace: 'nowrap',
+                              color: showAddCategory ? '#FFFFFF' : '#0A4834',
+                              fontSize: '14px',
+                              fontWeight: '500',
+                              border: showAddCategory ? 'none' : '1px solid rgba(10, 72, 52, 0.2)'
+                            }}
+                          >
+                            {showAddCategory ? 'Cancel' : '+ Add Category'}
+                          </button>
+                        </div>
+                        {showAddCategory && (
+                          <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              placeholder="Enter new category name"
+                              value={newCategory}
+                              onChange={(e) => setNewCategory(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddCategory();
+                                }
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '8px 12px',
+                                border: '1px solid #9F8151',
+                                borderRadius: '6px',
+                                background: '#FFFFFF',
+                                color: '#0A4834',
+                                fontFamily: 'Manrope, sans-serif',
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleAddCategory}
+                              className="admin-submit"
+                              style={{ 
+                                background: '#0A4834',
+                                padding: '8px 16px',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              Add
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -365,14 +786,144 @@ export function AdminPage() {
 
                     <div className="admin-form-actions">
                       <span className="admin-form-hint">
-                        Drafts are synced to the editorial review queue once saved.
+                        {editingBlogId
+                          ? 'Save draft locally or post to database.'
+                          : 'Save draft locally or post to database.'}
                       </span>
-                      <button type="submit" className="admin-submit">
-                        <Edit3 size={18} />
-                        Save Draft
-                      </button>
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        {editingBlogId && (
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="admin-submit"
+                            style={{ background: 'rgba(255,255,255,0.15)' }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button type="submit" className="admin-submit" disabled={loading}>
+                          <Edit3 size={18} />
+                          Save Draft
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handlePostBlog}
+                          className="admin-submit"
+                          disabled={loading}
+                          style={{ background: '#0A4834' }}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 size={18} className="animate-spin" />
+                              {editingBlogId ? 'Updating...' : 'Posting...'}
+                            </>
+                          ) : (
+                            <>
+                              <FilePlus2 size={18} />
+                              {editingBlogId ? 'Update & Post' : 'Post'}
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </form>
+                </>
+              ) : (
+                <>
+                  <div className="admin-content-header">
+                    <h3>Manage Blog Posts</h3>
+                    <div className="admin-search">
+                      <Search />
+                      <input
+                        type="text"
+                        placeholder="Search blogs by title, category, or summary"
+                        value={blogQuery}
+                        onChange={(event) => setBlogQuery(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {loading && blogs.length === 0 ? (
+                    <div className="admin-empty-state">
+                      <Loader2 size={40} className="animate-spin" />
+                      <strong>Loading blogs...</strong>
+                    </div>
+                  ) : filteredBlogs.length > 0 ? (
+                    <div className="admin-queue">
+                      {filteredBlogs.map((blog) => (
+                        <div key={blog.id} className="admin-queue-card">
+                          {blog.image_url ? (
+                            <img
+                              className="admin-queue-image"
+                              src={blog.image_url}
+                              alt={blog.title}
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          {!blog.image_url && (
+                            <div
+                              className="admin-queue-image"
+                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              <ImageOff size={32} color="#9F8151" />
+                            </div>
+                          )}
+                          <div className="admin-queue-details">
+                            <h4>{blog.title}</h4>
+                            <div className="admin-queue-meta">
+                              <span>{blog.category || 'Uncategorized'}</span>
+                              <span>{blog.status || 'published'}</span>
+                              <span>
+                                {new Date(blog.created_at).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                            {blog.short_summary && (
+                              <p style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
+                                {blog.short_summary.length > 150
+                                  ? `${blog.short_summary.substring(0, 150)}...`
+                                  : blog.short_summary}
+                              </p>
+                            )}
+                          </div>
+                          <div className="admin-queue-actions">
+                            <button
+                              className="approve"
+                              onClick={() => handleEditBlog(blog)}
+                              disabled={loading}
+                            >
+                              <Edit3 size={18} />
+                              Edit
+                            </button>
+                            <button
+                              className="reject"
+                              onClick={() => handleDeleteBlog(blog.id)}
+                              disabled={loading}
+                            >
+                              <Trash2 size={18} />
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="admin-empty-state">
+                      <FilePlus2 size={40} />
+                      <strong>No blogs found.</strong>
+                      <span>
+                        {blogQuery
+                          ? 'Try adjusting your search query.'
+                          : 'Create your first blog post using the "Add Blog" tab.'}
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
             </motion.div>
