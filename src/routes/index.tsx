@@ -3,6 +3,7 @@ import { RootLayout } from '../layouts/RootLayout';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
+import { AdminPage } from '../pages/AdminPage';
 import { ShopPage } from '../components/ShopPage';
 import { ClosetsPage } from '../components/ClosetsPage';
 import { JournalHomepage } from '../components/JournalHomepage';
@@ -16,6 +17,7 @@ import { PaymentProcessing } from '../components/PaymentProcessing';
 import { NewOrderConfirmation } from '../components/NewOrderConfirmation';
 import { BecomeSellerOnboarding } from '../components/BecomeSellerOnboarding';
 import ClosetPage from '../components/ClosetPage';
+import { RequireAdmin } from './RequireAdmin';
 
 export const router = createBrowserRouter([
   {
@@ -92,6 +94,14 @@ export const router = createBrowserRouter([
       {
         path: 'register',
         element: <RegisterPage />,
+      },
+      {
+        path: 'admin',
+        element: (
+          <RequireAdmin>
+            <AdminPage />
+          </RequireAdmin>
+        ),
       },
       {
         path: 'order',

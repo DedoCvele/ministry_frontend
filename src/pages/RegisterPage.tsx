@@ -2,19 +2,22 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { X, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    email: '',
+    username: '',
     password: '',
     confirmPassword: '',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,9 +29,22 @@ export function RegisterPage() {
       alert('Please accept the terms and conditions');
       return;
     }
-    // Handle signup
-    console.log('Sign up:', formData);
-    navigate('/');
+
+    const result = register({
+      username: formData.username,
+      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+    });
+
+    if (!result.success) {
+      setError(result.message ?? 'Unable to sign up. Please try again.');
+      return;
+    }
+
+    setError(null);
+
+    navigate(result.user?.role === 'admin' ? '/admin' : '/');
   };
 
   const handleChange = (field: string, value: string) => {
@@ -225,7 +241,7 @@ export function RegisterPage() {
                 </div>
               </div>
 
-              {/* Email Input */}
+              {/* Username Input */}
               <div style={{ marginBottom: '24px' }}>
                 <label style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -235,7 +251,7 @@ export function RegisterPage() {
                   display: 'block',
                   marginBottom: '8px',
                 }}>
-                  Email Address
+                  Username or Email
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail
@@ -249,11 +265,11 @@ export function RegisterPage() {
                     }}
                   />
                   <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleChange('email', e.target.value)}
+                    type="text"
+                    value={formData.username}
+                    onChange={(e) => handleChange('username', e.target.value)}
                     required
-                    placeholder="your@email.com"
+                    placeholder="Choose a username"
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -278,6 +294,23 @@ export function RegisterPage() {
                   />
                 </div>
               </div>
+
+              {error && (
+                <div
+                  style={{
+                    marginBottom: '24px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(193, 64, 64, 0.1)',
+                    border: '1px solid rgba(193, 64, 64, 0.35)',
+                    color: '#A32020',
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '14px',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
 
               {/* Password Input */}
               <div style={{ marginBottom: '24px' }}>
