@@ -262,42 +262,115 @@ export function AdminPage() {
 
     setLoading(true);
 
-    try {
-      // Map form fields to API fields
-      const payload: {
-        title: string;
-        full_story: string;
-        category?: string;
-        short_summary?: string;
-        image_url?: string;
-      } = {
-        title: blogForm.title,
-        full_story: blogForm.content,
-      };
+    // Map form fields to API fields
+    // Backend may require multiple field names (full_story, context, content)
+    const payload: {
+      title: string;
+      full_story: string;
+      context?: string;
+      content?: string;
+      category?: string;
+      short_summary?: string;
+      image_url?: string;
+    } = {
+      title: blogForm.title,
+      full_story: blogForm.content,
+      content: blogForm.content, // Backend requires content field
+      context: blogForm.content, // Also include context in case backend needs it
+    };
 
-      // Add optional fields if they have values
-      if (blogForm.category) {
-        payload.category = blogForm.category;
-      }
-      if (blogForm.summary) {
-        payload.short_summary = blogForm.summary;
-      }
-      if (blogForm.heroImage) {
-        payload.image_url = blogForm.heroImage;
-      }
+    // Add optional fields if they have values
+    if (blogForm.category) {
+      payload.category = blogForm.category;
+    }
+    if (blogForm.summary) {
+      payload.short_summary = blogForm.summary;
+    }
+    if (blogForm.heroImage) {
+      payload.image_url = blogForm.heroImage;
+    }
+
+    try {
 
       if (editingBlogId) {
         // Update existing blog
-        const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
-        toast.success('Blog updated successfully ✨', {
-          style: {
-            background: '#FFFFFF',
-            color: '#0A4834',
-            border: '1px solid #9F8151',
-            fontFamily: 'Manrope, sans-serif',
-          },
-        });
-        setEditingBlogId(null);
+        // Try multiple methods as backend may have different route configuration
+        let updateSuccess = false;
+        let lastError: any = null;
+        
+        // Try PATCH first (REST standard for updates)
+        try {
+          const response = await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+          updateSuccess = true;
+        } catch (patchError: any) {
+          lastError = patchError;
+          // If PATCH is not supported (405), try POST with _method override (Laravel method spoofing)
+          if (patchError.response?.status === 405) {
+            try {
+              // Try POST with _method=PATCH (Laravel method spoofing)
+              const postPayload = { ...payload, _method: 'PATCH' };
+              const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload);
+              updateSuccess = true;
+            } catch (postError1: any) {
+              // Only continue if it's a 405 error (method not allowed)
+              if (postError1.response?.status === 405) {
+                try {
+                  // Try POST with _method=PUT
+                  const postPayload = { ...payload, _method: 'PUT' };
+                  const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload);
+                  updateSuccess = true;
+                } catch (postError2: any) {
+                  // Only continue if it's a 405 error
+                  if (postError2.response?.status === 405) {
+                    try {
+                      // Try plain POST
+                      const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+                      updateSuccess = true;
+                    } catch (postError3: any) {
+                      // Only continue if it's a 405 error
+                      if (postError3.response?.status === 405) {
+                        // Try PUT as last resort
+                        try {
+                          const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+                          updateSuccess = true;
+                        } catch (putError: any) {
+                          lastError = putError;
+                        }
+                      } else {
+                        // Re-throw if it's a different error (validation, etc.)
+                        throw postError3;
+                      }
+                    }
+                  } else {
+                    // Re-throw if it's a different error (validation, etc.)
+                    throw postError2;
+                  }
+                }
+              } else {
+                // Re-throw if it's a different error (validation, etc.)
+                throw postError1;
+              }
+            }
+          } else {
+            // Re-throw if it's a different error (validation, etc.)
+            throw patchError;
+          }
+        }
+        
+        if (updateSuccess) {
+          toast.success('Blog updated successfully ✨', {
+            style: {
+              background: '#FFFFFF',
+              color: '#0A4834',
+              border: '1px solid #9F8151',
+              fontFamily: 'Manrope, sans-serif',
+            },
+          });
+          setEditingBlogId(null);
+        } else if (lastError) {
+          // If all methods failed, throw the last error to be handled by outer catch
+          throw lastError;
+        }
       } else {
         // Create new blog
         const response = await axios.post(`${API_BASE_URL}/blogs`, payload);
@@ -329,19 +402,101 @@ export function AdminPage() {
       }
     } catch (error: any) {
       console.error('Error posting blog:', error);
-      const errorMessage =
-        error.response?.data?.message ||
-        error.response?.data?.errors ||
-        error.message ||
-        'Failed to post blog';
+      console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
+      console.error('Payload that was sent:', JSON.stringify(payload, null, 2));
       
-      toast.error(typeof errorMessage === 'string' ? errorMessage : 'Failed to post blog', {
+      // Handle Laravel validation errors with detailed messages
+      let errorMessage = 'Failed to post blog';
+      const missingFields: string[] = [];
+      
+      // Handle 405 Method Not Allowed errors specially
+      if (error.response?.status === 405) {
+        const errorData = error.response.data;
+        const errorMsg = errorData?.message || error.message || 'Method not allowed';
+        // Extract supported methods if available in the error
+        const supportedMethods = error.response?.headers?.['allow'] || 
+                                errorMsg.match(/Supported methods: ([^.]+)/i)?.[1];
+        
+        let methodErrorMessage: string;
+        if (supportedMethods) {
+          methodErrorMessage = `Update method not supported. The backend only accepts: ${supportedMethods}. Please check the API route configuration.`;
+        } else {
+          methodErrorMessage = `The update method is not supported for this route. Only GET and HEAD methods are currently available. Please contact the backend developer to add PUT/PATCH support, or check if updates should use a different endpoint.`;
+        }
+        
+        toast.error(methodErrorMessage, {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+          duration: 7000, // Show longer for this type of error
+        });
+        return;
+      }
+      
+      if (error.response?.data) {
+        const errorData = error.response.data;
+        
+        // Check for Laravel validation errors format
+        if (errorData.errors && typeof errorData.errors === 'object') {
+          const errorMessages: string[] = [];
+          Object.keys(errorData.errors).forEach((field) => {
+            const fieldErrors = Array.isArray(errorData.errors[field])
+              ? errorData.errors[field]
+              : [String(errorData.errors[field])];
+            
+            // Extract field name and add to missing fields list
+            missingFields.push(field);
+            errorMessages.push(...fieldErrors);
+          });
+          
+          // Create a detailed error message
+          if (missingFields.length > 0) {
+            errorMessage = `Missing required fields: ${missingFields.join(', ')}. `;
+            errorMessage += errorMessages.join('. ');
+          } else {
+            errorMessage = errorMessages.join('. ') || errorData.message || errorMessage;
+          }
+        } else if (errorData.message) {
+          errorMessage = errorData.message;
+          // Try to extract field names from the message (handles various formats)
+          if (errorData.message.toLowerCase().includes('field is required') || 
+              errorData.message.toLowerCase().includes('is required')) {
+            // Match patterns like "content field is required", "The content field is required"
+            const fieldMatch = errorData.message.match(/(?:the\s+)?(\w+)\s+(?:field\s+)?is\s+required/i);
+            if (fieldMatch && fieldMatch[1]) {
+              const fieldName = fieldMatch[1];
+              errorMessage = `The "${fieldName}" field is required. `;
+              // Provide helpful context based on the field
+              if (fieldName === 'content') {
+                errorMessage += 'Please make sure the "Full Story" field is filled in.';
+              } else if (fieldName === 'context') {
+                errorMessage += 'Please make sure the "Full Story" field is filled in.';
+              } else if (fieldName === 'title') {
+                errorMessage += 'Please make sure the "Title" field is filled in.';
+              } else {
+                errorMessage += 'Please fill it in and try again.';
+              }
+            }
+          }
+        } else if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show detailed error with actionable information
+      toast.error(errorMessage, {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
           border: '1px solid #9F8151',
           fontFamily: 'Manrope, sans-serif',
         },
+        duration: 5000, // Show longer for validation errors
       });
     } finally {
       setLoading(false);

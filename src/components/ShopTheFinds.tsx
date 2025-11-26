@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Heart } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { type Language, getTranslation } from '../translations';
 
 interface ShopTheFindsProps {
@@ -10,6 +11,7 @@ interface ShopTheFindsProps {
 
 export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
   const t = getTranslation(language);
+  const navigate = useNavigate();
   const [wishlistedItems, setWishlistedItems] = useState<number[]>([]);
 
   const products = [
@@ -85,6 +87,10 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
     );
   };
 
+  const handleProductClick = (productId: number) => {
+    navigate(`/product/${productId}`);
+  };
+
   return (
     <section
       className="py-32 px-8"
@@ -151,6 +157,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
               transition={{ duration: 0.6, ease: 'easeOut', delay: index * 0.1 }}
               viewport={{ once: true, margin: '-100px' }}
               whileHover={{ y: -8 }}
+              onClick={() => handleProductClick(product.id)}
               style={{
                 position: 'relative',
                 cursor: 'pointer',

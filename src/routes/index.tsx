@@ -109,7 +109,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'product/:productId',
-        element: <ProductPage onBack={() => '/'} onCheckout={() => '/cart'} />,
+        element: <ProductPage onCheckout={() => '/cart'} />,
       },
       {
         path: 'cart',

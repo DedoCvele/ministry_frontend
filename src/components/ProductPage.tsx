@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
+import axios from 'axios';
 import { Heart, MessageCircle, ChevronDown, Package, RotateCcw, Leaf, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import {
@@ -48,14 +49,51 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   const [isHoveringImage, setIsHoveringImage] = useState(false);
   const [isHoveringPrev, setIsHoveringPrev] = useState(false);
   const [isHoveringNext, setIsHoveringNext] = useState(false);
+  const [product, setProduct] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Product images
-  const productImages = [
-    'https://images.unsplash.com/photo-1760624089496-01ae68a92d58?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwaGFuZGJhZ3xlbnwxfHx8fDE3NjE1NzAzODR8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1761345880123-c7c3b160c1d4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMGxlYXRoZXIlMjBiYWclMjBkZXRhaWx8ZW58MXx8fHwxNzYxNTcwMzg0fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1761058530177-5b9466decb93?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwYmFnJTIwdGV4dHVyZXxlbnwxfHx8fDE3NjE1NzAzODV8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    'https://images.unsplash.com/photo-1758171692659-024183c2c272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwaGFuZGJhZyUyMHN0eWxlfGVufDF8fHx8MTc2MTU3MDM4NXww&ixlib=rb-4.1.0&q=80&w=1080',
-  ];
+  // Fetch product data from API
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!productId) {
+        setError('Product ID is missing');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        setSelectedImage(0); // Reset image selection when product changes
+        const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
+        setProduct(response.data);
+      } catch (err: any) {
+        console.error('Error fetching product:', err);
+        setError(err.response?.status === 404 ? 'Product not found' : 'Failed to load product');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [productId]);
+
+  // Map API product data to display format
+  const productImages = product?.images && product.images.length > 0
+    ? product.images.map((img: string) => `http://127.0.0.1:8000/storage/${img}`)
+    : ['https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400'];
+
+  const productTitle = product?.title || 'Loading...';
+  const productPrice = product?.price ? `€${parseFloat(product.price).toFixed(2)}` : '€0';
+  const productBrand = product?.brand?.name || 'Unknown Brand';
+  const productDescription = product?.description || 'No description available.';
+  const productSize = product?.size || 'One Size';
+  const productCondition = product?.condition || 'Good';
+  const productMaterial = product?.material || 'Material information not available';
+  const sellerName = product?.user?.name || product?.user?.email || 'Unknown Seller';
+  const sellerInitial = sellerName.charAt(0).toUpperCase();
+  const sellerUsername = `@${sellerName.split(' ')[0]}`;
 
   // Similar items
   const similarItems = [
@@ -96,6 +134,65 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
     { id: 3, image: productImages[2], title: 'YSL Clutch', price: '€280' },
     { id: 4, image: productImages[3], title: 'Cartier Watch', price: '€1,850' },
   ];
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="product-root">
+        <HeaderAlt />
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '60vh',
+          fontFamily: 'Manrope, sans-serif',
+          fontSize: '18px',
+          color: '#0A4834',
+        }}>
+          Loading product...
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !product) {
+    return (
+      <div className="product-root">
+        <HeaderAlt />
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '60vh',
+          fontFamily: 'Manrope, sans-serif',
+          gap: '16px',
+        }}>
+          <div style={{ fontSize: '18px', color: '#0A4834', fontWeight: 600 }}>
+            {error || 'Product not found'}
+          </div>
+          <motion.button
+            onClick={handleBack}
+            whileHover={{ backgroundColor: '#083D2C' }}
+            style={{
+              fontFamily: 'Manrope, sans-serif',
+              fontSize: '15px',
+              fontWeight: 500,
+              color: '#FFFFFF',
+              backgroundColor: '#0A4834',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '12px 24px',
+              cursor: 'pointer',
+            }}
+          >
+            Back to Shop
+          </motion.button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="product-root">
@@ -209,20 +306,20 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               </div>
 
               <div className="seller-row">
-                <div className="seller-avatar-large">EC</div>
+                <div className="seller-avatar-large">{sellerInitial}</div>
 
                 <div style={{ flex: 1 }}>
-                  <div className="seller-name-large">Elena C.</div>
+                  <div className="seller-name-large">{sellerName}</div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
                     {[1,2,3,4,5].map((star) => (<Star key={star} size={12} fill="#9F8151" stroke="#9F8151" />))}
-                    <span className="seller-stats">142 sales</span>
+                    <span className="seller-stats">Verified Seller</span>
                   </div>
 
                   <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#9F8151', fontWeight: 500 }}>✓ Verified Closet</div>
                 </div>
 
-                <a href="#" className="view-closet-link">View Closet →</a>
+                <a href={`/closets/${product?.user?.id || ''}`} className="view-closet-link">View Closet →</a>
               </div>
 
               <motion.button
@@ -252,7 +349,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               marginBottom: '16px',
               lineHeight: '40px',
             }}>
-              Vintage Gucci Marmont Shoulder Bag
+              {productTitle}
             </h1>
 
             {/* Price */}
@@ -263,7 +360,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               color: '#9F8151',
               marginBottom: '24px',
             }}>
-              €890
+              {productPrice}
             </div>
 
             {/* Condition & Category Tags */}
@@ -273,9 +370,8 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               marginBottom: '32px',
               flexWrap: 'wrap',
             }}>
-              {['Excellent', 'Designer', 'Vintage'].map((tag) => (
+              {productCondition && (
                 <span
-                  key={tag}
                   style={{
                     fontFamily: 'Manrope, sans-serif',
                     fontSize: '13px',
@@ -287,9 +383,44 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                     letterSpacing: '0.02em',
                   }}
                 >
-                  {tag}
+                  {productCondition}
                 </span>
-              ))}
+              )}
+              {product?.category?.name && (
+                <span
+                  style={{
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: 500,
+                    color: '#0A4834',
+                    backgroundColor: '#F0ECE3',
+                    padding: '8px 16px',
+                    borderRadius: '16px',
+                    letterSpacing: '0.02em',
+                  }}
+                >
+                  {product.category.name}
+                </span>
+              )}
+              {product?.tags && Array.isArray(product.tags) && product.tags.length > 0 && (
+                product.tags.slice(0, 2).map((tag: string) => (
+                  <span
+                    key={tag}
+                    style={{
+                      fontFamily: 'Manrope, sans-serif',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      color: '#0A4834',
+                      backgroundColor: '#F0ECE3',
+                      padding: '8px 16px',
+                      borderRadius: '16px',
+                      letterSpacing: '0.02em',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))
+              )}
             </div>
 
             {/* Description */}
@@ -300,7 +431,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               color: '#000000',
               marginBottom: '40px',
             }}>
-              A timeless piece from Gucci's iconic Marmont collection. This vintage shoulder bag features the signature GG logo, chevron leather, and antique gold-tone hardware. Lovingly preserved, it carries stories of elegance and craftsmanship that only improve with time.
+              {productDescription}
             </div>
 
             {/* Divider */}
@@ -328,7 +459,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#000000',
                   paddingTop: '12px',
                 }}>
-                  Gucci
+                  {productBrand}
                 </AccordionContent>
               </AccordionItem>
 
@@ -348,7 +479,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#000000',
                   paddingTop: '12px',
                 }}>
-                  Matelassé chevron leather with antique gold-tone hardware
+                  {productMaterial}
                 </AccordionContent>
               </AccordionItem>
 
@@ -368,7 +499,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#000000',
                   paddingTop: '12px',
                 }}>
-                  26cm W × 15cm H × 7cm D
+                  {productSize}
                 </AccordionContent>
               </AccordionItem>
 
@@ -388,7 +519,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#000000',
                   paddingTop: '12px',
                 }}>
-                  Excellent vintage condition with minor signs of wear. All hardware intact and fully functional.
+                  {productCondition} condition. {productDescription}
                 </AccordionContent>
               </AccordionItem>
 
@@ -624,6 +755,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               <motion.div
                 key={item.id}
                 whileHover={{ y: -8 }}
+                onClick={() => navigate(`/product/${item.id}`)}
                 style={{
                   backgroundColor: '#FFFFFF',
                   borderRadius: '12px',
@@ -750,6 +882,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               <motion.div
                 key={item.id}
                 whileHover={{ y: -4 }}
+                onClick={() => navigate(`/product/${item.id}`)}
                 style={{
                   borderRadius: '12px',
                   overflow: 'hidden',
@@ -899,7 +1032,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
       <ContactSellerPopup
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
-        sellerName="Elena C."
+        sellerName={sellerName}
       />
     </div>
   );
