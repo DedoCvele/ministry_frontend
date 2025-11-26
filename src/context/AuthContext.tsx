@@ -36,6 +36,22 @@ const ADMIN_ACCOUNT = {
   lastName: 'User',
 };
 
+const TEST_USER_ACCOUNT = {
+  username: 'user@example',
+  password: '12345678',
+  role: 'user' as Role,
+  firstName: 'Test',
+  lastName: 'User',
+};
+
+const SOFI_USER_ACCOUNT = {
+  username: 'sofi@sofi',
+  password: '123123123',
+  role: 'user' as Role,
+  firstName: 'Sofi',
+  lastName: 'Laurent',
+};
+
 const STORAGE_KEYS = {
   users: 'ministry_users',
   currentUser: 'ministry_current_user',
@@ -84,13 +100,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (user) => user.username.toLowerCase() === ADMIN_ACCOUNT.username.toLowerCase(),
     );
 
-    if (hasAdmin) {
-      return storedUsers;
+    const hasTestUser = storedUsers.some(
+      (user) => user.username.toLowerCase() === TEST_USER_ACCOUNT.username.toLowerCase(),
+    );
+
+    const hasSofiUser = storedUsers.some(
+      (user) => user.username.toLowerCase() === SOFI_USER_ACCOUNT.username.toLowerCase(),
+    );
+
+    let updatedUsers = [...storedUsers];
+
+    if (!hasAdmin) {
+      updatedUsers = [...updatedUsers, ADMIN_ACCOUNT];
     }
 
-    const withAdmin = [...storedUsers, ADMIN_ACCOUNT];
-    writeToStorage(STORAGE_KEYS.users, withAdmin);
-    return withAdmin;
+    if (!hasTestUser) {
+      updatedUsers = [...updatedUsers, TEST_USER_ACCOUNT];
+    }
+
+    if (!hasSofiUser) {
+      updatedUsers = [...updatedUsers, SOFI_USER_ACCOUNT];
+    }
+
+    if (!hasAdmin || !hasTestUser || !hasSofiUser) {
+      writeToStorage(STORAGE_KEYS.users, updatedUsers);
+      return updatedUsers;
+    }
+
+    return storedUsers;
   });
 
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {

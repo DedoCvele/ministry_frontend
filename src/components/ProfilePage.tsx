@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import axios from 'axios';
 import { 
   Camera, 
   Settings, 
@@ -25,6 +26,7 @@ import { FooterAlt } from './FooterAlt';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { type Language, getTranslation } from '../translations';
+import { useAuth } from '../context/AuthContext';
 
 interface ProfilePageProps {
   isSeller?: boolean;
@@ -33,176 +35,263 @@ interface ProfilePageProps {
   onUploadClick?: () => void;
 }
 
+interface UserData {
+  name: string;
+  username: string;
+  bio: string;
+  location: string;
+  avatar: string;
+  memberSince: string;
+}
+
+interface Order {
+  id: number;
+  name: string;
+  price: number;
+  seller: string;
+  image: string;
+  status: string;
+  date: string;
+}
+
+interface FavouriteItem {
+  id: number;
+  type: 'item' | 'closet';
+  name: string;
+  price?: number;
+  seller?: string;
+  image?: string;
+  username?: string;
+  styleTag?: string;
+  coverImage?: string;
+}
+
+interface ClosetItem {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  views: number;
+  saves: number;
+  messages: number;
+}
+
+interface Sale {
+  id: number;
+  item: string;
+  buyer: string;
+  price: number;
+  status: string;
+  date: string;
+}
+
+interface AnalyticsDataPoint {
+  week: string;
+  views: number;
+}
+
+interface Stats {
+  totalSales: number;
+  itemsSold: number;
+  avgRating: number;
+  followers: number;
+  followerGrowth: number;
+}
+
 export function ProfilePage({ isSeller = false, onClose, onUploadClick, language = 'en' }: ProfilePageProps) {
   const t = getTranslation(language);
+  const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Mock user data
-  const userData = {
-    name: 'Isabella Chen',
-    username: '@isabella.style',
-    bio: 'Curator of timeless pieces. Vintage lover. Sustainable fashion advocate.',
-    location: 'Paris, France',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
-    memberSince: 'January 2024',
-  };
+  const [userId, setUserId] = useState<number>(1); // Will be updated from API
+  const [user, setUser] = useState<UserData | null>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [favourites, setFavourites] = useState<FavouriteItem[]>([]);
+  const [closet, setCloset] = useState<ClosetItem[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Mock orders
-  const recentOrders = [
-    {
-      id: 1,
-      name: 'Vintage Hermès Silk Scarf',
-      price: 240,
-      seller: 'Sophie Laurent',
-      image: 'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZHJlc3MlMjBlbGVnYW50fGVufDF8fHx8MTc2MTU4MTUxOXww&ixlib=rb-4.1.0&q=80&w=400',
-      status: 'Delivered',
-      date: 'Oct 24, 2025',
-    },
-    {
-      id: 2,
-      name: 'Classic Burberry Trench',
-      price: 385,
-      seller: 'Marija Vintage',
-      image: 'https://images.unsplash.com/photo-1565532070333-43edd7d75c90?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZGVzaWduZXIlMjBjb2F0fGVufDF8fHx8MTc2MTU3MDM4NXww&ixlib=rb-4.1.0&q=80&w=400',
-      status: 'Shipped',
-      date: 'Oct 26, 2025',
-    },
-    {
-      id: 3,
-      name: 'Designer Leather Loafers',
-      price: 180,
-      seller: 'Emma Archive',
-      image: 'https://images.unsplash.com/photo-1759563874692-d556321d7c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwaXRlbXN8ZW58MXx8fHwxNzYxNTgxNTE4fDA&ixlib=rb-4.1.0&q=80&w=400',
-      status: 'Delivered',
-      date: 'Oct 20, 2025',
-    },
-  ];
+  // Load user data and get user_id from API
+  useEffect(() => {
+    setLoading(true);
+    
+    // Try multiple endpoints to get user data
+    const tryUserEndpoints = async () => {
+      const endpoints = [
+        '/api/profile', // Authenticated user's profile
+        `/api/users/1`, // Fallback
+      ];
 
-  // Mock favourites (merged wishlist items and saved closets)
-  const favouriteItems = [
-    {
-      id: 1,
-      type: 'item' as const,
-      name: 'Vintage Gucci Marmont Bag',
-      price: 890,
-      seller: 'LuxeFinds',
-      image: 'https://images.unsplash.com/photo-1760624089496-01ae68a92d58?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwaGFuZGJhZ3xlbnwxfHx8fDE3NjE1NzAzODR8MA&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 2,
-      type: 'closet' as const,
-      name: 'Sofia Laurent',
-      username: '@sofia.closet',
-      styleTag: 'Parisian Minimalist',
-      coverImage: 'https://images.unsplash.com/photo-1598798918315-e954298ef4cb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdHlsaXNoJTIwcGVyc29uJTIwb3V0Zml0fGVufDF8fHx8MTc2MTU4MTUyMHww&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 3,
-      type: 'item' as const,
-      name: 'Silk Evening Dress',
-      price: 290,
-      seller: 'Sofia Closet',
-      image: 'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZHJlc3MlMjBlbGVnYW50fGVufDF8fHx8MTc2MTU4MTUxOXww&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 4,
-      type: 'closet' as const,
-      name: 'Tanja Petrović',
-      username: '@tanja.vintage',
-      styleTag: '70s Glamour',
-      coverImage: 'https://images.unsplash.com/photo-1696659958441-fd72cc30db89?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwcG9ydHJhaXQlMjB3b21hbnxlbnwxfHx8fDE3NjE1MTc4MzR8MA&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 5,
-      type: 'item' as const,
-      name: 'Leather Blazer',
-      price: 285,
-      seller: 'TanjaVintage',
-      image: 'https://images.unsplash.com/photo-1744743128385-990e02da095f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwbGVhdGhlciUyMGphY2tldHxlbnwxfHx8fDE3NjE1NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 6,
-      type: 'closet' as const,
-      name: 'Emma Rodriguez',
-      username: '@emma.archive',
-      styleTag: 'Vintage Street',
-      coverImage: 'https://images.unsplash.com/photo-1716307961085-6a7006f28685?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZGVzaWduZXIlMjBjbG90aGluZ3xlbnwxfHx8fDE3NjE1ODE1MTh8MA&ixlib=rb-4.1.0&q=80&w=400',
-    },
-    {
-      id: 7,
-      type: 'item' as const,
-      name: 'Statement Leather Boots',
-      price: 225,
-      seller: 'IsabellaStyle',
-      image: 'https://images.unsplash.com/photo-1759563874692-d556321d7c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwaXRlbXN8ZW58MXx8fHwxNzYxNTgxNTE4fDA&ixlib=rb-4.1.0&q=80&w=400',
-    },
-  ];
+      for (const endpoint of endpoints) {
+        try {
+          const res = await axios.get(endpoint);
+          const userData = res.data?.user || res.data?.data || res.data;
+          
+          if (userData) {
+            // Extract user_id from response
+            if (userData.id) {
+              setUserId(userData.id);
+            }
+            
+            // Set user data
+            setUser({
+              name: userData.name || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.username || 'User',
+              username: userData.username || `@${userData.email?.split('@')[0] || authUser?.username || 'user'}`,
+              bio: userData.bio || 'Welcome to your profile! Start building your style story.',
+              location: userData.location || 'Location not set',
+              avatar: userData.avatar || userData.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
+              memberSince: userData.created_at 
+                ? new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+                : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            });
+            setLoading(false);
+            return;
+          }
+        } catch (err: any) {
+          if (endpoint === endpoints[endpoints.length - 1]) {
+            // Last endpoint failed, use fallback
+            console.error('Error loading user from all endpoints:', err);
+            if (authUser) {
+              // Map username to user_id (adjust based on your database)
+              const userMap: Record<string, number> = {
+                'sofi@sofi': 2, // Will be updated when we get real data
+                'user@example': 1,
+              };
+              const mappedUserId = userMap[authUser.username] || 1;
+              setUserId(mappedUserId);
+              
+              setUser({
+                name: `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.username,
+                username: `@${authUser.username}`,
+                bio: 'Welcome to your profile! Start building your style story.',
+                location: 'Location not set',
+                avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
+                memberSince: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+              });
+            }
+            setLoading(false);
+          }
+        }
+      }
+    };
 
-  // Mock seller data (if seller)
-  const myClosetItems = [
-    {
-      id: 1,
-      name: 'Vintage Chanel Jacket',
-      price: 1250,
-      image: 'https://images.unsplash.com/photo-1744743128385-990e02da095f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwbGVhdGhlciUyMGphY2tldHxlbnwxfHx8fDE3NjE1NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=400',
-      views: 342,
-      saves: 28,
-      messages: 5,
-    },
-    {
-      id: 2,
-      name: 'Silk Wrap Dress',
-      price: 180,
-      image: 'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZHJlc3MlMjBlbGVnYW50fGVufDF8fHx8MTc2MTU4MTUxOXww&ixlib=rb-4.1.0&q=80&w=400',
-      views: 189,
-      saves: 15,
-      messages: 3,
-    },
-    {
-      id: 3,
-      name: 'Designer Sunglasses',
-      price: 95,
-      image: 'https://images.unsplash.com/photo-1759563876826-30481c505545?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwaXRlbXxlbnwxfHx8fDE3NjE1NzAzODZ8MA&ixlib=rb-4.1.0&q=80&w=400',
-      views: 256,
-      saves: 42,
-      messages: 8,
-    },
-  ];
+    tryUserEndpoints();
+  }, [authUser]);
 
-  const salesHistory = [
-    {
-      id: 1,
-      item: 'Vintage Leather Jacket',
-      buyer: '@sophia.laurent',
-      price: 385,
-      status: 'Completed',
-      date: 'Oct 24, 2025',
-    },
-    {
-      id: 2,
-      item: 'Silk Evening Dress',
-      buyer: '@emma.r',
-      price: 290,
-      status: 'Completed',
-      date: 'Oct 22, 2025',
-    },
-    {
-      id: 3,
-      item: 'Designer Loafers',
-      buyer: '@mia.jones',
-      price: 180,
-      status: 'Pending',
-      date: 'Oct 26, 2025',
-    },
-  ];
+  // Load user orders
+  useEffect(() => {
+    // Try multiple endpoint variations
+    const endpoints = [
+      `/api/users/${userId}/orders`,
+      `/api/profile/orders`,
+      `/api/orders?user_id=${userId}`,
+      `/api/orders`,
+    ];
 
-  const analyticsData = [
-    { week: 'Week 1', views: 120 },
-    { week: 'Week 2', views: 280 },
-    { week: 'Week 3', views: 190 },
-    { week: 'Week 4', views: 340 },
-  ];
+    const tryEndpoint = async (index = 0) => {
+      if (index >= endpoints.length) {
+        console.warn('No orders endpoint found, using empty array');
+        setOrders([]);
+        return;
+      }
+
+      try {
+        const res = await axios.get(endpoints[index]);
+        const data = res.data?.orders || res.data?.data || res.data || [];
+        if (Array.isArray(data) && data.length > 0) {
+          // Filter by user_id if needed
+          const filtered = data.filter((order: any) => 
+            order.user_id === userId || order.userId === userId || !order.user_id
+          );
+          setOrders(filtered);
+          console.log('Orders loaded:', filtered);
+        } else if (Array.isArray(data)) {
+          setOrders(data);
+        } else {
+          tryEndpoint(index + 1);
+        }
+      } catch (err: any) {
+        if (err.response?.status === 404 || err.response?.status === 500) {
+          tryEndpoint(index + 1);
+        } else {
+          console.error(`Error loading orders from ${endpoints[index]}:`, err);
+          tryEndpoint(index + 1);
+        }
+      }
+    };
+
+    tryEndpoint();
+  }, [userId]);
+
+  // Load favourites
+  useEffect(() => {
+    // Try multiple endpoint variations
+    const endpoints = [
+      `/api/users/${userId}/favourites`,
+      `/api/profile/favourites`,
+      `/api/favourites?user_id=${userId}`,
+      `/api/favourites`,
+      `/api/wishlist?user_id=${userId}`,
+    ];
+
+    const tryEndpoint = async (index = 0) => {
+      if (index >= endpoints.length) {
+        console.warn('No favourites endpoint found, using empty array');
+        setFavourites([]);
+        return;
+      }
+
+      try {
+        const res = await axios.get(endpoints[index]);
+        const data = res.data?.favourites || res.data?.data || res.data || [];
+        if (Array.isArray(data) && data.length > 0) {
+          // Filter by user_id if needed
+          const filtered = data.filter((fav: any) => 
+            fav.user_id === userId || fav.userId === userId || !fav.user_id
+          );
+          setFavourites(filtered);
+          console.log('Favourites loaded:', filtered);
+        } else if (Array.isArray(data)) {
+          setFavourites(data);
+        } else {
+          tryEndpoint(index + 1);
+        }
+      } catch (err: any) {
+        if (err.response?.status === 404 || err.response?.status === 500) {
+          tryEndpoint(index + 1);
+        } else {
+          console.error(`Error loading favourites from ${endpoints[index]}:`, err);
+          tryEndpoint(index + 1);
+        }
+      }
+    };
+
+    tryEndpoint();
+  }, [userId]);
+
+  // Load closet items - use /api/items and filter by user_id
+  useEffect(() => {
+    // Always load items for the user (for overview and closet tabs)
+    axios.get('/api/items')
+      .then(res => {
+        const data = res.data?.data || res.data || [];
+        if (Array.isArray(data)) {
+          // Filter items that belong to this user
+          const userItems = data.filter((item: any) => 
+            item.user_id === userId || item.user?.id === userId
+          );
+          setCloset(userItems);
+          console.log('Closet items loaded:', userItems);
+        } else {
+          setCloset([]);
+        }
+      })
+      .catch(err => {
+        console.error('Error loading closet items:', err);
+        setCloset([]);
+      });
+  }, [userId]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -218,6 +307,29 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
         return '#9F8151';
     }
   };
+
+  // Show loading state
+  if (loading && !user) {
+    return (
+      <div style={{
+        backgroundColor: '#F0ECE3',
+        minHeight: '100vh',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+        <HeaderAlt />
+        <div style={{
+          fontFamily: 'Manrope, sans-serif',
+          fontSize: '18px',
+          color: '#9F8151',
+        }}>
+          Loading profile...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -272,8 +384,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               }}
             >
               <ImageWithFallback
-                src={userData.avatar}
-                alt={userData.name}
+                src={user?.avatar || ''}
+                alt={user?.name || ''}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
             </motion.div>
@@ -308,7 +420,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               color: '#0A4834',
               margin: '0 0 4px 0',
             }}>
-              {userData.name}
+              {user?.name || authUser?.username || 'User'}
             </h1>
             <p style={{
               fontFamily: 'Manrope, sans-serif',
@@ -316,7 +428,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               color: '#9F8151',
               margin: '0 0 12px 0',
             }}>
-              {userData.username}
+              {user?.username || (authUser ? `@${authUser.username}` : '@user')}
             </p>
             <p style={{
               fontFamily: 'Manrope, sans-serif',
@@ -325,7 +437,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               margin: '0 0 8px 0',
               lineHeight: '24px',
             }}>
-              {userData.bio}
+              {user?.bio || 'Welcome to your profile! Start building your style story.'}
             </p>
             <div style={{
               display: 'flex',
@@ -336,7 +448,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               color: '#999',
             }}>
               <MapPin size={14} />
-              {userData.location}
+              {user?.location || 'Location not set'}
             </div>
           </div>
 
@@ -600,7 +712,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           <ChevronRight size={20} color="#9F8151" />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                          {recentOrders.slice(0, 3).map((order) => (
+                          {(Array.isArray(orders) ? orders : []).slice(0, 3).map((order) => (
                             <div
                               key={order.id}
                               style={{
@@ -658,7 +770,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           <Heart size={20} color="#9F8151" fill="#9F8151" />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                          {favouriteItems.slice(0, 4).map((item) => (
+                          {(Array.isArray(favourites) ? favourites : []).slice(0, 4).map((item) => (
                             <div
                               key={item.id}
                               style={{
@@ -735,7 +847,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: '0 0 4px 0',
                           }}>
-                            €855
+                            €{stats?.totalSales || 0}
                           </p>
                           <p style={{
                             fontFamily: 'Manrope, sans-serif',
@@ -764,7 +876,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: '0 0 4px 0',
                           }}>
-                            3
+                            {stats?.itemsSold || 0}
                           </p>
                           <p style={{
                             fontFamily: 'Manrope, sans-serif',
@@ -793,7 +905,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: '0 0 4px 0',
                           }}>
-                            4.8
+                            {stats?.avgRating || 0}
                           </p>
                           <p style={{
                             fontFamily: 'Manrope, sans-serif',
@@ -835,7 +947,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           <Package size={20} color="#9F8151" />
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                          {myClosetItems.map((item) => (
+                          {(Array.isArray(closet) ? closet : []).map((item) => (
                             <div
                               key={item.id}
                               style={{
@@ -885,7 +997,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           Recent Sales
                         </h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {salesHistory.slice(0, 2).map((sale) => (
+                          {[].slice(0, 2).map((sale) => (
                             <div
                               key={sale.id}
                               style={{
@@ -975,7 +1087,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       <ChevronRight size={24} color="#9F8151" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                      {recentOrders.slice(0, 3).map((order) => (
+                      {orders.slice(0, 3).map((order) => (
                         <div
                           key={order.id}
                           style={{
@@ -1035,7 +1147,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       <Heart size={24} color="#9F8151" fill="#9F8151" />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                      {favouriteItems.slice(0, 4).map((item) => (
+                      {favourites.slice(0, 4).map((item) => (
                         <div
                           key={item.id}
                           style={{
@@ -1100,7 +1212,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               flexDirection: 'column',
               gap: '16px',
             }}>
-              {recentOrders.map((order, index) => (
+              {(Array.isArray(orders) ? orders : []).map((order, index) => (
                 <motion.div
                   key={order.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -1217,7 +1329,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '24px',
             }}>
-              {favouriteItems.map((item, index) => (
+              {(Array.isArray(favourites) ? favourites : []).map((item, index) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, scale: 0.9 }}
@@ -1371,7 +1483,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
             </div>
 
             {/* Empty State */}
-            {favouriteItems.length === 0 && (
+            {(!Array.isArray(favourites) || favourites.length === 0) && (
               <div style={{
                 textAlign: 'center',
                 padding: '80px 24px',
@@ -1450,7 +1562,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 </motion.div>
 
                 {/* Closet Items */}
-                {myClosetItems.map((item, index) => (
+                {closet.map((item, index) => (
                   <motion.div
                     key={item.id}
                     initial={{ opacity: 0, scale: 0.9 }}
@@ -1604,7 +1716,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 8px 0',
                     }}>
-                      €855
+                      €{stats?.totalSales || 0}
                     </p>
                     <p style={{
                       fontFamily: 'Manrope, sans-serif',
@@ -1633,7 +1745,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 8px 0',
                     }}>
-                      3
+                      {stats?.itemsSold || 0}
                     </p>
                     <p style={{
                       fontFamily: 'Manrope, sans-serif',
@@ -1663,7 +1775,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                         color: '#0A4834',
                         margin: 0,
                       }}>
-                        4.8
+                        {stats?.avgRating || 0}
                       </p>
                       <Star size={24} color="#9F8151" fill="#9F8151" />
                     </div>
@@ -1721,7 +1833,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   </div>
 
                   {/* Table Rows */}
-                  {salesHistory.map((sale) => (
+                  {[].map((sale) => (
                     <motion.div
                       key={sale.id}
                       whileHover={{ backgroundColor: '#F0ECE3' }}
@@ -1836,7 +1948,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     Weekly Views
                   </h3>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={analyticsData}>
+                    <LineChart data={[]}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#F0ECE3" />
                       <XAxis
                         dataKey="week"
@@ -1901,8 +2013,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       marginBottom: '12px',
                     }}>
                       <ImageWithFallback
-                        src={myClosetItems[0].image}
-                        alt={myClosetItems[0].name}
+                        src={closet[0]?.image || ''}
+                        alt={closet[0]?.name || ''}
                         style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     </div>
@@ -1913,7 +2025,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 4px 0',
                     }}>
-                      {myClosetItems[0].name}
+                      {closet[0]?.name || ''}
                     </p>
                     <p style={{
                       fontFamily: 'Manrope, sans-serif',
@@ -1921,7 +2033,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#9F8151',
                       margin: 0,
                     }}>
-                      {myClosetItems[0].views} views
+                      {closet[0]?.views || 0} views
                     </p>
                   </motion.div>
 
@@ -1959,7 +2071,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                         color: '#0A4834',
                         margin: 0,
                       }}>
-                        127
+                        {stats?.followers || 0}
                       </p>
                       <div style={{
                         display: 'flex',
@@ -1973,7 +2085,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           fontSize: '14px',
                           fontWeight: 600,
                         }}>
-                          +12
+                          {stats?.followerGrowth ? `+${stats.followerGrowth}` : '+0'}
                         </span>
                       </div>
                     </div>
