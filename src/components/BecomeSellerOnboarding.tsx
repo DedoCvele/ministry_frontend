@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -10,13 +11,14 @@ import { type Language, getTranslation } from '../translations';
 import './styles/BecomeSellerOnboarding.css';
 
 interface BecomeSellerOnboardingProps {
-  onClose: () => void;
-  onSuccess: () => void;
+  onClose?: () => void;
+  onSuccess?: () => void;
   language?: Language;
 }
 
 export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: BecomeSellerOnboardingProps) {
   const t = getTranslation(language);
+  const navigate = useNavigate();
   const [step, setStep] = useState<'welcome' | 'info' | 'payment' | 'processing' | 'success'>('welcome');
   const [formData, setFormData] = useState({
     fullName: '',
@@ -78,12 +80,26 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
       />
 
       {/* Header */}
-      <div className="bg-white border-b border-[#9F8151]/20">
+      <div className="bg-white border-b border-[#9F8151]/20" style={{ position: 'relative', zIndex: 40 }}>
         <div className="max-w-3xl mx-auto px-6 py-6">
           <div className="flex items-center justify-between">
             <button
-              onClick={onClose}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Back to Home clicked');
+                navigate('/');
+              }}
               className="flex items-center gap-2 text-[#9F8151] hover:text-[#0A4834] transition-colors bs-manrope"
+              style={{ 
+                cursor: 'pointer', 
+                background: 'none', 
+                border: 'none', 
+                padding: '8px 0',
+                position: 'relative',
+                zIndex: 41
+              }}
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Back to Home</span>
@@ -450,13 +466,25 @@ export function BecomeSellerOnboarding({ onClose, onSuccess, language = 'en' }: 
 
                 <div className="flex gap-3 justify-center">
                   <Button
-                    onClick={onSuccess}
+                    onClick={() => {
+                      if (onSuccess) {
+                        onSuccess();
+                      } else {
+                        navigate('/profile');
+                      }
+                    }}
                     className="bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl px-8 py-6 bs-manrope"
                   >
                     Go to My Closet →
                   </Button>
                   <Button
-                    onClick={onClose}
+                    onClick={() => {
+                      if (onClose) {
+                        onClose();
+                      } else {
+                        navigate('/');
+                      }
+                    }}
                     variant="outline"
                     className="border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 rounded-xl px-8 bs-manrope"
                   >

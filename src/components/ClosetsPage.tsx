@@ -140,7 +140,9 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
       <div className="closet-grain" />
 
       {/* Header */}
-      <HeaderAlt />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <HeaderAlt />
+      </div>
 
       {/* Page Header */}
       <div className="closets-page-header">
@@ -190,7 +192,18 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
               <div className="closet-card">
                 {/* Cover Image */}
                 <div onClick={() => handleClosetClick(closet.id)} className="closet-cover">
-                  <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.5 }} style={{ width: '100%', height: '100%' }}>
+                  <motion.div 
+                    whileHover={{ scale: 1.05 }} 
+                    transition={{ duration: 0.5, ease: 'easeOut' }} 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%',
+                      transform: 'translateZ(0)',
+                      willChange: 'transform',
+                      backfaceVisibility: 'hidden',
+                      WebkitBackfaceVisibility: 'hidden'
+                    }}
+                  >
                     <ImageWithFallback src={closet.coverImage} alt={closet.name} className="closet-cover-img" />
                   </motion.div>
 
@@ -407,12 +420,6 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         </motion.div>
       </div>
 
-      <style>{`
-        .closet-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0px 12px 32px rgba(0,0,0,0.12) !important;
-        }
-      `}</style>
 
       {/* Footer */}
       <FooterAlt onNewsletterClick={() => setNewsletterOpen(true)} />

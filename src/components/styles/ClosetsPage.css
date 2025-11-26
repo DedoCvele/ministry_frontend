@@ -3,9 +3,42 @@
 
 .closets-root{ background-color: var(--muted-bg); min-height:100vh; }
 
+/* Override header to be static instead of fixed on closets page */
+.closets-root .header-root {
+  position: static !important;
+  transform: none !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+}
+.closets-root .collapsible-header {
+  transform: none !important;
+  transition: none !important;
+}
+.closets-root .collapsible-header.hidden {
+  transform: none !important;
+}
+.closets-root .header-spacer {
+  display: none !important;
+}
+
 /* Page header */
-.closets-page-header{ background-color: var(--muted-bg); border-bottom: 1px solid rgba(159,129,81,0.1); padding:48px 24px 32px; }
-.closets-header-inner{ max-width:1200px; margin:0 auto; text-align:center; }
+.closets-page-header{ 
+  background-color: var(--muted-bg); 
+  border-bottom: 1px solid rgba(159,129,81,0.1); 
+  padding:48px 24px 32px; 
+  position: relative;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.closets-header-inner{ 
+  max-width:1200px; 
+  margin:0 auto; 
+  text-align:center; 
+  transform: translateZ(0);
+}
 .closets-h1{ font-family: 'Cormorant Garamond', serif; font-size:48px; font-weight:600; color:var(--brand-green); margin:0 0 12px 0; }
 .closets-sub{ font-family: 'Manrope', sans-serif; font-size:18px; color:var(--brand-gold); margin:0 0 24px 0; }
 .closets-hr{ width:80px; height:2px; background-color: rgba(159,129,81,0.3); margin:0 auto; }
@@ -16,10 +49,41 @@
 .closets-filter-btn.active{ background-color: var(--brand-gold); color:#fff; box-shadow: 0px 4px 12px rgba(159,129,81,0.2); }
 
 /* Closet card */
-.closet-card{ position:relative; border-radius:20px; overflow:hidden; cursor:pointer; background:#fff; box-shadow:0px 8px 24px rgba(0,0,0,0.06); transition:all .3s; width:100%; }
-.closet-card:hover{ transform: translateY(-4px); box-shadow:0px 12px 32px rgba(0,0,0,0.12); }
-.closet-cover{ width:100%; aspect-ratio:1/1; position:relative; overflow:hidden; }
-.closet-cover-img{ width:100%; height:100%; object-fit:cover; }
+.closet-card{ 
+  position:relative; 
+  border-radius:20px; 
+  overflow:hidden; 
+  cursor:pointer; 
+  background:#fff; 
+  box-shadow:0px 8px 24px rgba(0,0,0,0.06); 
+  transition:box-shadow .3s ease, transform .3s ease; 
+  width:100%; 
+  transform: translateZ(0);
+  will-change: transform, box-shadow;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.closet-card:hover{ 
+  transform: translate3d(0, -4px, 0); 
+  box-shadow:0px 12px 32px rgba(0,0,0,0.12); 
+}
+.closet-cover{ 
+  width:100%; 
+  aspect-ratio:1/1; 
+  position:relative; 
+  overflow:hidden; 
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.closet-cover-img{ 
+  width:100%; 
+  height:100%; 
+  object-fit:cover; 
+  transform: translateZ(0);
+  will-change: transform;
+}
 .closet-profile-bubble{ width:64px; height:64px; border-radius:50%; background-color:var(--brand-gold); display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
 .closet-cover-overlay{ position:absolute; bottom:24px; left:24px; right:24px; display:flex; align-items:center; gap:12px; }
 

@@ -71,10 +71,14 @@
 
 .collapsible-header {
   transition: transform 0.3s ease-in-out;
+  transform: translateZ(0);
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .collapsible-header.hidden {
-  transform: translateY(-100%);
+  transform: translate3d(0, -100%, 0);
 }
 
 .header-spacer {
