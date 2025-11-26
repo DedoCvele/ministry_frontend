@@ -15,6 +15,7 @@ import {
 import axios from 'axios';
 import { HeaderAlt } from '../components/HeaderAlt';
 import { FooterAlt } from '../components/FooterAlt';
+import { ChatWidget } from '../components/ChatWidget';
 import { useAuth } from '../context/AuthContext';
 import '../components/styles/AdminPage.css';
 import { toast } from 'sonner';
@@ -1086,6 +1087,9 @@ export function AdminPage() {
         </div>
       </main>
       <FooterAlt />
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }

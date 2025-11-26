@@ -173,7 +173,12 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         </motion.div>
 
         {/* Closet Grid */}
-        <div style={{ marginBottom: '48px' }}>
+        <div className="closets-grid-container" style={{ 
+          marginBottom: '48px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '32px',
+        }}>
           {filteredClosets.map((closet, index) => (
             <motion.div
               key={closet.id}
@@ -226,6 +231,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
                   style={{
+                    gridColumn: '1 / -1',
                     marginTop: '32px',
                     backgroundColor: '#FFFFFF',
                     borderRadius: '20px',

@@ -22,6 +22,7 @@ import {
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
+import { ChatWidget } from './ChatWidget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { type Language, getTranslation } from '../translations';
@@ -2164,6 +2165,9 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
 
       {/* Footer */}
       <FooterAlt onNewsletterClick={() => {}} />
+
+      {/* Chat Widget */}
+      <ChatWidget />
     </div>
   );
 }

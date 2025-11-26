@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { MoreVertical, ArrowLeft, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { ChatWidget } from './ChatWidget';
+import { useAuth } from '../context/AuthContext';
 import './styles/ClosetPage.css';
 
 interface ClosetItem {
@@ -45,7 +47,13 @@ export default function ClosetPage({
 }: ClosetPageProps) {
   const { closetId } = useParams<{ closetId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const userId = propUserId || closetId || '1';
+  
+  // Check if user is viewing their own closet
+  // For now, we'll check if the user is logged in and the closetId matches their username or ID
+  // This is a simplified check - in a real app, you'd compare with actual user ID from API
+  const isOwnCloset = user && (closetId === user.username || propUserId === user.username || !closetId);
   
   const handleBack = () => {
     if (onBack) {
@@ -415,6 +423,9 @@ export default function ClosetPage({
           </div>
         </div>
       </div>
+
+      {/* Chat Widget - Only show on user's own closet */}
+      {isOwnCloset && <ChatWidget />}
     </div>
   );
 }
