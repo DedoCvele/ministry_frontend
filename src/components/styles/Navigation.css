@@ -1,0 +1,84 @@
+.nav-scrolled {
+  background-color: rgba(240, 236, 227, 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.nav-default {
+  background-color: rgba(240, 236, 227, 0);
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.nav-logo {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  color: #0A4834;
+  transition: color 0.3s ease;
+}
+
+.nav-logo:hover {
+  color: #9F8151;
+}
+
+.nav-links {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  color: #0A4834;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.nav-links:hover {
+  color: #9F8151;
+}
+
+.nav-active-indicator {
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #9F8151;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.nav-profile-btn {
+  padding: 8px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  background-color: transparent;
+}
+
+.nav-profile-btn:hover {
+  background-color: rgba(159, 129, 81, 0.1);
+}
+
+.nav-profile-icon {
+  color: #9F8151;
+  width: 20px;
+  height: 20px;
+}
+
+.hamburger-menu {
+  width: 24px;
+  height: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger-menu span {
+  width: 100%;
+  height: 2px;
+  background-color: #0A4834;
+}

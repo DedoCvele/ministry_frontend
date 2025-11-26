@@ -1,0 +1,10 @@
+.bs-manrope {
+  font-family: 'Manrope', sans-serif;
+}
+
+.bs-cormorant {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+/* Component-specific helpers (kept small to avoid linter empty-rule warnings) */
+/* end of file - helper classes above are intentionally minimal */

@@ -1,18 +1,31 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
+import './styles/ArticleDetail.css';
 
 interface ArticleDetailProps {
-  articleId: number;
-  onBack: () => void;
+  articleId?: number;
+  onBack?: () => void;
   language?: Language;
 }
 
-export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDetailProps) {
+export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en' }: ArticleDetailProps) {
+  const { articleId: paramArticleId } = useParams<{ articleId: string }>();
+  const navigate = useNavigate();
+  const articleId = propArticleId || (paramArticleId ? parseInt(paramArticleId, 10) : 1);
+  
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/blog');
+    }
+  };
   const t = getTranslation(language);
   const [liked, setLiked] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -106,68 +119,27 @@ export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDet
   };
 
   return (
-    <div style={{
-      backgroundColor: '#F0ECE3',
-      minHeight: '100vh',
-      position: 'relative',
-    }}>
+    <div className="article-detail-root">
       {/* Header */}
       <HeaderAlt />
 
       {/* Scroll Progress Bar */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: '3px',
-        backgroundColor: 'rgba(159,129,81,0.2)',
-        zIndex: 1000,
-      }}>
+      <div className="article-progress-wrap">
         <motion.div
-          style={{
-            height: '100%',
-            backgroundColor: '#9F8151',
-            width: `${scrollProgress}%`,
-            transition: 'width 0.1s ease',
-          }}
+          className="article-progress-fill"
+          style={{ width: `${scrollProgress}%` }}
         />
       </div>
 
       {/* Grain Texture */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.015,
-        backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=\')',
-      }} />
+      <div className="article-grain-texture" />
 
       {/* Back Button */}
       <motion.button
-        onClick={onBack}
+        onClick={handleBack}
         whileHover={{ x: -4 }}
         whileTap={{ scale: 0.95 }}
-        style={{
-          position: 'fixed',
-          top: '32px',
-          left: '32px',
-          backgroundColor: 'rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(12px)',
-          border: '1px solid #DCD6C9',
-          borderRadius: '50%',
-          width: '48px',
-          height: '48px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          zIndex: 100,
-          transition: 'all 0.3s ease',
-        }}
+        className="article-back-button"
       >
         <ArrowLeft size={20} color="#0A4834" />
       </motion.button>
@@ -177,123 +149,42 @@ export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDet
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        style={{
-          width: '100%',
-          height: '600px',
-          position: 'relative',
-        }}
+        className="article-hero"
       >
         <ImageWithFallback
           src={article.heroImage}
           alt={article.title}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            borderRadius: '0 0 24px 24px',
-          }}
+          className="article-hero-image"
         />
       </motion.div>
 
       {/* Article Content */}
-      <div style={{
-        maxWidth: '800px',
-        margin: '-100px auto 0',
-        padding: '0 32px 40px',
-        position: 'relative',
-      }}>
+      <div className="article-container">
         {/* Header Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          style={{
-            backgroundColor: '#FFFFFF',
-            borderRadius: '20px',
-            padding: '48px',
-            marginBottom: '40px',
-            boxShadow: '0px 8px 32px rgba(0,0,0,0.08)',
-          }}
+          className="article-header-card"
         >
-          <span style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: '#9F8151',
-            backgroundColor: 'rgba(159,129,81,0.1)',
-            padding: '6px 16px',
-            borderRadius: '16px',
-            display: 'inline-block',
-            marginBottom: '24px',
-          }}>
-            {article.category}
-          </span>
+          <span className="article-category">{article.category}</span>
 
-          <h1 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '48px',
-            fontWeight: 600,
-            color: '#0A4834',
-            margin: '0 0 16px 0',
-            lineHeight: '1.2',
-          }}>
-            {article.title}
-          </h1>
+          <h1 className="article-title">{article.title}</h1>
 
-          <p style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '24px',
-            color: '#9F8151',
-            margin: '0 0 32px 0',
-            lineHeight: '1.4',
-          }}>
-            {article.subtitle}
-          </p>
+          <p className="article-subtitle">{article.subtitle}</p>
 
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            paddingTop: '24px',
-            borderTop: '1px solid #F0ECE3',
-          }}>
-            <div>
-              <p style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#9F8151',
-                margin: '0 0 4px 0',
-              }}>
-                By {article.author}
-              </p>
-              <p style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: 'rgba(0,0,0,0.6)',
-                margin: 0,
-              }}>
-                {article.date} · {article.readTime}
-              </p>
+          <div className="article-meta-row">
+            <div className="article-meta">
+              <p className="article-author">By {article.author}</p>
+              <p className="article-date">{article.date} · {article.readTime}</p>
             </div>
 
-            <div style={{ display: 'flex', gap: '12px' }}>
+            <div className="article-actions">
               <motion.button
                 onClick={() => setLiked(!liked)}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  backgroundColor: liked ? 'rgba(159,129,81,0.1)' : '#F0ECE3',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s ease',
-                }}
+                className={`like-button ${liked ? 'liked' : ''}`}
               >
                 <Heart size={18} color="#9F8151" fill={liked ? '#9F8151' : 'none'} />
               </motion.button>
@@ -301,17 +192,7 @@ export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDet
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  backgroundColor: '#F0ECE3',
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                className="share-button"
               >
                 <Share2 size={18} color="#9F8151" />
               </motion.button>
@@ -324,142 +205,44 @@ export function ArticleDetail({ articleId, onBack, language = 'en' }: ArticleDet
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
+          className="article-body"
         >
           {article.content.map((block, index) => {
             switch (block.type) {
               case 'lead':
                 return (
-                  <p
-                    key={index}
-                    style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '20px',
-                      fontWeight: 500,
-                      color: '#0A4834',
-                      lineHeight: '1.7',
-                      marginBottom: '32px',
-                    }}
-                  >
-                    {block.text}
-                  </p>
+                  <p key={index} className="lead-paragraph">{block.text}</p>
                 );
 
               case 'paragraph':
                 return (
-                  <p
-                    key={index}
-                    style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '16px',
-                      color: '#000000',
-                      lineHeight: '1.8',
-                      marginBottom: '24px',
-                    }}
-                  >
-                    {block.text}
-                  </p>
+                  <p key={index} className="article-paragraph">{block.text}</p>
                 );
 
               case 'heading':
                 return (
-                  <h2
-                    key={index}
-                    style={{
-                      fontFamily: 'Cormorant Garamond, serif',
-                      fontSize: '32px',
-                      fontWeight: 600,
-                      color: '#0A4834',
-                      margin: '48px 0 24px 0',
-                    }}
-                  >
-                    {block.text}
-                  </h2>
+                  <h2 key={index} className="article-heading">{block.text}</h2>
                 );
 
               case 'quote':
                 return (
-                  <div
-                    key={index}
-                    style={{
-                      padding: '48px 0',
-                      margin: '48px 0',
-                      borderTop: '1px solid rgba(159,129,81,0.3)',
-                      borderBottom: '1px solid rgba(159,129,81,0.3)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontFamily: 'Cormorant Garamond, serif',
-                        fontStyle: 'italic',
-                        fontSize: '24px',
-                        color: '#9F8151',
-                        margin: 0,
-                        lineHeight: '1.5',
-                      }}
-                    >
-                      "{block.text}"
-                    </p>
+                  <div key={index} className="quote-block">
+                    <p className="quote-text">"{block.text}"</p>
                   </div>
                 );
 
               case 'tip':
                 return (
-                  <div
-                    key={index}
-                    style={{
-                      backgroundColor: '#F0ECE3',
-                      borderLeft: '4px solid #9F8151',
-                      borderRadius: '12px',
-                      padding: '20px 24px',
-                      margin: '32px 0',
-                    }}
-                  >
-                    <p
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '15px',
-                        color: '#0A4834',
-                        margin: 0,
-                        lineHeight: '1.6',
-                      }}
-                    >
-                      {block.text}
-                    </p>
+                  <div key={index} className="tip-block">
+                    <p className="tip-text">{block.text}</p>
                   </div>
                 );
 
               case 'image':
                 return (
-                  <div
-                    key={index}
-                    style={{
-                      margin: '48px 0',
-                    }}
-                  >
-                    <ImageWithFallback
-                      src={block.src}
-                      alt={block.caption || ''}
-                      style={{
-                        width: '100%',
-                        borderRadius: '16px',
-                        marginBottom: '12px',
-                      }}
-                    />
-                    {block.caption && (
-                      <p
-                        style={{
-                          fontFamily: 'Manrope, sans-serif',
-                          fontStyle: 'italic',
-                          fontSize: '14px',
-                          color: '#9F8151',
-                          textAlign: 'center',
-                          margin: 0,
-                        }}
-                      >
-                        {block.caption}
-                      </p>
-                    )}
+                  <div key={index} className="image-block">
+                    <ImageWithFallback src={block.src} alt={block.caption || ''} className="article-image" />
+                    {block.caption && <p className="image-caption">{block.caption}</p>}
                   </div>
                 );
 

@@ -1,12 +1,83 @@
-import { useState } from 'react';
-import { Toaster, toast } from 'sonner';
+import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { HeaderAlt } from './components/HeaderAlt';
-import { HeroSectionAlt } from './components/HeroSectionAlt';
-import { VintageBanner } from './components/VintageBanner';
-import { ShopTheFinds } from './components/ShopTheFinds';
-import { BecomeSellerSection } from './components/BecomeSellerSection';
-import { JournalSpread } from './components/JournalSpread';
-import { FooterAlt } from './components/FooterAlt';
+
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+}
+
+function ShopPageComponent() {
+  return <h1>Shop Page</h1>;
+}
+
+function Layout() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/shop" element={<ShopPageComponent />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Layout />
+    </BrowserRouter>
+  );
+}
+
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+}
+
+function ShopPage() {
+  return <h1>Shop Page</h1>;
+}
+
+function Layout() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/shop" element={<ShopPage />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Layout />
+    </BrowserRouter>
+  );
+}
 import { ProductPage } from './components/ProductPage';
 import { ChatWidget } from './components/ChatWidget';
 import { JournalHomepage } from './components/JournalHomepage';
@@ -44,17 +115,31 @@ interface CartItem {
   condition: string;
 }
 
+function HomePage() {
+  const navigate = useNavigate();
+  
+  return (
+    <div style={{ backgroundColor: '#FFFFFF' }}>
+      <HeaderAlt 
+        language="en"
+        onAccountClick={() => navigate('/profile')}
+        onShopClick={() => navigate('/shop')}
+        onClosetsClick={() => navigate('/closets')}
+        onJournalClick={() => navigate('/blog')}
+        onBecomeSellerClick={() => navigate('/become-seller')}
+      />
+      <h1>Welcome to Ministry of Second Hand</h1>
+    </div>
+  );
+
 export default function App() {
-  const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [language, setLanguage] = useState<Language>('en');
-  const [selectedArticleId, setSelectedArticleId] = useState<number | null>(null);
-  const [newsletterOpen, setNewsletterOpen] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [signupOpen, setSignupOpen] = useState(false);
-  const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [isSeller, setIsSeller] = useState(true); // Combined profile with seller features
-  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
-  const [contactSellerOpen, setContactSellerOpen] = useState(false);
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+      </Routes>
+    </BrowserRouter>
+  );
   
   // Cart state
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -538,7 +623,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }} />
       ) : currentPage === 'article' ? (
-        <ArticleDetail language={language} articleId={selectedArticleId ?? undefined} onBack={() => {
+        <ArticleDetail language={language} articleId={selectedArticleId} onBack={() => {
           setCurrentPage('blog');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }} />
@@ -588,22 +673,22 @@ export default function App() {
       ) : currentPage === 'checkout' ? (
         <CheckoutPage language={language} items={cartItems} onSubmit={() => setCurrentPage('payment-processing')} />
       ) : currentPage === 'payment-processing' ? (
-        <PaymentProcessing {...({ onSuccess: () => {
+        <PaymentProcessing language={language} onSuccess={() => {
           setCurrentPage('order-confirmation');
           setCartItems([]);
-        } } as any)} />
+        }} />
       ) : currentPage === 'profile' ? (
         <ProfilePage language={language} />
       ) : currentPage === 'upload' ? (
         <UploadItem language={language} onClose={() => setCurrentPage('profile')} />
       ) : currentPage === 'search' ? (
-        <SearchResultsPage />
+        <SearchResultsPage language={language} searchQuery="vintage bags" onClose={() => setCurrentPage('home')} />
       ) : currentPage === 'product-detail' ? (
         <ProductDetailPage language={language} />
       ) : currentPage === 'order-confirmation' ? (
-        <NewOrderConfirmation orderNumber="MOS-2024-0012" onContinueShopping={() => setCurrentPage('shop')} />
+        <NewOrderConfirmation language={language} orderNumber="MOS-2024-0012" onContinueShopping={() => setCurrentPage('shop')} />
       ) : currentPage === 'chatbot-flow' ? (
-        <ChatbotFlow onClose={() => setCurrentPage('home')} />
+        <ChatbotFlow language={language} onClose={() => setCurrentPage('home')} />
       ) : currentPage === 'closet' ? (
         <ClosetPage language={language} />
       ) : currentPage === 'become-seller' ? (

@@ -1,0 +1,64 @@
+/* ClosetsPage styles migrated from inline styles */
+:root{ --brand-green:#0A4834; --brand-gold:#9F8151; --muted-bg:#F0ECE3; }
+
+.closets-root{ background-color: var(--muted-bg); min-height:100vh; }
+
+/* Page header */
+.closets-page-header{ background-color: var(--muted-bg); border-bottom: 1px solid rgba(159,129,81,0.1); padding:48px 24px 32px; }
+.closets-header-inner{ max-width:1200px; margin:0 auto; text-align:center; }
+.closets-h1{ font-family: 'Cormorant Garamond', serif; font-size:48px; font-weight:600; color:var(--brand-green); margin:0 0 12px 0; }
+.closets-sub{ font-family: 'Manrope', sans-serif; font-size:18px; color:var(--brand-gold); margin:0 0 24px 0; }
+.closets-hr{ width:80px; height:2px; background-color: rgba(159,129,81,0.3); margin:0 auto; }
+
+/* Filters */
+.closets-filters{ display:flex; justify-content:center; gap:12px; margin-bottom:64px; flex-wrap:wrap; }
+.closets-filter-btn{ font-family: 'Manrope', sans-serif; font-size:14px; font-weight:500; border-radius:24px; padding:10px 24px; border:1px solid #DCD6C9; transition:all .3s; }
+.closets-filter-btn.active{ background-color: var(--brand-gold); color:#fff; box-shadow: 0px 4px 12px rgba(159,129,81,0.2); }
+
+/* Closet card */
+.closet-card{ position:relative; padding:20px; border-radius:20px; width: max-content; height:max-content; overflow:hidden; cursor:pointer; background:#fff; box-shadow:0px 8px 24px rgba(0,0,0,0.06); transition:all .3s; }
+.closet-card:hover{ transform: translateY(-4px); box-shadow:0px 12px 32px rgba(0,0,0,0.12); }
+.closet-cover {
+    width: 330px;
+    height: 330px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 18px;
+    background:#f5f5f5;
+
+}
+
+.closet-cover-img{ width:100%; height:100%; object-fit:cover; }
+.closet-profile-bubble{ width:64px; height:64px; border-radius:50%; background-color:var(--brand-gold); display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
+.closet-cover-overlay{ position:absolute; bottom:24px; left:24px; right:24px; display:flex; align-items:center; gap:12px; }
+
+.closet-card-content{ padding:24px; }
+.closet-tagline{ font-family:'Manrope', sans-serif; font-size:14px; color:rgba(0,0,0,0.7); line-height:1.6; margin:0 0 20px 0; }
+.closet-stats-row{ display:flex; gap:24px; margin-bottom:20px; padding-bottom:20px; border-bottom:1px solid #F0ECE3; }
+.closet-stat{ display:flex; align-items:center; gap:6px; }
+.closet-stat span{ font-family:'Manrope', sans-serif; font-size:14px; font-weight:500; color:#000; }
+
+/* Actions */
+.closet-actions button{ border-radius:12px; padding:12px 20px;  }
+.closet-action-primary{ flex:1; margin-bottom: 5px; font-family:'Manrope',sans-serif; font-weight:500; color:#fff; padding-bottom: 5px; background:var(--brand-green); border:none; display:flex; align-items:center; justify-content:center; gap:6px; }
+.closet-action-follow{ font-family:'Manrope',sans-serif; font-weight:500; border-radius:12px; padding-top: 20px; }
+.closet-action-share{ width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; }
+
+/* Featured spotlight */
+.closet-featured{ margin-top:32px; background:#fff; border-radius:20px; padding:40px; box-shadow:0px 8px 24px rgba(0,0,0,0.06); }
+.closet-featured-inner{ display:flex; align-items:center; gap:32px; flex-wrap:wrap; }
+.closet-featured-image{ width:180px; height:180px; border-radius:16px; overflow:hidden; }
+.closet-featured-quote{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:24px; color:var(--brand-gold); margin:0 0 16px 0; }
+.closet-featured-cta{ font-family:'Manrope',sans-serif; font-weight:500; border-radius:12px; padding:12px 24px; border:1px solid var(--brand-gold); }
+
+/* CTA */
+.closets-cta{ margin-top:80px; padding:64px 40px; background:#fff; border-radius:20px; text-align:center; box-shadow:0px 8px 24px rgba(0,0,0,0.06); }
+.closets-cta h2{ font-family:'Cormorant Garamond', serif; font-size:40px; color:var(--brand-green); margin:0 0 16px 0; }
+.closets-cta p{ font-family:'Manrope',sans-serif; font-size:18px; color:rgba(0,0,0,0.7); max-width:600px; margin:0 auto 32px; }
+.closets-cta .btn{ font-family:'Manrope',sans-serif; font-size:16px; padding:16px 48px; border-radius:16px; background:var(--brand-gold); color:#fff; }
+
+/* Footer tagline */
+.closets-footer-quote{ text-align:center; padding:64px 0 0; }
+.closets-footer-quote p{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:28px; color:var(--brand-gold); margin:0; }
+
+/* small style block used in TSX originally moved to stylesheet */

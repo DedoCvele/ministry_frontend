@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner@2.0.3';
+import './styles/AvatarSelectionModal.css';
 
 interface AvatarOption {
   id: string;
@@ -180,19 +181,9 @@ export default function AvatarSelectionModal({
         {/* Content */}
         <div className="p-8">
           {/* Header */}
-          <div className="mb-8">
-            <h2
-              style={{ fontFamily: 'Cormorant Garamond, serif' }}
-              className="text-[#0A4834] mb-2"
-            >
-              Choose Your Profile Picture
-            </h2>
-            <p
-              style={{ fontFamily: 'Manrope, sans-serif' }}
-              className="text-[#9F8151]"
-            >
-              Select one of our signature illustrations to match your style.
-            </p>
+          <div className="mb-8 avatar-header">
+            <h2 className="avatar-title text-[#0A4834] mb-2">Choose Your Profile Picture</h2>
+            <p className="avatar-subtitle text-[#9F8151]">Select one of our signature illustrations to match your style.</p>
           </div>
 
           {/* Avatar Grid */}
@@ -225,12 +216,7 @@ export default function AvatarSelectionModal({
 
                 {/* Name tooltip on hover */}
                 <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                  <span
-                    style={{ fontFamily: 'Manrope, sans-serif' }}
-                    className="text-[#9F8151] text-xs bg-white px-2 py-1 rounded-lg shadow-lg"
-                  >
-                    {avatar.name}
-                  </span>
+                  <span className="avatar-tooltip text-[#9F8151] text-xs bg-white px-2 py-1 rounded-lg shadow-lg">{avatar.name}</span>
                 </div>
               </button>
             ))}
@@ -241,15 +227,13 @@ export default function AvatarSelectionModal({
             <Button
               onClick={onClose}
               variant="outline"
-              className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5"
-              style={{ fontFamily: 'Manrope, sans-serif' }}
+              className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5 avatar-btn"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
-              className="rounded-xl px-6 bg-[#0A4834] text-white hover:bg-[#0A4834]/90"
-              style={{ fontFamily: 'Manrope, sans-serif' }}
+              className="rounded-xl px-6 bg-[#0A4834] text-white hover:bg-[#0A4834]/90 avatar-btn avatar-btn-primary"
             >
               Save Selection
             </Button>

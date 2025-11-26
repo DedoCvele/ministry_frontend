@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import './styles/Navigation.css';
 
 interface NavigationProps {
-  currentPage: string;
-  onNavigate: (page: string) => void;
   onProfileClick: () => void;
 }
 
-export function Navigation({ currentPage, onNavigate, onProfileClick }: NavigationProps) {
+export function Navigation({ onProfileClick }: NavigationProps) {
   const [isScrolled, setIsScrolled] = useState(false);
   const lastScrollYRef = useRef(0);
   const ticking = useRef(false);
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -46,68 +47,60 @@ export function Navigation({ currentPage, onNavigate, onProfileClick }: Navigati
 
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
-      style={{
-        backgroundColor: isScrolled ? 'rgba(240, 236, 227, 0.92)' : 'rgba(240, 236, 227, 0.0)',
-        backdropFilter: isScrolled ? 'blur(12px)' : 'none',
-        boxShadow: isScrolled ? '0 2px 12px rgba(0,0,0,0.06)' : 'none',
-      }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'nav-scrolled' : 'nav-default'}`}
     >
       <div className="max-w-7xl mx-auto px-6 py-5">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <button
-            onClick={() => onNavigate('home')}
-            style={{ fontFamily: 'Cormorant Garamond, serif' }}
-            className="text-[#0A4834] text-[24px] hover:text-[#9F8151] transition-colors"
+          <Link
+            to="/"
+            className="nav-logo"
           >
             Ministry of Second Hand
-          </button>
+          </Link>
 
           {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-8">
             {navItems.map((item) => (
-              <button
+              <Link
                 key={item.id}
-                onClick={() => onNavigate(item.id)}
-                style={{ fontFamily: 'Manrope, sans-serif' }}
-                className={`text-[14px] transition-all relative ${
-                  currentPage === item.id || 
-                  (item.id === 'blog' && currentPage === 'article')
-                    ? 'text-[#0A4834]'
-                    : 'text-[#0A4834]/70 hover:text-[#0A4834]'
+                to={`/${item.id === 'home' ? '' : item.id}`}
+                className={`nav-links ${
+                  (location.pathname === '/' && item.id === 'home') || 
+                  location.pathname === `/${item.id}` ||
+                  (item.id === 'blog' && location.pathname.startsWith('/blog/'))
+                    ? 'nav-active'
+                    : ''
                 }`}
               >
                 {item.label}
-                {(currentPage === item.id || (item.id === 'blog' && currentPage === 'article')) && (
+                {((location.pathname === '/' && item.id === 'home') || 
+                  location.pathname === `/${item.id}` ||
+                  (item.id === 'blog' && location.pathname.startsWith('/blog/'))) && (
                   <div 
-                    className="absolute -bottom-1 left-0 right-0 h-[2px] bg-[#9F8151]"
-                    style={{
-                      animation: 'slideIn 0.3s ease-out',
-                    }}
+                    className="nav-active-indicator"
                   />
                 )}
-              </button>
+              </Link>
             ))}
 
             {/* Profile Icon */}
             <button
               onClick={onProfileClick}
-              className="p-2 rounded-full hover:bg-[#9F8151]/10 transition-all"
+              className="nav-profile-btn"
             >
-              <User className="w-5 h-5 text-[#9F8151]" />
+              <User className="nav-profile-icon" />
             </button>
           </div>
 
           {/* Mobile Menu Toggle */}
           <button
             className="md:hidden p-2"
-            style={{ fontFamily: 'Manrope, sans-serif' }}
           >
-            <div className="w-6 h-5 flex flex-col justify-between">
-              <span className="w-full h-0.5 bg-[#0A4834]"></span>
-              <span className="w-full h-0.5 bg-[#0A4834]"></span>
-              <span className="w-full h-0.5 bg-[#0A4834]"></span>
+            <div className="hamburger-menu">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
           </button>
         </div>

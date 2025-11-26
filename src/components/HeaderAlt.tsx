@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { type Language, getTranslation } from '../translations';
+import './styles/HeaderAlt.css';
 
 interface HeaderAltProps {
   onAccountClick?: () => void;
@@ -21,8 +23,50 @@ export function HeaderAlt({
 }: HeaderAltProps = {}) {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const navigate = useNavigate();
   
   const t = getTranslation(language);
+  
+  // Use React Router navigation if callbacks are not provided
+  const handleShopClick = () => {
+    if (onShopClick) {
+      onShopClick();
+    } else {
+      navigate('/shop');
+    }
+  };
+  
+  const handleClosetsClick = () => {
+    if (onClosetsClick) {
+      onClosetsClick();
+    } else {
+      navigate('/closets');
+    }
+  };
+  
+  const handleJournalClick = () => {
+    if (onJournalClick) {
+      onJournalClick();
+    } else {
+      navigate('/blog');
+    }
+  };
+  
+  const handleBecomeSellerClick = () => {
+    if (onBecomeSellerClick) {
+      onBecomeSellerClick();
+    } else {
+      navigate('/become-seller');
+    }
+  };
+  
+  const handleAccountClick = () => {
+    if (onAccountClick) {
+      onAccountClick();
+    } else {
+      navigate('/profile');
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -83,99 +127,54 @@ export function HeaderAlt({
       
       <>
         <header 
-          className={`fixed top-0 left-0 right-0 z-50 header-blur-alt collapsible-header ${!isVisible ? 'hidden' : ''}`}
-          style={{ 
-            backgroundColor: 'rgba(255, 255, 255, 0.70)', 
-            boxShadow: '0px 1px 3px rgba(0,0,0,0.03)'
-          }}
+          className={`header-root header-blur-alt collapsible-header ${!isVisible ? 'hidden' : ''}`}
         >
           <div className="container mx-auto px-8" style={{ height: '80px' }}>
             <nav className="flex items-center justify-between h-full relative z-10">
               {/* Logo - Far Left */}
               <div className="flex items-center">
-                <span style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '22px', fontWeight: 600, color: '#0A4834', letterSpacing: '-0.3px' }}>
+                <Link 
+                  to="/"
+                  className="header-logo"
+                >
                   MINISTRY
-                </span>
+                </Link>
               </div>
 
               {/* Navigation Links - Right Side with 40px margin */}
               <div className="flex items-center gap-12" style={{ marginRight: '40px' }}>
                 <ul className="flex items-center gap-8">
                   <li>
-                    <button
-                      onClick={onShopClick}
+                    <Link
+                      to="/shop"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
                     >
                       {t.nav.shop}
-                    </button>
+                    </Link>
                   </li>
                   <li>
-                    <button
-                      onClick={onClosetsClick}
+                    <Link
+                      to="/closets"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
                     >
                       {t.nav.closets}
-                    </button>
+                    </Link>
                   </li>
                   <li>
-                    <button
-                      onClick={onJournalClick}
+                    <Link
+                      to="/blog"
                       className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#000000',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
                     >
                       {t.nav.journal}
-                    </button>
+                    </Link>
                   </li>
                   <li>
-                    <button
-                      onClick={onBecomeSellerClick}
-                      className="nav-link-alt"
-                      style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#0A4834',
-                        textDecoration: 'none',
-                        letterSpacing: '0.5px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                      }}
+                    <Link
+                      to="/become-seller"
+                      className="nav-link-alt-becomeseller"
                     >
                       {t.nav.becomeSeller}
-                    </button>
+                    </Link>
                   </li>
                 </ul>
               </div>
@@ -184,15 +183,8 @@ export function HeaderAlt({
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 {/* Account Icon */}
                 <button
-                  onClick={onAccountClick}
+                  onClick={handleAccountClick}
                   className="account-icon-button"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: '#0A4834',
-                    padding: '8px',
-                  }}
                   aria-label="Account"
                 >
                   <User size={22} strokeWidth={1.5} />
@@ -202,7 +194,7 @@ export function HeaderAlt({
           </div>
         </header>
         {/* Spacer to prevent content overlap */}
-        <div style={{ height: '80px' }} />
+        <div className="header-spacer" />
       </>
     </>
   );

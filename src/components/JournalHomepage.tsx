@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Heart, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
+import './styles/JournalHomepage.css';
 
 interface Article {
   id: number;
@@ -18,12 +20,21 @@ interface Article {
 }
 
 interface JournalHomepageProps {
-  onArticleClick: (articleId: number) => void;
+  onArticleClick?: (articleId: number) => void;
   language?: Language;
   onClose?: () => void;
 }
 
 export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: JournalHomepageProps) {
+  const navigate = useNavigate();
+  
+  const handleArticleClick = (articleId: number) => {
+    if (onArticleClick) {
+      onArticleClick(articleId);
+    } else {
+      navigate(`/blog/${articleId}`);
+    }
+  };
   const t = getTranslation(language);
   const [email, setEmail] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -107,179 +118,68 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
   };
 
   return (
-    <div style={{
-      backgroundColor: '#F0ECE3',
-      minHeight: '100vh',
-      position: 'relative',
-    }}>
+    <div className="journal-page-root">
       {/* Header */}
       <HeaderAlt />
 
       {/* Grain Texture Overlay */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.02,
-        backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=\')',
-      }} />
+      <div className="journal-grain-overlay" />
 
       {/* Sticky Header */}
-      <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          backgroundColor: 'rgba(240,236,227,0.6)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(159,129,81,0.1)',
-        }}
-      >
-        <div style={{
-          maxWidth: '1400px',
-          margin: '0 auto',
-          padding: '32px 64px',
-          textAlign: 'center',
-        }}>
-          <h1 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '40px',
-            fontWeight: 600,
-            color: '#0A4834',
-            margin: '0 0 8px 0',
-          }}>
+      <motion.header className="journal-header">
+        <div className="journal-header-content">
+          <h1 className="journal-header-title">
             Ministry Journal
           </h1>
-          <p style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '18px',
-            color: '#9F8151',
-            margin: 0,
-          }}>
+          <p className="journal-header-subtitle">
             Stories, style tips, and sustainable inspiration.
           </p>
 
           {/* Divider */}
-          <div style={{
-            width: '80px',
-            height: '2px',
-            backgroundColor: 'rgba(159,129,81,0.3)',
-            margin: '24px auto 0',
-          }} />
+          <div className="journal-header-divider" />
         </div>
       </motion.header>
 
       {/* Main Content */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '0 64px 120px',
-      }}>
+      <div className="journal-main-content">
         {/* Hero Featured Article */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          onClick={() => onArticleClick(featuredArticle.id)}
-          style={{
-            position: 'relative',
-            height: '600px',
-            borderRadius: '24px',
-            overflow: 'hidden',
-            cursor: 'pointer',
-            marginBottom: '80px',
-          }}
+          onClick={() => handleArticleClick(featuredArticle.id)}
+          className="journal-featured-article"
         >
           <ImageWithFallback
             src={featuredArticle.image}
             alt={featuredArticle.title}
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
+            className="journal-featured-image"
           />
 
           {/* Gradient Overlay */}
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '70%',
-            background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-          }} />
+          <div className="journal-featured-overlay" />
 
           {/* Content */}
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '64px',
-          }}>
+          <div className="journal-featured-content">
             <motion.span
               whileHover={{ backgroundColor: '#9F8151' }}
-              style={{
-                display: 'inline-block',
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: '#000000',
-                backgroundColor: 'rgba(159,129,81,0.9)',
-                padding: '6px 16px',
-                borderRadius: '20px',
-                marginBottom: '16px',
-                transition: 'all 0.3s ease',
-              }}
+              className="journal-featured-category"
             >
               {featuredArticle.category}
             </motion.span>
 
-            <h2 style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '56px',
-              fontWeight: 600,
-              color: '#FFFFFF',
-              margin: '0 0 16px 0',
-              maxWidth: '700px',
-            }}>
+            <h2 className="journal-featured-title">
               {featuredArticle.title}
             </h2>
 
-            <p style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '20px',
-              color: 'rgba(255,255,255,0.9)',
-              margin: '0 0 32px 0',
-              maxWidth: '600px',
-            }}>
+            <p className="journal-featured-excerpt">
               {featuredArticle.excerpt}
             </p>
 
             <motion.button
               whileHover={{ borderColor: '#9F8151', color: '#9F8151' }}
               whileTap={{ scale: 0.98 }}
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '16px',
-                fontWeight: 500,
-                color: '#FFFFFF',
-                backgroundColor: 'transparent',
-                border: '2px solid #FFFFFF',
-                borderRadius: '12px',
-                padding: '14px 32px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
+              className="journal-featured-btn"
             >
               Read Article <ArrowRight size={18} />
             </motion.button>
@@ -291,30 +191,13 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            gap: '12px',
-            marginBottom: '64px',
-            flexWrap: 'wrap',
-          }}
+          className="journal-categories"
         >
           {categories.map((category) => (
             <button
               key={category}
               onClick={() => setSelectedCategory(category)}
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                fontWeight: 500,
-                color: selectedCategory === category ? '#FFFFFF' : '#0A4834',
-                backgroundColor: selectedCategory === category ? '#0A4834' : '#FFFFFF',
-                border: '1px solid #DCD6C9',
-                borderRadius: '24px',
-                padding: '10px 24px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-              }}
+              className={`journal-category-btn ${selectedCategory === category ? 'active' : ''}`}
             >
               {category}
             </button>
@@ -322,141 +205,62 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
         </motion.div>
 
         {/* Article Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '32px',
-          marginBottom: '120px',
-        }}>
+        <div className="journal-article-grid">
           {filteredArticles.slice(1).map((article, index) => (
             <motion.div
               key={article.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 * index }}
-              onClick={() => onArticleClick(article.id)}
-              style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-              }}
+              onClick={() => handleArticleClick(article.id)}
+              className="journal-article-card"
               whileHover={{ y: -8, boxShadow: '0px 12px 32px rgba(0,0,0,0.1)' }}
             >
               {/* Image */}
-              <div style={{
-                width: '100%',
-                height: '280px',
-                overflow: 'hidden',
-                position: 'relative',
-              }}>
+              <div className="journal-article-image">
                 <motion.div
                   whileHover={{ scale: 1.05 }}
                   transition={{ duration: 0.5 }}
-                  style={{ width: '100%', height: '100%' }}
+                  className="journal-article-image-wrapper"
                 >
                   <ImageWithFallback
                     src={article.image}
                     alt={article.title}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                    }}
+                    className="journal-article-img"
                   />
                 </motion.div>
 
                 {/* Overlay on hover */}
-                <div
-                  className="article-overlay"
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: 'rgba(159,129,81,0)',
-                    transition: 'all 0.3s ease',
-                  }}
-                />
+                <div className="article-overlay" />
               </div>
 
               {/* Content */}
-              <div style={{ padding: '28px' }}>
-                <span style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  color: '#9F8151',
-                  backgroundColor: 'rgba(159,129,81,0.1)',
-                  padding: '4px 12px',
-                  borderRadius: '12px',
-                  display: 'inline-block',
-                  marginBottom: '16px',
-                }}>
+              <div className="journal-article-content">
+                <span className="journal-article-category">
                   {article.category}
                 </span>
 
-                <h3 style={{
-                  fontFamily: 'Cormorant Garamond, serif',
-                  fontSize: '24px',
-                  fontWeight: 600,
-                  color: '#0A4834',
-                  margin: '0 0 12px 0',
-                  lineHeight: '1.3',
-                }}>
+                <h3 className="journal-article-title">
                   {article.title}
                 </h3>
 
-                <p style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '15px',
-                  color: 'rgba(0,0,0,0.7)',
-                  lineHeight: '1.6',
-                  margin: '0 0 20px 0',
-                }}>
+                <p className="journal-article-excerpt">
                   {article.excerpt}
                 </p>
 
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  paddingTop: '16px',
-                  borderTop: '1px solid #F0ECE3',
-                }}>
-                  <div>
-                    <p style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      color: '#000000',
-                      margin: '0 0 4px 0',
-                    }}>
+                <div className="journal-article-footer">
+                  <div className="journal-article-meta">
+                    <p className="journal-article-author">
                       {article.author}
                     </p>
-                    <p style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '12px',
-                      color: '#9F8151',
-                      margin: 0,
-                    }}>
+                    <p className="journal-article-date">
                       {article.date} · {article.readTime}
                     </p>
                   </div>
 
                   <motion.div
                     whileHover={{ x: 4 }}
-                    style={{
-                      color: '#9F8151',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '14px',
-                      fontWeight: 500,
-                    }}
+                    className="journal-article-read"
                   >
                     Read <ArrowRight size={16} />
                   </motion.div>
@@ -471,102 +275,40 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
-          style={{
-            backgroundColor: '#F0ECE3',
-            borderRadius: '24px',
-            padding: '80px 64px',
-            textAlign: 'center',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
+          className="journal-newsletter-cta"
         >
           {/* Fabric texture overlay */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            opacity: 0.03,
-            backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+\')',
-          }} />
+          <div className="journal-newsletter-texture" />
 
-          <h2 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '32px',
-            fontWeight: 600,
-            color: '#0A4834',
-            margin: '0 0 16px 0',
-            position: 'relative',
-            zIndex: 1,
-          }}>
-            Join the Ministry Journal
-          </h2>
+          <div className="journal-newsletter-content">
+            <h2 className="journal-newsletter-title">
+              Join the Ministry Journal
+            </h2>
 
-          <p style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '16px',
-            color: '#9F8151',
-            margin: '0 0 40px 0',
-            maxWidth: '500px',
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            position: 'relative',
-            zIndex: 1,
-          }}>
-            Get styling tips, stories, and sustainable inspiration in your inbox.
-          </p>
+            <p className="journal-newsletter-desc">
+              Get styling tips, stories, and sustainable inspiration in your inbox.
+            </p>
 
-          <form onSubmit={handleSubscribe} style={{
-            display: 'flex',
-            gap: '12px',
-            maxWidth: '500px',
-            margin: '0 auto',
-            position: 'relative',
-            zIndex: 1,
-          }}>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Your email address"
-              required
-              style={{
-                flex: 1,
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '15px',
-                color: '#000000',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #9F8151',
-                borderRadius: '12px',
-                padding: '14px 20px',
-                outline: 'none',
-              }}
-            />
+            <form onSubmit={handleSubscribe} className="journal-newsletter-form">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Your email address"
+                required
+                className="journal-newsletter-input"
+              />
 
-            <motion.button
-              type="submit"
-              whileHover={{ backgroundColor: '#083D2C' }}
-              whileTap={{ scale: 0.98 }}
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '15px',
-                fontWeight: 500,
-                color: '#FFFFFF',
-                backgroundColor: '#0A4834',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '14px 32px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
-            >
+              <motion.button
+                type="submit"
+                whileHover={{ backgroundColor: '#083D2C' }}
+                whileTap={{ scale: 0.98 }}
+                className="journal-newsletter-btn"
+              >
               Subscribe <ArrowRight size={18} />
             </motion.button>
-          </form>
+            </form>
+          </div>
         </motion.div>
 
         {/* Footer Tagline */}
@@ -574,20 +316,9 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          style={{
-            textAlign: 'center',
-            padding: '80px 0 40px',
-          }}
+          className="journal-footer-tagline"
         >
-          <p style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontStyle: 'italic',
-            fontSize: '32px',
-            color: '#9F8151',
-            margin: 0,
-          }}>
-            "Read. Learn. Rewear."
-          </p>
+          "Read. Learn. Rewear."
         </motion.div>
       </div>
 

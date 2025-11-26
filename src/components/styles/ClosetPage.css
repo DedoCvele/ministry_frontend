@@ -1,0 +1,66 @@
+:root{
+  --brand-green: #0A4834;
+  --brand-gold: #9F8151;
+  --muted-bg: #F0ECE3;
+}
+
+.closet-page-root{
+  min-height: 100vh;
+  background-color: var(--muted-bg);
+}
+
+/* Grain texture overlay moved from inline */
+.closet-grain{
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=');
+}
+
+/* Header */
+.closet-header{ transition: box-shadow 0.2s ease; background-color: var(--muted-bg); }
+.closet-header-shadow{ box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+
+.closet-header-collapsed{ height:64px; opacity:1; overflow:hidden; transition: height 0.2s ease, opacity 0.2s ease; }
+.closet-header-expanded{ opacity:1; max-height:1000px; overflow:visible; transition: opacity 0.2s ease, max-height 0.2s ease; }
+.closet-header-expanded.hidden{ opacity:0; max-height:0; overflow:hidden; }
+
+/* Font helpers */
+.closet-font-manrope{ font-family: 'Manrope, sans-serif'; }
+.closet-font-cormorant{ font-family: 'Cormorant Garamond, serif'; }
+
+/* Avatar */
+.closet-avatar-button{ position: relative; }
+.closet-avatar-overlay{ position:absolute; inset:0; background:rgba(0,0,0,0.4); border-radius:9999px; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity 0.2s ease; }
+.closet-avatar-button:hover .closet-avatar-overlay{ opacity:1; }
+
+/* Profile text */
+.closet-name{ color: var(--brand-green); font-size:26px; line-height:1; }
+.closet-stats{ color: var(--brand-green); font-size:14px; }
+.closet-location{ color: var(--brand-gold); font-size:13px; margin-bottom:8px; }
+.closet-bio{ color: var(--brand-green); font-size:14px; line-height:1.6; }
+
+/* Action buttons - font family only (visual styles left to tailwind/classes) */
+.closet-action-font{ font-family: 'Manrope, sans-serif'; }
+
+/* Filter chips - font family */
+.closet-filter-btn{ font-family: 'Manrope, sans-serif'; }
+
+/* Item card */
+.view-item-overlay{ position:absolute; inset:0; background:var(--brand-green)/80; opacity:0; transition:opacity 0.2s ease; display:flex; align-items:center; justify-content:center; }
+.group:hover .view-item-overlay{ opacity:1; }
+.view-item-text{ font-family: 'Manrope, sans-serif'; color: var(--brand-gold); }
+
+/* Caption */
+.item-title{ font-family: 'Manrope, sans-serif'; color: var(--brand-green); margin-bottom:4px; }
+.item-price{ font-family: 'Cormorant Garamond, serif'; color: var(--brand-gold); }
+
+/* Curated by */
+.curated-by{ font-family: 'Cormorant Garamond, serif'; font-style: italic; color: var(--brand-gold); font-size:18px; }
+
+/* Small helpers used in this component */
+.scroll-container{ height:100vh; overflow-y:auto; }
+
+/* utility for inline dynamic animation left as inline; don't override here */
+

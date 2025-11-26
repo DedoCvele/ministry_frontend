@@ -1,0 +1,79 @@
+.hero-section-root {
+  position: relative;
+  overflow: hidden;
+  height: 100vh;
+  min-height: 800px;
+}
+
+.hero-background-image {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.15) 100%);
+}
+
+.hero-content {
+  position: absolute;
+  bottom: 80px;
+  left: 48px;
+  max-width: 512px;
+  z-index: 10;
+}
+
+.hero-title-alt {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 72px;
+  font-weight: 600;
+  line-height: 80px;
+  color: #FFFFFF;
+  letter-spacing: -1px;
+  margin-bottom: 20px;
+  animation: slideInLeft 1.2s ease-out forwards;
+}
+
+.hero-subtitle {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.5px;
+  margin-bottom: 32px;
+}
+
+.cta-hero-alt {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background-color: #FFFFFF;
+  color: #0A4834;
+  padding: 16px 40px;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cta-hero-alt:hover {
+  background-color: #9F8151 !important;
+  color: #FFFFFF !important;
+  transform: translateX(5px);
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
