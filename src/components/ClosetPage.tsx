@@ -6,33 +6,20 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import './styles/ClosetPage.css';
 
 interface ClosetItem {
-  id: string;
-  title: string;
+  id: number;
+  name: string;
   price: string;
-  image: string;
-  category: string;
+  image?: string | null;
+  category?: string;
 }
 
-interface UserProfile {
-  id: string;
+interface ClosetUser {
+  id: number;
   name: string;
   username: string;
   location: string;
   bio: string;
-  avatar: string;
-  itemsCount: number;
-  followersCount: number;
-  followingCount: number;
-  isFollowing: boolean;
-}
-
-interface ClosetPageProps {
-  userId?: string;
-  onBack?: () => void;
-  onContactSeller?: () => void;
-  onItemClick?: (itemId: string) => void;
-  onAvatarClick?: () => void;
-  language?: 'en' | 'mk';
+  avatar: string | null;
 }
 
 export default function ClosetPage({
@@ -42,86 +29,41 @@ export default function ClosetPage({
   onItemClick,
   onAvatarClick,
   language = 'en',
-}: ClosetPageProps) {
+}: {
+  userId?: string;
+  onBack?: () => void;
+  onContactSeller?: () => void;
+  onItemClick?: (id: string) => void;
+  onAvatarClick?: () => void;
+  language?: 'en' | 'mk';
+}) {
   const { closetId } = useParams<{ closetId: string }>();
   const navigate = useNavigate();
   const userId = propUserId || closetId || '1';
-  
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate('/closets');
-    }
-  };
+
+  const [userProfile, setUserProfile] = useState<ClosetUser | null>(null);
+  const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const lastScrollYRef = useRef(0);
-  const ticking = useRef(false);
 
-  // Mock user data
-  const userProfile: UserProfile = {
-    id: userId || '1',
-    name: 'Elena Marković',
-    username: 'elenamarković',
-    location: 'Belgrade, Serbia',
-    bio: 'Curator of timeless pieces • Vintage lover • Sustainable fashion advocate',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400',
-    itemsCount: 24,
-    followersCount: 1247,
-    followingCount: 342,
-    isFollowing: false,
-  };
+  // DEFAULT fallback image (fastest option)
+  const fallbackImage =
+    'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
 
-  // Mock closet items
-  const closetItems: ClosetItem[] = [
-    {
-      id: '1',
-      title: 'Vintage Silk Blouse',
-      price: '€85',
-      image: 'https://images.unsplash.com/photo-1758986264626-150b25dd8114?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwZmFzaGlvbiUyMGNsb3RoaW5nfGVufDF8fHx8MTc2MjY4NTI2Nnww&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Tops',
-    },
-    {
-      id: '2',
-      title: 'Designer Leather Bag',
-      price: '€320',
-      image: 'https://images.unsplash.com/photo-1758171692659-024183c2c272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMGhhbmRiYWclMjBsdXh1cnl8ZW58MXx8fHwxNzYyNjc2MzIyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Accessories',
-    },
-    {
-      id: '3',
-      title: 'Wool Trench Coat',
-      price: '€195',
-      image: 'https://images.unsplash.com/photo-1634078989934-47817b4a5a1f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwY29hdCUyMGZhc2hpb258ZW58MXx8fHwxNzYyNjg1MjY3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Outerwear',
-    },
-    {
-      id: '4',
-      title: 'Gold Statement Necklace',
-      price: '€68',
-      image: 'https://images.unsplash.com/photo-1725368844213-c167fe556f98?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBhY2Nlc3NvcmllcyUyMGpld2Vscnl8ZW58MXx8fHwxNzYyNjg1MjY3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Accessories',
-    },
-    {
-      id: '5',
-      title: 'Leather Heels',
-      price: '€145',
-      image: 'https://images.unsplash.com/photo-1761110583261-3ea6f09f0699?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMHNob2VzJTIwaGVlbHN8ZW58MXx8fHwxNzYyNjEyNTA4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Accessories',
-    },
-    {
-      id: '6',
-      title: 'Silk Scarf - Hermès Inspired',
-      price: '€52',
-      image: 'https://images.unsplash.com/photo-1761660450845-6c3aa8aaf43f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzaWxrJTIwc2NhcmYlMjBsdXh1cnl8ZW58MXx8fHwxNzYyNjg1MjY4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      category: 'Accessories',
-    },
-  ];
+  // FETCH DATA
+  useEffect(() => {
+    fetch(`http://127.0.0.1:8000/api/closets/${userId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setUserProfile(data.user);
+        setClosetItems(data.items);
+      })
+      .catch((err) => console.error('Closet fetch error:', err));
+  }, [userId]);
 
   const filterCategories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories'];
 
@@ -130,159 +72,103 @@ export default function ClosetPage({
       ? closetItems
       : closetItems.filter((item) => item.category === selectedFilter);
 
-  useEffect(() => {
-    setIsFollowing(userProfile.isFollowing);
-  }, [userProfile.isFollowing]);
+  const handleBack = () => {
+    if (onBack) return onBack();
+    navigate('/closets');
+  };
 
-  // Simplified scroll behavior - no more glitches!
   useEffect(() => {
-    const handleScroll = () => {
-      if (!ticking.current) {
-        window.requestAnimationFrame(() => {
-          if (!scrollContainerRef.current) {
-            ticking.current = false;
-            return;
-          }
-          
-          const currentScrollY = scrollContainerRef.current.scrollTop;
-          const scrollThreshold = 120;
-          
-          if (currentScrollY > scrollThreshold && !headerCollapsed) {
-            setHeaderCollapsed(true);
-          } else if (currentScrollY <= scrollThreshold && headerCollapsed) {
-            setHeaderCollapsed(false);
-          }
-          
-          lastScrollYRef.current = currentScrollY;
-          ticking.current = false;
-        });
-        
-        ticking.current = true;
-      }
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const onScroll = () => {
+      const y = container.scrollTop;
+      setHeaderCollapsed(y > 120);
     };
 
-    const container = scrollContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll, { passive: true });
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [headerCollapsed]);
+    container.addEventListener('scroll', onScroll);
+    return () => container.removeEventListener('scroll', onScroll);
+  }, []);
 
-  const handleFollowToggle = () => {
-    setIsFollowing(!isFollowing);
-  };
+  const handleFollowToggle = () => setIsFollowing(!isFollowing);
 
-  // Format follower count
-  const formatCount = (count: number) => {
-    if (count >= 1000) {
-      return `${(count / 1000).toFixed(1)}K`;
-    }
-    return count.toString();
-  };
+  const formatCount = (num: number) =>
+    num >= 1000 ? `${(num / 1000).toFixed(1)}k` : num;
+
+  if (!userProfile) return <div style={{ padding: 20 }}>Loading Closet...</div>;
 
   return (
     <div className="closet-page-root">
-      {/* Main scroll container */}
-      <div 
-        ref={scrollContainerRef}
-        className="scroll-container"
-      >
-        {/* Header - Simplified for smooth transitions */}
-        <header className={`sticky top-0 z-40 closet-header ${headerCollapsed ? 'closet-header-shadow' : ''}`}>
-          {/* Collapsed Header State */}
-          <div className={headerCollapsed ? 'closet-header-collapsed' : 'closet-header-collapsed hidden'}>
+      <div ref={scrollContainerRef} className="scroll-container">
+        {/* HEADER */}
+        <header
+          className={`sticky top-0 z-40 closet-header ${
+            headerCollapsed ? 'closet-header-shadow' : ''
+          }`}
+        >
+          {/* Collapsed */}
+          {headerCollapsed && (
             <div className="h-16 px-6 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center height-240px gap-3">
                 <ImageWithFallback
-                  src={userProfile.avatar}
+                  src={userProfile.avatar || fallbackImage}
+                  fallback={fallbackImage}
                   alt={userProfile.name}
                   className="w-10 h-10 rounded-full object-cover"
                 />
-                <span
-                  className="closet-font-cormorant text-[#0A4834]"
-                >
+                <span className="closet-font-cormorant text-[#0A4834]">
                   {userProfile.name}
                 </span>
               </div>
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors"
+                className="p-2 hover:bg-[#0A4834]/5 rounded-full"
               >
                 <MoreVertical className="w-5 h-5 text-[#9F8151]" />
               </button>
             </div>
-          </div>
-          {/* Expanded Header State */}
-          <div className={headerCollapsed ? 'closet-header-expanded hidden' : 'closet-header-expanded'}>
+          )}
+
+          {/* EXPANDED */}
+          {!headerCollapsed && (
             <div className="px-6 pt-8 pb-6">
-              {/* Back Button */}
               <button
                 onClick={handleBack}
-                className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors inline-flex items-center gap-2 text-[#0A4834]"
-                aria-label="Back"
+                className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full inline-flex items-center gap-2"
               >
-                <ArrowLeft className="w-5 h-5" />
-                Back
+                <ArrowLeft className="w-5 h-5" /> Back
               </button>
 
-              {/* Profile Section - Redesigned */}
               <div className="flex gap-6 items-start">
-                {/* Avatar */}
-                <button
-                  onClick={onAvatarClick}
-                  className="relative group flex-shrink-0"
-                >
+                <button onClick={onAvatarClick} className="relative group">
                   <ImageWithFallback
-                    src={userProfile.avatar}
+                    src={userProfile.avatar || fallbackImage}
+                    fallback={fallbackImage}
                     alt={userProfile.name}
-                    className="w-[100px] h-[100px] rounded-full object-cover ring-2 ring-[#9F8151]/30 group-hover:ring-[#9F8151] transition-all"
+                    className="w-[100px] h-[100px] rounded-full object-cover"
                   />
-                  {onAvatarClick && (
-                    <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-xs" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                        Change
-                      </span>
-                    </div>
-                  )}
                 </button>
 
-                {/* Profile Info - Clean Vertical Stack */}
-                <div className="flex-1 min-w-0">
-                  {/* Name + Menu */}
+                <div className="flex-1">
                   <div className="flex items-center justify-between mb-3">
-                    <h1
-                      className="closet-font-cormorant closet-name"
-                    >
+                    <h1 className="closet-font-cormorant closet-name">
                       {userProfile.name}
                     </h1>
-                    {/* Menu Button - Restructured to avoid nested buttons */}
+
                     <div className="relative">
                       <button
                         onClick={() => setShowMenu(!showMenu)}
-                        className="p-2 hover:bg-[#0A4834]/5 rounded-full transition-colors flex-shrink-0"
+                        className="p-2 hover:bg-[#0A4834]/5 rounded-full"
                       >
                         <MoreVertical className="w-5 h-5 text-[#9F8151]" />
                       </button>
-                      
-                      {/* Dropdown Menu - Now a sibling, not a child */}
+
                       {showMenu && (
-                        <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-[0_6px_24px_rgba(0,0,0,0.06)] py-2 min-w-[180px] z-50">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowMenu(false);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-sm closet-action-font"
-                          >
+                        <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-md py-2 min-w-[180px] z-50">
+                          <button className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3]">
                             Share Closet
                           </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowMenu(false);
-                            }}
-                            className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3] transition-colors text-[#d4183d] text-sm closet-action-font"
-                          >
+                          <button className="w-full px-4 py-2 text-left text-red-500 hover:bg-[#F0ECE3]">
                             Report
                           </button>
                         </div>
@@ -290,44 +176,26 @@ export default function ClosetPage({
                     </div>
                   </div>
 
-                  {/* Stats - Inline like Instagram */}
-                  <div className="mb-3">
-                    <p
-                      className="closet-font-manrope closet-stats"
-                    >
-                      <span className="font-semibold">{userProfile.itemsCount}</span> items
-                      <span className="mx-1 text-[#9F8151]">•</span>
-                      <span className="font-semibold">{formatCount(userProfile.followersCount)}</span> followers
-                      <span className="mx-1 text-[#9F8151]">•</span>
-                      <span className="font-semibold">{userProfile.followingCount}</span> following
-                    </p>
-                  </div>
+                  <p className="closet-font-manrope-xl closet-stats">
+                    <span className="font-semibold">{closetItems.length}</span>{' '}
+                    items • {formatCount(1200)} followers • 342 following
+                  </p>
 
-                  {/* Location + Bio */}
-                  <div className="mb-4">
-                    <p
-                      className="closet-font-manrope closet-location"
-                    >
-                      📍 {userProfile.location}
-                    </p>
-                    <p
-                      className="closet-font-manrope closet-bio"
-                    >
-                      {userProfile.bio}
-                    </p>
-                  </div>
+                  <p className="closet-font-manrope closet-location">
+                    📍 {userProfile.location}
+                  </p>
+                  <p className="closet-font-manrope closet-bio">
+                    {userProfile.bio}
+                  </p>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3">
+                  <div className="flex gap-3 mt-4">
                     <Button
                       onClick={handleFollowToggle}
-                      className={`rounded-xl px-6 transition-all ${
+                      className={`rounded-xl px-6 ${
                         isFollowing
-                          ? 'bg-white text-[#9F8151] border-2 border-[#9F8151] hover:bg-[#9F8151]/5'
-                          : 'bg-[#9F8151] text-white hover:bg-[#9F8151]/90'
+                          ? 'bg-white text-[#9F8151] border-[#9F8151] border-2'
+                          : 'bg-[#9F8151] text-white'
                       }`}
-                      // keep font via CSS class
-                      style={undefined as any}
                     >
                       {isFollowing ? (
                         <>
@@ -338,11 +206,11 @@ export default function ClosetPage({
                         'Follow'
                       )}
                     </Button>
+
                     <Button
                       onClick={onContactSeller}
                       variant="outline"
-                      className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5"
-                      style={undefined as any}
+                      className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151]"
                     >
                       Contact Seller
                     </Button>
@@ -350,68 +218,58 @@ export default function ClosetPage({
                 </div>
               </div>
 
-              {/* Divider */}
               <div className="mt-6 h-px bg-[#9F8151] opacity-20" />
             </div>
-          </div>
+          )}
         </header>
 
-        {/* Filter Chips */}
+        {/* FILTERS */}
         <div className="px-6 py-4 flex gap-2 overflow-x-auto scrollbar-hide">
-          {filterCategories.map((category) => (
+          {filterCategories.map((c) => (
             <button
-              key={category}
-              onClick={() => setSelectedFilter(category)}
-              className={`px-4 py-2 rounded-xl whitespace-nowrap transition-all ${
-                selectedFilter === category
+              key={c}
+              onClick={() => setSelectedFilter(c)}
+              className={`px-4 py-2 rounded-xl ${
+                selectedFilter === c
                   ? 'bg-[#9F8151] text-white'
                   : 'bg-white text-[#9F8151] border border-[#9F8151]'
-              } closet-filter-btn`}
+              }`}
             >
-              {category}
+              {c}
             </button>
           ))}
         </div>
 
-        {/* Closet Grid */}
+        {/* ITEMS GRID */}
         <div className="px-6 pb-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map((item, index) => (
+            {filteredItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onItemClick?.(item.id)}
-                className="group relative bg-white rounded-2xl overflow-hidden shadow-[0_6px_24px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_32px_rgba(0,0,0,0.1)] transition-all hover:-translate-y-1"
-                style={{ 
-                  animation: 'fadeIn 0.5s ease-in-out',
-                  animationDelay: `${index * 50}ms`,
-                  animationFillMode: 'both'
-                }}
+                onClick={() => onItemClick?.(String(item.id))}
+                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition"
               >
-                {/* Image */}
                 <div className="aspect-square overflow-hidden relative">
                   <ImageWithFallback
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    src={item.image || fallbackImage}
+                    fallback={fallbackImage}
+                    alt={item.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition"
                   />
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 view-item-overlay">
-                    <span className="view-item-text">View Item →</span>
-                  </div>
                 </div>
 
-                {/* Caption */}
                 <div className="p-4">
-                  <h3 className="item-title">{item.title}</h3>
-                  <p className="item-price">{item.price}</p>
+                  <h3 className="item-title">{item.name}</h3>
+                  <p className="item-price">€{item.price}</p>
                 </div>
               </button>
             ))}
           </div>
 
-          {/* Curated By Section */}
           <div className="mt-12 text-center">
-            <p className="curated-by">Curated by {userProfile.username} — a collection of timeless vintage finds.</p>
+            <p className="curated-by">
+              Curated by {userProfile.username} — a collection of timeless vintage finds.
+            </p>
           </div>
         </div>
       </div>

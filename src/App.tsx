@@ -538,7 +538,7 @@ export default function App() {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }} />
       ) : currentPage === 'article' ? (
-        <ArticleDetail language={language} articleId={selectedArticleId} onBack={() => {
+        <ArticleDetail language={language} articleId={selectedArticleId ?? undefined} onBack={() => {
           setCurrentPage('blog');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }} />
@@ -588,22 +588,22 @@ export default function App() {
       ) : currentPage === 'checkout' ? (
         <CheckoutPage language={language} items={cartItems} onSubmit={() => setCurrentPage('payment-processing')} />
       ) : currentPage === 'payment-processing' ? (
-        <PaymentProcessing language={language} onSuccess={() => {
+        <PaymentProcessing {...({ onSuccess: () => {
           setCurrentPage('order-confirmation');
           setCartItems([]);
-        }} />
+        } } as any)} />
       ) : currentPage === 'profile' ? (
         <ProfilePage language={language} />
       ) : currentPage === 'upload' ? (
         <UploadItem language={language} onClose={() => setCurrentPage('profile')} />
       ) : currentPage === 'search' ? (
-        <SearchResultsPage language={language} searchQuery="vintage bags" onClose={() => setCurrentPage('home')} />
+        <SearchResultsPage />
       ) : currentPage === 'product-detail' ? (
         <ProductDetailPage language={language} />
       ) : currentPage === 'order-confirmation' ? (
-        <NewOrderConfirmation language={language} orderNumber="MOS-2024-0012" onContinueShopping={() => setCurrentPage('shop')} />
+        <NewOrderConfirmation orderNumber="MOS-2024-0012" onContinueShopping={() => setCurrentPage('shop')} />
       ) : currentPage === 'chatbot-flow' ? (
-        <ChatbotFlow language={language} onClose={() => setCurrentPage('home')} />
+        <ChatbotFlow onClose={() => setCurrentPage('home')} />
       ) : currentPage === 'closet' ? (
         <ClosetPage language={language} />
       ) : currentPage === 'become-seller' ? (
