@@ -67,10 +67,23 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         setError(null);
         setSelectedImage(0); // Reset image selection when product changes
         const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
+        
+        // Console log the response for debugging
+        console.log('=== PRODUCT PAGE - API RESPONSE ===');
+        console.log('Full response:', response);
+        console.log('Response data:', response.data);
+        console.log('Product ID:', productId);
+        console.log('Product keys:', Object.keys(response.data));
+        console.log('Product title:', response.data.title);
+        console.log('Product name:', response.data.name);
+        
         setProduct(response.data);
       } catch (err: any) {
         console.error('Error fetching product:', err);
+        console.error('Error response:', err.response);
+        console.error('Error status:', err.response?.status);
         setError(err.response?.status === 404 ? 'Product not found' : 'Failed to load product');
+        setLoading(false); // Make sure to set loading to false on error
       } finally {
         setLoading(false);
       }
@@ -84,7 +97,8 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
     ? product.images.map((img: string) => `http://127.0.0.1:8000/storage/${img}`)
     : ['https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400'];
 
-  const productTitle = product?.title || 'Loading...';
+  // Try multiple possible field names for title
+  const productTitle = product?.title || product?.name || product?.product_name || 'Loading...';
   const productPrice = product?.price ? `€${parseFloat(product.price).toFixed(2)}` : '€0';
   const productBrand = product?.brand?.name || 'Unknown Brand';
   const productDescription = product?.description || 'No description available.';

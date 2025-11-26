@@ -1,85 +1,105 @@
 import { motion } from 'motion/react';
 import { Heart } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { type Language, getTranslation } from '../translations';
+import axios from 'axios';
 
 interface ShopTheFindsProps {
   language?: Language;
+}
+
+interface Product {
+  id: number;
+  image: string;
+  title: string;
+  price: string;
+  seller: string;
+  condition: string;
 }
 
 export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
   const t = getTranslation(language);
   const navigate = useNavigate();
   const [wishlistedItems, setWishlistedItems] = useState<number[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const products = [
-    {
-      id: 1,
-      image: 'https://images.unsplash.com/photo-1760624089496-01ae68a92d58?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwaGFuZGJhZ3xlbnwxfHx8fDE3NjE1NzAzODR8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Vintage Gucci Marmont',
-      price: '€890',
-      seller: 'Elena C.',
-      condition: 'Excellent',
-    },
-    {
-      id: 2,
-      image: 'https://images.unsplash.com/photo-1715408153725-186c6c77fb45?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMHZpbnRhZ2UlMjBjb2F0fGVufDF8fHx8MTc2MTU3MTQyOHww&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Burberry Trench Coat',
-      price: '€385',
-      seller: 'Sophie M.',
-      condition: 'Very Good',
-    },
-    {
-      id: 3,
-      image: 'https://images.unsplash.com/photo-1747707500073-65dd5c1407b2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwZHJlc3N8ZW58MXx8fHwxNzYxNTcxNDI5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Valentino Silk Dress',
-      price: '€620',
-      seller: 'Claire D.',
-      condition: 'Excellent',
-    },
-    {
-      id: 4,
-      image: 'https://images.unsplash.com/photo-1616795854633-b7b089bb7281?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMHZpbnRhZ2UlMjBzaG9lc3xlbnwxfHx8fDE3NjE1NzE0Mjl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Manolo Blahnik Heels',
-      price: '€295',
-      seller: 'Marie L.',
-      condition: 'Very Good',
-    },
-    {
-      id: 5,
-      image: 'https://images.unsplash.com/photo-1597310781652-78af3276ba5e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwamV3ZWxyeXxlbnwxfHx8fDE3NjE1NzE0Mjl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Cartier Love Bracelet',
-      price: '€2,450',
-      seller: 'Anna K.',
-      condition: 'Excellent',
-    },
-    {
-      id: 6,
-      image: 'https://images.unsplash.com/photo-1760446031507-ed534e0f9605?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMHZpbnRhZ2UlMjBzdW5nbGFzc2VzfGVufDF8fHx8MTc2MTU3MTQyOXww&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Chanel Sunglasses',
-      price: '€180',
-      seller: 'Julia R.',
-      condition: 'Excellent',
-    },
-    {
-      id: 7,
-      image: 'https://images.unsplash.com/photo-1743324690702-d33036a5f904?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB2aW50YWdlJTIwc2NhcmZ8ZW58MXx8fHwxNzYxNTcxNDMwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Hermès Silk Scarf',
-      price: '€240',
-      seller: 'Emma B.',
-      condition: 'Excellent',
-    },
-    {
-      id: 8,
-      image: 'https://images.unsplash.com/photo-1633655442168-c6ef0ed2f984?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMHZpbnRhZ2UlMjBibGF6ZXJ8ZW58MXx8fHwxNzYxNTcxNDMwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      title: 'Armani Wool Blazer',
-      price: '€340',
-      seller: 'Olivia S.',
-      condition: 'Very Good',
-    },
-  ];
+  // Fetch approved items from API
+  useEffect(() => {
+    const fetchApprovedItems = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get('http://127.0.0.1:8000/api/items');
+        const items = response.data;
+
+        // Console log the full response to debug
+        console.log('=== SHOP THE FINDS - API RESPONSE ===');
+        console.log('Full response:', response);
+        console.log('Response data:', response.data);
+        console.log('Is array?', Array.isArray(response.data));
+        if (Array.isArray(items) && items.length > 0) {
+          console.log('First item structure:', items[0]);
+          console.log('First item keys:', Object.keys(items[0]));
+          console.log('First item title:', items[0].title);
+          console.log('First item name:', items[0].name);
+        }
+
+        // Filter for approved items and map to product format
+        const approvedProducts: Product[] = items
+          .filter((item: any) => item.approved === 1)
+          .map((item: any) => {
+            // Try multiple possible field names for title
+            const itemTitle = item.title || item.name || item.product_name || 'Untitled Item';
+            
+            // Format price with euro symbol
+            const priceValue = parseFloat(item.price) || 0;
+            const formattedPrice = priceValue.toLocaleString('en-US', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            });
+
+            // Get image URL
+            const imageUrl = item.images && item.images.length > 0
+              ? `http://127.0.0.1:8000/storage/${item.images[0]}`
+              : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+
+            // Get seller name
+            const sellerName = item.user?.name || item.user?.email || 'Unknown Seller';
+
+            console.log('Mapping item:', {
+              id: item.id,
+              title: itemTitle,
+              originalTitle: item.title,
+              originalName: item.name,
+              price: item.price,
+              seller: sellerName,
+            });
+
+            return {
+              id: item.id,
+              image: imageUrl,
+              title: itemTitle,
+              price: `€${formattedPrice}`,
+              seller: sellerName,
+              condition: item.condition || 'Good',
+            };
+          });
+
+        console.log('Approved products:', approvedProducts);
+        setProducts(approvedProducts);
+      } catch (error) {
+        console.error('Error fetching approved items:', error);
+        // Set empty array on error
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchApprovedItems();
+  }, []);
 
   const toggleWishlist = (id: number) => {
     setWishlistedItems((prev) =>
@@ -87,7 +107,23 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
     );
   };
 
-  const handleProductClick = (productId: number) => {
+  const handleProductClick = async (productId: number) => {
+    console.log('=== ITEM CLICKED ===');
+    console.log('Product ID:', productId);
+    
+    try {
+      // Fetch the product data when clicked to log the response
+      const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
+      console.log('=== AXIOS RESPONSE ON ITEM CLICK ===');
+      console.log('Full response:', response);
+      console.log('Response data:', response.data);
+      console.log('Product title:', response.data.title);
+      console.log('Product name:', response.data.name);
+      console.log('Product keys:', Object.keys(response.data));
+    } catch (error) {
+      console.error('Error fetching product on click:', error);
+    }
+    
     navigate(`/product/${productId}`);
   };
 
@@ -149,7 +185,20 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
             marginBottom: '64px',
           }}
         >
-          {products.map((product, index) => (
+          {loading ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '64px 0' }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#0A4834', opacity: 0.7 }}>
+                Loading products...
+              </p>
+            </div>
+          ) : products.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '64px 0' }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#0A4834', opacity: 0.7 }}>
+                No approved products available at the moment.
+              </p>
+            </div>
+          ) : (
+            products.map((product, index) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 40 }}
@@ -293,12 +342,14 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
                 </p>
               </div>
             </motion.div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* View All Button */}
         <div style={{ textAlign: 'center' }}>
           <motion.button
+            onClick={() => navigate('/shop')}
             whileHover={{ backgroundColor: '#083D2C', y: -2 }}
             whileTap={{ scale: 0.98 }}
             style={{
