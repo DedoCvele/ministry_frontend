@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion, wrap } from 'motion/react';
-import { Heart, ArrowRight, Users, Package, Share2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Heart, ArrowRight, Users, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { FooterAlt } from './FooterAlt';
@@ -71,16 +71,22 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
     }
   };
 
-  const filters = ['All Closets', 'Most Followed', 'Newest', 'Vintage Lovers', 'Minimalist', 'Designer Finds', 'Street Style'];
+  const filters = [
+    'All Closets',
+    'Most Followed',
+    'Newest',
+    'Vintage Lovers',
+    'Minimalist',
+    'Designer Finds',
+    'Street Style'
+  ];
 
   const filteredClosets =
     activeFilter === 'All Closets'
       ? closets
-      : closets.filter(closet =>
-          closet.category === activeFilter
-        );
+      : closets.filter(closet => closet.category === activeFilter);
 
-  const featuredCloset = closets[0];
+  const featuredCloset = closets[0] ?? null;
 
   const toggleFollow = (closetId: number) => {
     setFollowing(prev =>
@@ -120,7 +126,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
       </div>
 
       <div className="closets-page-header">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="closets-header-inner">
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="closets-header-inner"
+        >
           <h1 className="closets-h1">Discover Closets</h1>
           <p className="closets-sub">Explore unique wardrobes curated by our community.</p>
           <div className="closets-hr" />
@@ -131,7 +141,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px 24px 120px' }}>
 
         {/* Filters */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="closets-filters">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="closets-filters"
+        >
           {filters.map(filter => (
             <motion.button
               key={filter}
@@ -145,19 +159,16 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
           ))}
         </motion.div>
 
-
-        {/* Closet Grid */}
-        <div className="closets-grid-container" style={{ 
-          marginBottom: '48px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '32px',
-        }}>
-
-        {/* CLOSET GRID */}
-        <div style={{ marginBottom:'48px', display:'flex', flexWrap:'wrap', gap:'12px' }}>
-
-
+        {/* CLOSET GRID (fixed version) */}
+        <div
+          className="closets-grid-container"
+          style={{
+            marginBottom: '48px',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '32px',
+          }}
+        >
           {filteredClosets.map((closet, index) => (
             <motion.div
               key={closet.id}
@@ -167,19 +178,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
             >
               {/* Closet Card */}
               <div className="closet-card">
-                {/* Cover */}
                 <div onClick={() => handleClosetClick(closet.id)} className="closet-cover">
-                  <motion.div 
-                    whileHover={{ scale: 1.05 }} 
-                    transition={{ duration: 0.5, ease: 'easeOut' }} 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%',
-                      transform: 'translateZ(0)',
-                      willChange: 'transform',
-                      backfaceVisibility: 'hidden',
-                      WebkitBackfaceVisibility: 'hidden'
-                    }}
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.5, ease: 'easeOut' }}
+                    style={{ width: '100%', height: '100%' }}
                   >
                     <ImageWithFallback src={closet.coverImage} alt={closet.name} className="closet-cover-img" />
                   </motion.div>
@@ -193,7 +196,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                   </div>
                 </div>
 
-                {/* Bottom card content */}
+                {/* Bottom */}
                 <div className="closet-card-content">
                   <p className="closet-tagline">{closet.tagline}</p>
 
@@ -202,10 +205,10 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                     <div className="closet-stat"><Users size={16} color="#9F8151" /><span>{closet.followers} Followers</span></div>
                   </div>
 
-                    <div className="closet-actions">
-                      <motion.button onClick={() => handleClosetClick(closet.id)} className="closet-action-primary">
-                        View Closet <ArrowRight size={16} />
-                      </motion.button>
+                  <div className="closet-actions">
+                    <motion.button onClick={() => handleClosetClick(closet.id)} className="closet-action-primary">
+                      View Closet <ArrowRight size={16} />
+                    </motion.button>
 
                     <motion.button
                       onClick={(e) => { e.stopPropagation(); toggleFollow(closet.id); }}
@@ -223,9 +226,8 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                 </div>
               </div>
 
-
-              {/* Featured Closet Spotlight (after 3rd card) */}
-              {index === 2 && (
+              {/* Featured Closet Spotlight AFTER 3rd card */}
+              {index === 2 && featuredCloset && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -245,7 +247,6 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                     gap: '32px',
                     flexWrap: 'wrap',
                   }}>
-                    {/* Featured Image */}
                     <div style={{
                       width: '180px',
                       height: '180px',
@@ -256,23 +257,16 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                       <ImageWithFallback
                         src={featuredCloset.coverImage}
                         alt={featuredCloset.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                        }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     </div>
 
-                    {/* Content */}
                     <div style={{ flex: 1, minWidth: '250px' }}>
                       <span style={{
-                        fontFamily: 'Manrope, sans-serif',
                         fontSize: '12px',
                         fontWeight: 600,
                         color: '#9F8151',
                         textTransform: 'uppercase',
-                        letterSpacing: '1px',
                         marginBottom: '12px',
                         display: 'block',
                       }}>
@@ -285,17 +279,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                         fontSize: '24px',
                         color: '#9F8151',
                         margin: '0 0 16px 0',
-                        lineHeight: '1.4',
                       }}>
                         "Clothes carry memories — I just help them find new ones."
                       </h3>
 
-                      <p style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '16px',
-                        color: 'rgba(0,0,0,0.7)',
-                        margin: '0 0 20px 0',
-                      }}>
+                      <p style={{ fontSize: '16px', color: 'rgba(0,0,0,0.7)', margin: '0 0 20px 0' }}>
                         — {featuredCloset.name}
                       </p>
 
@@ -304,7 +292,6 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                         whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }}
                         whileTap={{ scale: 0.98 }}
                         style={{
-                          fontFamily: 'Manrope, sans-serif',
                           fontSize: '14px',
                           fontWeight: 500,
                           color: '#9F8151',
@@ -313,7 +300,6 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                           borderRadius: '12px',
                           padding: '12px 24px',
                           cursor: 'pointer',
-                          transition: 'all 0.3s ease',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '8px',
@@ -330,7 +316,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
           ))}
         </div>
 
-        {/* Community Call To Action */}
+        {/* Community CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -356,7 +342,6 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         </motion.div>
       </div>
 
-
       {/* Footer */}
       <FooterAlt onNewsletterClick={() => setNewsletterOpen(true)} />
 
@@ -373,4 +358,5 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
         />
       )}
     </div>
-
+  );
+}

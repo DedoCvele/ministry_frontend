@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { type Language, getTranslation } from '../translations';
+import { useAuth } from '../context/AuthContext';
 import './styles/HeaderAlt.css';
 
 interface HeaderAltProps {
@@ -24,6 +25,7 @@ export function HeaderAlt({
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const navigate = useNavigate();
+  const { user } = useAuth();
   
   const t = getTranslation(language);
   
@@ -63,9 +65,10 @@ export function HeaderAlt({
   const handleAccountClick = () => {
     if (onAccountClick) {
       onAccountClick();
-    } else {
-      navigate('/profile');
+      return;
     }
+
+    navigate(user ? '/profile' : '/login');
   };
 
   useEffect(() => {

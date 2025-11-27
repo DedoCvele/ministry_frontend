@@ -91,11 +91,6 @@ export default function ClosetPage({
       ? closetItems
       : closetItems.filter((item) => item.category === selectedFilter);
 
-  const handleBack = () => {
-    if (onBack) return onBack();
-    navigate('/closets');
-  };
-
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) return;

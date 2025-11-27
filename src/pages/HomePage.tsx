@@ -6,15 +6,21 @@ import { BecomeSellerSection } from '../components/BecomeSellerSection';
 import { JournalSpread } from '../components/JournalSpread';
 import { FooterAlt } from '../components/FooterAlt';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const handleAccountClick = () => {
+    navigate(user ? '/profile' : '/login');
+  };
   
   return (
     <div style={{ backgroundColor: '#FFFFFF' }}>
       <HeaderAlt 
         language="en"
-        onAccountClick={() => navigate('/profile')}
+        onAccountClick={handleAccountClick}
         onShopClick={() => navigate('/shop')}
         onClosetsClick={() => navigate('/closets')}
         onJournalClick={() => navigate('/blog')}

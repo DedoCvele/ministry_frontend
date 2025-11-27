@@ -15,7 +15,6 @@ export function HomePage() {
     <div className="home-page-root">
       <HeaderAlt 
         language="en"
-        onAccountClick={() => {}} // This will be handled by the parent component
         onShopClick={() => navigate('/shop')}
         onClosetsClick={() => navigate('/closets')}
         onJournalClick={() => navigate('/blog')}

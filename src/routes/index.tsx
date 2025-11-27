@@ -76,7 +76,11 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <ProfilePage language="en" />,
+            element: (
+              <RequireAuth>
+                <ProfilePage language="en" />
+              </RequireAuth>
+            ),
           },
           {
             path: 'upload',
