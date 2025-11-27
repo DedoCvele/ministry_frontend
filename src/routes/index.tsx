@@ -18,6 +18,7 @@ import { NewOrderConfirmation } from '../components/NewOrderConfirmation';
 import { BecomeSellerOnboarding } from '../components/BecomeSellerOnboarding';
 import ClosetPage from '../components/ClosetPage';
 import { RequireAdmin } from './RequireAdmin';
+import { RequireAuth } from './RequireAuth';
 
 export const router = createBrowserRouter([
   {
@@ -79,13 +80,21 @@ export const router = createBrowserRouter([
           },
           {
             path: 'upload',
-            element: <UploadItem language="en" onClose={() => '/profile'} />,
+            element: (
+              <RequireAuth>
+                <UploadItem language="en" onClose={() => '/profile'} />
+              </RequireAuth>
+            ),
           },
         ],
       },
       {
         path: 'upload',
-        element: <UploadItem language="en" onClose={() => '/'} />,
+        element: (
+          <RequireAuth>
+            <UploadItem language="en" onClose={() => '/'} />
+          </RequireAuth>
+        ),
       },
       {
         path: 'login',

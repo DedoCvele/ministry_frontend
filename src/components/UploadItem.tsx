@@ -1,20 +1,38 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Upload, X, Image as ImageIcon, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
+import { useAuth } from '../context/AuthContext';
 
 interface UploadItemProps {
-  onClose?: () => void;
+  onClose?: () => void | string;
   language?: Language;
 }
 
+interface LocalImage {
+  file: File;
+  previewUrl: string;
+}
+
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+const MAX_IMAGES = 6;
+
 export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
   const t = getTranslation(language);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [uploadedImages, setUploadedImages] = useState<LocalImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [brandLookup, setBrandLookup] = useState<Record<string, number>>({});
+  const [categoryLookup, setCategoryLookup] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form data
@@ -27,6 +45,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
     description: '',
     tags: '',
     sellingPrice: '',
+    material: '',
     autoExpire: true,
   });
 
@@ -49,6 +68,52 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
     'Fair'
   ];
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchMetadata = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/items`);
+        const payload = Array.isArray(response.data)
+          ? response.data
+          : Array.isArray(response.data?.data)
+            ? response.data.data
+            : [];
+
+        const brandMap = new Map<string, number>();
+        const categoryMap = new Map<string, number>();
+
+        payload.forEach((item: any) => {
+          if (item?.brand?.id && item.brand.name) {
+            brandMap.set(item.brand.name, item.brand.id);
+          }
+          if (item?.category?.id && item.category.name) {
+            categoryMap.set(item.category.name, item.category.id);
+          }
+        });
+
+        if (isMounted) {
+          setBrandLookup(Object.fromEntries(brandMap));
+          setCategoryLookup(Object.fromEntries(categoryMap));
+        }
+      } catch (error) {
+        console.warn('Brand/category metadata is currently unavailable. Users can still post items.', error);
+      }
+    };
+
+    fetchMetadata();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      uploadedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
+    };
+  }, [uploadedImages]);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -66,11 +131,25 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
   };
 
   const handleFiles = (files: File[]) => {
-    const imageFiles = files.filter(file => file.type.startsWith('image/'));
-    const newImages = imageFiles.slice(0, 6 - uploadedImages.length).map(file => 
-      URL.createObjectURL(file)
-    );
-    setUploadedImages([...uploadedImages, ...newImages]);
+    const imageFiles = files.filter((file) => file.type.startsWith('image/'));
+
+    if (!imageFiles.length) {
+      return;
+    }
+
+    setUploadedImages((prev) => {
+      const slotsLeft = MAX_IMAGES - prev.length;
+      if (slotsLeft <= 0) {
+        return prev;
+      }
+
+      const nextBatch = imageFiles.slice(0, slotsLeft).map((file) => ({
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+
+      return [...prev, ...nextBatch];
+    });
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,15 +159,136 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
   };
 
   const removeImage = (index: number) => {
-    setUploadedImages(uploadedImages.filter((_, i) => i !== index));
+    setUploadedImages((prev) => {
+      const target = prev[index];
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
-  const handlePublish = () => {
-    setShowToast(true);
-    setTimeout(() => {
-      setShowToast(false);
-      onClose?.();
-    }, 2000);
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      brand: '',
+      category: '',
+      size: '',
+      condition: '',
+      description: '',
+      tags: '',
+      sellingPrice: '',
+      material: '',
+      autoExpire: true,
+    });
+    setUploadedImages((prev) => {
+      prev.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+      return [];
+    });
+  };
+
+  const handleRedirectAfterPublish = () => {
+    const result = onClose?.();
+    if (typeof result === 'string') {
+      navigate(result);
+      return;
+    }
+
+    if (!onClose) {
+      navigate('/profile');
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!user) {
+      navigate('/login', { replace: true, state: { from: '/upload' } });
+      return;
+    }
+
+    const missingFields: string[] = [];
+    if (!formData.title.trim()) missingFields.push('title');
+    if (!formData.brand.trim()) missingFields.push('brand');
+    if (!formData.category.trim()) missingFields.push('category');
+    if (!formData.size.trim()) missingFields.push('size');
+    if (!formData.condition.trim()) missingFields.push('condition');
+    if (!formData.description.trim()) missingFields.push('description');
+    if (!formData.sellingPrice.trim()) missingFields.push('selling price');
+
+    if (missingFields.length) {
+      setSubmitError(`Please provide ${missingFields.join(', ')} before publishing.`);
+      return;
+    }
+
+    const priceValue = parseFloat(formData.sellingPrice);
+    if (Number.isNaN(priceValue)) {
+      setSubmitError('Selling price must be a valid number.');
+      return;
+    }
+
+    const brandId = brandLookup[formData.brand];
+    const categoryId = categoryLookup[formData.category];
+
+    const tagsPayload = formData.tags
+      .split(',')
+      .map((tag) => tag.trim())
+      .filter(Boolean);
+
+    const payload = new FormData();
+    payload.append('title', formData.title);
+    payload.append('description', formData.description);
+    payload.append('price', priceValue.toString());
+    if (brandId) {
+      payload.append('brand_id', String(brandId));
+    } else {
+      payload.append('brand', formData.brand);
+    }
+
+    if (categoryId) {
+      payload.append('category_id', String(categoryId));
+    } else {
+      payload.append('category', formData.category);
+    }
+    payload.append('size', formData.size);
+    payload.append('condition', formData.condition);
+    if (formData.material.trim()) {
+      payload.append('material', formData.material.trim());
+    }
+    payload.append('auto_expire', formData.autoExpire ? '1' : '0');
+
+    tagsPayload.forEach((tag) => payload.append('tags[]', tag));
+    uploadedImages.forEach((image) => payload.append('images[]', image.file));
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+
+      await axios.post(`${API_BASE_URL}/items`, payload, {
+        headers: {
+          Accept: 'application/json',
+        },
+        withCredentials: true,
+      });
+
+      resetForm();
+      setShowToast(true);
+      setTimeout(() => {
+        setShowToast(false);
+        handleRedirectAfterPublish();
+      }, 2000);
+    } catch (error: any) {
+      console.error('Failed to publish item', error);
+      const message =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Unable to publish the item. Please verify your session and try again.';
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -210,7 +410,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   }}
                 >
                   <ImageWithFallback
-                    src={img}
+                    src={img.previewUrl}
                     alt={`Upload ${index + 1}`}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
@@ -257,7 +457,6 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
           >
             Item Details
           </h2>
-
           <div
             style={{
               display: 'grid',
@@ -434,6 +633,37 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   <option key={cond} value={cond}>{cond}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Material */}
+            <div>
+              <label
+                style={{
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                  color: '#0A4834',
+                  display: 'block',
+                  marginBottom: '8px',
+                }}
+              >
+                Material
+              </label>
+              <input
+                type="text"
+                value={formData.material}
+                onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                placeholder="e.g., 100% Silk, Cotton Blend"
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                  border: '1px solid #00000020',
+                  borderRadius: '12px',
+                  outline: 'none',
+                  backgroundColor: '#F0ECE3',
+                }}
+              />
             </div>
 
             {/* Description */}
@@ -655,7 +885,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 }}
               >
                 <ImageWithFallback
-                  src={uploadedImages[0]}
+                  src={uploadedImages[0].previewUrl}
                   alt="Preview"
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
@@ -701,6 +931,18 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
             >
               {formData.brand || 'Brand'} • {formData.condition || 'Condition'}
             </p>
+            <p
+              style={{
+                fontFamily: 'Manrope, sans-serif',
+                fontSize: '12px',
+                color: '#000000',
+                opacity: 0.6,
+                marginTop: 0,
+                marginBottom: '12px',
+              }}
+            >
+              {formData.material ? `Material: ${formData.material}` : 'Material: Add details'}
+            </p>
 
             <p
               style={{
@@ -717,6 +959,24 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
         </section>
 
         {/* Action Buttons */}
+        <div style={{ maxWidth: '640px', margin: '0 auto 24px' }}>
+          {submitError && (
+            <div
+              style={{
+                marginBottom: '16px',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(193, 64, 64, 0.1)',
+                border: '1px solid rgba(193, 64, 64, 0.35)',
+                fontFamily: 'Manrope, sans-serif',
+                fontSize: '14px',
+                color: '#7a1f1f',
+              }}
+            >
+              {submitError}
+            </div>
+          )}
+        </div>
         <div
           style={{
             display: 'flex',
@@ -727,29 +987,34 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
         >
           <button
             onClick={handlePublish}
+            disabled={isSubmitting}
             style={{
               padding: '16px 48px',
               backgroundColor: '#0A4834',
               color: '#FFFFFF',
               border: 'none',
               borderRadius: '12px',
-              cursor: 'pointer',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
               fontFamily: 'Manrope, sans-serif',
               fontSize: '16px',
               fontWeight: 500,
               transition: 'all 0.3s ease',
               minWidth: '200px',
+              opacity: isSubmitting ? 0.7 : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#083d2c';
-              e.currentTarget.style.transform = 'translateY(-2px)';
+              if (!isSubmitting) {
+                e.currentTarget.style.backgroundColor = '#083d2c';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = '#0A4834';
               e.currentTarget.style.transform = 'translateY(0)';
             }}
+            aria-busy={isSubmitting}
           >
-            Publish Item
+            {isSubmitting ? 'Publishing…' : 'Publish Item'}
           </button>
 
           <button
