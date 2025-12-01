@@ -11,6 +11,8 @@ import {
   Trash2,
   X,
   Loader2,
+  Upload,
+  Image as ImageIcon,
 } from 'lucide-react';
 import axios from 'axios';
 import { HeaderAlt } from '../components/HeaderAlt';
@@ -85,6 +87,36 @@ interface Blog {
 }
 
 const API_BASE_URL = 'http://localhost:8000/api';
+const BACKEND_BASE_URL = 'http://localhost:8000';
+
+// Helper function to normalize image URLs
+const normalizeImageUrl = (url: string | null | undefined): string => {
+  if (!url || url.trim() === '') {
+    return '';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // If it's already a full URL (http:// or https://), return as is
+  if (trimmedUrl.match(/^https?:\/\//i)) {
+    return trimmedUrl;
+  }
+  
+  // If it starts with storage/ or is a relative path, prepend backend URL
+  if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+  
+  // If it starts with //, add https:
+  if (trimmedUrl.startsWith('//')) {
+    return `https:${trimmedUrl}`;
+  }
+  
+  // Otherwise, assume it's a relative path and prepend backend URL
+  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+  return `${BACKEND_BASE_URL}${cleanPath}`;
+};
 
 export function AdminPage() {
   const { user, logout } = useAuth();
@@ -98,6 +130,9 @@ export function AdminPage() {
     content: '',
     heroImage: '',
   });
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [heroImagePreview, setHeroImagePreview] = useState<string | null>(null);
+  const [imageUploadMode, setImageUploadMode] = useState<'url' | 'upload'>('url');
   const [blogs, setBlogs] = useState<Blog[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingBlogId, setEditingBlogId] = useState<number | null>(null);
@@ -248,6 +283,61 @@ export function AdminPage() {
     saveDraftToLocalStorage();
   };
 
+  const handleImageFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size must be less than 5MB', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+        return;
+      }
+      
+      setHeroImageFile(file);
+      const previewUrl = URL.createObjectURL(file);
+      setHeroImagePreview(previewUrl);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    if (heroImagePreview) {
+      URL.revokeObjectURL(heroImagePreview);
+    }
+    setHeroImageFile(null);
+    setHeroImagePreview(null);
+    setBlogForm(prev => ({ ...prev, heroImage: '' }));
+  };
+
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handlePostBlog = async () => {
     if (!blogForm.title.trim() || !blogForm.content.trim()) {
       toast.error('Title and Full Story are required', {
@@ -263,35 +353,58 @@ export function AdminPage() {
 
     setLoading(true);
 
-    // Map form fields to API fields
-    // Backend may require multiple field names (full_story, context, content)
-    const payload: {
-      title: string;
-      full_story: string;
-      context?: string;
-      content?: string;
-      category?: string;
-      short_summary?: string;
-      image_url?: string;
-    } = {
-      title: blogForm.title,
-      full_story: blogForm.content,
-      content: blogForm.content, // Backend requires content field
-      context: blogForm.content, // Also include context in case backend needs it
-    };
-
-    // Add optional fields if they have values
-    if (blogForm.category) {
-      payload.category = blogForm.category;
-    }
-    if (blogForm.summary) {
-      payload.short_summary = blogForm.summary;
-    }
-    if (blogForm.heroImage) {
-      payload.image_url = blogForm.heroImage;
-    }
-
     try {
+      // Determine if we're using FormData (for file upload) or JSON (for URL)
+      const useFormData = heroImageFile && imageUploadMode === 'upload';
+      
+      let payload: FormData | {
+        title: string;
+        full_story: string;
+        context?: string;
+        content?: string;
+        category?: string;
+        short_summary?: string;
+        image_url?: string;
+      };
+
+      if (useFormData) {
+        // Use FormData for file upload
+        const formData = new FormData();
+        formData.append('title', blogForm.title);
+        formData.append('full_story', blogForm.content);
+        formData.append('content', blogForm.content);
+        formData.append('context', blogForm.content);
+        
+        if (blogForm.category) {
+          formData.append('category', blogForm.category);
+        }
+        if (blogForm.summary) {
+          formData.append('short_summary', blogForm.summary);
+        }
+        
+        // Append image file - backend should handle this
+        formData.append('image', heroImageFile);
+        
+        payload = formData;
+      } else {
+        // Use JSON for URL or no image
+        payload = {
+          title: blogForm.title,
+          full_story: blogForm.content,
+          content: blogForm.content,
+          context: blogForm.content,
+        };
+
+        if (blogForm.category) {
+          payload.category = blogForm.category;
+        }
+        if (blogForm.summary) {
+          payload.short_summary = blogForm.summary;
+        }
+        if (blogForm.heroImage) {
+          payload.image_url = blogForm.heroImage;
+        }
+      }
 
       if (editingBlogId) {
         // Update existing blog
@@ -299,9 +412,21 @@ export function AdminPage() {
         let updateSuccess = false;
         let lastError: any = null;
         
+        // Helper to get axios config
+        const getAxiosConfig = () => {
+          if (useFormData) {
+            return {
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            };
+          }
+          return {};
+        };
+
         // Try PATCH first (REST standard for updates)
         try {
-          const response = await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+          const response = await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
           updateSuccess = true;
         } catch (patchError: any) {
           lastError = patchError;
@@ -309,30 +434,40 @@ export function AdminPage() {
           if (patchError.response?.status === 405) {
             try {
               // Try POST with _method=PATCH (Laravel method spoofing)
-              const postPayload = { ...payload, _method: 'PATCH' };
-              const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload);
+              const postPayload = useFormData 
+                ? (payload as FormData) 
+                : { ...(payload as any), _method: 'PATCH' };
+              if (!useFormData && postPayload instanceof FormData === false) {
+                (postPayload as any)._method = 'PATCH';
+              }
+              const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload, getAxiosConfig());
               updateSuccess = true;
             } catch (postError1: any) {
               // Only continue if it's a 405 error (method not allowed)
               if (postError1.response?.status === 405) {
                 try {
                   // Try POST with _method=PUT
-                  const postPayload = { ...payload, _method: 'PUT' };
-                  const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload);
+                  const postPayload = useFormData 
+                    ? (payload as FormData) 
+                    : { ...(payload as any), _method: 'PUT' };
+                  if (!useFormData && postPayload instanceof FormData === false) {
+                    (postPayload as any)._method = 'PUT';
+                  }
+                  const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload, getAxiosConfig());
                   updateSuccess = true;
                 } catch (postError2: any) {
                   // Only continue if it's a 405 error
                   if (postError2.response?.status === 405) {
                     try {
                       // Try plain POST
-                      const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+                      const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
                       updateSuccess = true;
                     } catch (postError3: any) {
                       // Only continue if it's a 405 error
                       if (postError3.response?.status === 405) {
                         // Try PUT as last resort
                         try {
-                          const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload);
+                          const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
                           updateSuccess = true;
                         } catch (putError: any) {
                           lastError = putError;
@@ -374,7 +509,15 @@ export function AdminPage() {
         }
       } else {
         // Create new blog
-        const response = await axios.post(`${API_BASE_URL}/blogs`, payload);
+        const response = await axios.post(
+          `${API_BASE_URL}/blogs`, 
+          payload,
+          useFormData ? {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          } : {}
+        );
         toast.success('Blog posted successfully ✨', {
           style: {
             background: '#FFFFFF',
@@ -396,6 +539,8 @@ export function AdminPage() {
         content: '',
         heroImage: '',
       });
+      handleRemoveImage();
+      setImageUploadMode('url');
 
       // Refresh blogs list if on manage-blogs tab
       if (activeTab === 'manage-blogs') {
@@ -528,19 +673,43 @@ export function AdminPage() {
       content: blog.full_story,
       heroImage: blog.image_url || '',
     });
+    // Reset image upload state when editing
+    handleRemoveImage();
+    setImageUploadMode('url');
     setActiveTab('add-blog');
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDeleteBlog = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this blog?')) {
+    if (!window.confirm('Are you sure you want to delete this blog?')) {
       return;
     }
 
     try {
       setLoading(true);
-      await axios.delete(`${API_BASE_URL}/blogs/${id}`);
+      
+      // Get CSRF cookie first (required for Sanctum SPA authentication)
+      // This matches the pattern used in UploadItem.tsx
+      try {
+        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+          withCredentials: true,
+        });
+      } catch (csrfError) {
+        // CSRF cookie fetch failed, but continue anyway (might not be needed for API routes)
+        console.warn('CSRF cookie fetch failed, continuing anyway:', csrfError);
+      }
+      
+      // Use the API route (DELETE /api/blogs/{id}) - this is the correct route for React SPA
+      const response = await axios.delete(`${API_BASE_URL}/blogs/${id}`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      console.log('Delete response:', response);
+      
       toast.success('Blog deleted successfully', {
         style: {
           background: '#FFFFFF',
@@ -549,16 +718,43 @@ export function AdminPage() {
           fontFamily: 'Manrope, sans-serif',
         },
       });
-      fetchBlogs();
+      
+      // Refresh the blogs list
+      await fetchBlogs();
     } catch (error: any) {
       console.error('Error deleting blog:', error);
-      toast.error('Failed to delete blog', {
+      console.error('Error response:', error.response);
+      console.error('Error status:', error.response?.status);
+      console.error('Error data:', error.response?.data);
+      
+      // Handle specific error cases
+      let errorMessage = 'Failed to delete blog';
+      
+      if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to delete this blog';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Blog not found';
+      } else if (error.response?.status === 401) {
+        errorMessage = 'Please log in to delete blogs';
+      } else if (error.response?.status === 419) {
+        errorMessage = 'Session expired. Please refresh the page and try again.';
+      } else if (error.response?.status === 0 || !error.response) {
+        // Network error (CORS, connection refused, etc.)
+        errorMessage = 'Network error. Please check your connection and ensure the backend server is running.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage, {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
           border: '1px solid #9F8151',
           fontFamily: 'Manrope, sans-serif',
         },
+        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -681,7 +877,9 @@ export function AdminPage() {
                 </div>
               </div>
               <button
-                onClick={logout}
+                onClick={() => {
+                  logout().catch(console.error);
+                }}
                 className="admin-submit"
                 style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.15)' }}
               >
@@ -928,16 +1126,149 @@ export function AdminPage() {
                     </div>
 
                     <div className="admin-field">
-                      <label htmlFor="blog-hero">Hero Image URL</label>
-                      <input
-                        id="blog-hero"
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={blogForm.heroImage}
-                        onChange={(event) =>
-                          setBlogForm((prev) => ({ ...prev, heroImage: event.target.value }))
-                        }
-                      />
+                      <label htmlFor="blog-hero">Hero Image</label>
+                      
+                      {/* Toggle between URL and Upload */}
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '8px', 
+                        marginBottom: '12px',
+                        borderBottom: '1px solid rgba(159, 129, 81, 0.2)',
+                        paddingBottom: '12px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageUploadMode('url');
+                            handleRemoveImage();
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            border: '1px solid rgba(159, 129, 81, 0.3)',
+                            borderRadius: '8px',
+                            background: imageUploadMode === 'url' ? '#9F8151' : 'transparent',
+                            color: imageUploadMode === 'url' ? '#FFFFFF' : '#0A4834',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          <ImageIcon size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                          Use URL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImageUploadMode('upload');
+                            setBlogForm(prev => ({ ...prev, heroImage: '' }));
+                          }}
+                          style={{
+                            padding: '8px 16px',
+                            border: '1px solid rgba(159, 129, 81, 0.3)',
+                            borderRadius: '8px',
+                            background: imageUploadMode === 'upload' ? '#9F8151' : 'transparent',
+                            color: imageUploadMode === 'upload' ? '#FFFFFF' : '#0A4834',
+                            cursor: 'pointer',
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          <Upload size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                          Upload Image
+                        </button>
+                      </div>
+
+                      {imageUploadMode === 'url' ? (
+                        <input
+                          id="blog-hero"
+                          type="url"
+                          placeholder="https://images.unsplash.com/..."
+                          value={blogForm.heroImage}
+                          onChange={(event) =>
+                            setBlogForm((prev) => ({ ...prev, heroImage: event.target.value }))
+                          }
+                        />
+                      ) : (
+                        <div>
+                          <input
+                            id="blog-hero-file"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageFileSelect}
+                            style={{ display: 'none' }}
+                          />
+                          <label
+                            htmlFor="blog-hero-file"
+                            style={{
+                              display: 'block',
+                              padding: '12px 24px',
+                              border: '2px dashed rgba(159, 129, 81, 0.5)',
+                              borderRadius: '8px',
+                              textAlign: 'center',
+                              cursor: 'pointer',
+                              background: 'rgba(159, 129, 81, 0.05)',
+                              transition: 'all 0.3s ease',
+                              fontFamily: 'Manrope, sans-serif',
+                              color: '#0A4834',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = '#9F8151';
+                              e.currentTarget.style.background = 'rgba(159, 129, 81, 0.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'rgba(159, 129, 81, 0.5)';
+                              e.currentTarget.style.background = 'rgba(159, 129, 81, 0.05)';
+                            }}
+                          >
+                            <Upload size={20} style={{ display: 'block', margin: '0 auto 8px', color: '#9F8151' }} />
+                            {heroImageFile ? heroImageFile.name : 'Click to select an image'}
+                          </label>
+                          
+                          {heroImagePreview && (
+                            <div style={{ 
+                              marginTop: '12px', 
+                              position: 'relative',
+                              borderRadius: '8px',
+                              overflow: 'hidden',
+                              border: '1px solid rgba(159, 129, 81, 0.3)',
+                            }}>
+                              <img
+                                src={heroImagePreview}
+                                alt="Preview"
+                                style={{
+                                  width: '100%',
+                                  maxHeight: '300px',
+                                  objectFit: 'cover',
+                                  display: 'block',
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleRemoveImage}
+                                style={{
+                                  position: 'absolute',
+                                  top: '8px',
+                                  right: '8px',
+                                  background: 'rgba(255, 255, 255, 0.9)',
+                                  border: 'none',
+                                  borderRadius: '50%',
+                                  width: '32px',
+                                  height: '32px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                }}
+                              >
+                                <X size={18} color="#0A4834" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="admin-form-actions">
@@ -1011,11 +1342,14 @@ export function AdminPage() {
                           {blog.image_url ? (
                             <img
                               className="admin-queue-image"
-                              src={blog.image_url}
+                              src={normalizeImageUrl(blog.image_url)}
                               alt={blog.title}
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
-                                e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                                if (fallback) {
+                                  fallback.style.display = 'flex';
+                                }
                               }}
                             />
                           ) : null}
@@ -1051,7 +1385,10 @@ export function AdminPage() {
                           <div className="admin-queue-actions">
                             <button
                               className="approve"
-                              onClick={() => handleEditBlog(blog)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditBlog(blog);
+                              }}
                               disabled={loading}
                             >
                               <Edit3 size={18} />
@@ -1059,7 +1396,10 @@ export function AdminPage() {
                             </button>
                             <button
                               className="reject"
-                              onClick={() => handleDeleteBlog(blog.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBlog(blog.id);
+                              }}
                               disabled={loading}
                             >
                               <Trash2 size={18} />

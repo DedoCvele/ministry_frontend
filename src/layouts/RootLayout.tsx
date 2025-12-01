@@ -1,9 +1,10 @@
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
+import { AuthProvider } from '../context/AuthContext';
 
 export function RootLayout() {
   return (
-    <>
+    <AuthProvider>
       <Toaster position="top-center" />
       <style>{`
         * {
@@ -37,6 +38,6 @@ export function RootLayout() {
 
       {/* This is where the route content will be rendered */}
       <Outlet />
-    </>
+    </AuthProvider>
   );
 }

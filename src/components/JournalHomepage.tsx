@@ -1,12 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Heart, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
 import './styles/JournalHomepage.css';
+
+const API_BASE_URL = 'http://localhost:8000/api';
+const BACKEND_BASE_URL = 'http://localhost:8000';
+
+interface Blog {
+  id: number;
+  title: string;
+  category: string;
+  short_summary: string;
+  full_story: string;
+  image_url: string;
+  user_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
 
 interface Article {
   id: number;
@@ -25,6 +42,78 @@ interface JournalHomepageProps {
   onClose?: () => void;
 }
 
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+};
+
+// Helper function to calculate read time
+const calculateReadTime = (content: string): string => {
+  const wordsPerMinute = 200;
+  const wordCount = content.split(/\s+/).length;
+  const minutes = Math.ceil(wordCount / wordsPerMinute);
+  return `${minutes} min read`;
+};
+
+// Helper function to validate and fix URLs
+const validateAndFixUrl = (url: string | null | undefined): string => {
+  if (!url || url.trim() === '') {
+    return 'https://via.placeholder.com/400x280?text=No+Image';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // If it's already a full URL (http:// or https://), return as is
+  if (trimmedUrl.match(/^https?:\/\//i)) {
+    return trimmedUrl;
+  }
+  
+  // If it starts with storage/ or is a relative path, prepend backend URL
+  if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+  
+  // If it starts with //, add https:
+  if (trimmedUrl.startsWith('//')) {
+    return `https:${trimmedUrl}`;
+  }
+  
+  // Try to validate as URL
+  try {
+    new URL(trimmedUrl);
+    return trimmedUrl;
+  } catch {
+    // If it doesn't start with http:// or https://, try prepending backend URL first
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    const backendUrl = `${BACKEND_BASE_URL}${cleanPath}`;
+    
+    // If that doesn't work, try adding https://
+    if (!trimmedUrl.match(/^https?:\/\//i)) {
+      // Try backend URL first (for storage paths)
+      return backendUrl;
+    }
+    // If still not valid, return placeholder
+    return 'https://via.placeholder.com/400x280?text=Invalid+URL';
+  }
+};
+
+// Helper function to map blog to article
+const mapBlogToArticle = (blog: Blog): Article => {
+  return {
+    id: blog.id,
+    title: blog.title,
+    excerpt: blog.short_summary || '',
+    category: blog.category || 'Uncategorized',
+    image: validateAndFixUrl(blog.image_url),
+    author: 'Ministry Journal',
+    date: formatDate(blog.created_at),
+    readTime: calculateReadTime(blog.full_story || ''),
+  };
+};
+
 export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: JournalHomepageProps) {
   const navigate = useNavigate();
   
@@ -38,77 +127,45 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
   const t = getTranslation(language);
   const [email, setEmail] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const articles: Article[] = [
-    {
-      id: 1,
-      title: 'The New Era of Conscious Luxury',
-      excerpt: 'Why second-hand is the smartest style statement of 2025. Discover how vintage pieces are redefining modern elegance.',
-      category: 'Style Stories',
-      image: 'https://images.unsplash.com/photo-1628668003003-85488fe78821?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZmFzaGlvbiUyMGVkaXRvcmlhbHxlbnwxfHx8fDE3NjE1NzE3MTV8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Sofia Laurent',
-      date: 'Oct 25, 2025',
-      readTime: '5 min read',
-    },
-    {
-      id: 2,
-      title: 'Building a Timeless Wardrobe',
-      excerpt: 'The art of curating pieces that transcend trends and tell your unique story through sustainable choices.',
-      category: 'Fashion Education',
-      image: 'https://images.unsplash.com/photo-1645550294607-c9955e906ba2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdXN0YWluYWJsZSUyMGZhc2hpb24lMjBsaWZlc3R5bGV8ZW58MXx8fHwxNzYxNTc5MDk4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Emma Rodriguez',
-      date: 'Oct 22, 2025',
-      readTime: '7 min read',
-    },
-    {
-      id: 3,
-      title: 'The Luxury of Less',
-      excerpt: 'How minimalist fashion is creating space for what truly matters in your closet and your life.',
-      category: 'Circular Living',
-      image: 'https://images.unsplash.com/photo-1742540676779-b49c3406be26?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjB3YXJkcm9iZSUyMHN0eWxpbmd8ZW58MXx8fHwxNzYxNTc5MDk4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Isabella Chen',
-      date: 'Oct 20, 2025',
-      readTime: '6 min read',
-    },
-    {
-      id: 4,
-      title: 'Styling Vintage Silhouettes',
-      excerpt: 'Modern ways to wear classic cuts and reimagine heritage pieces for contemporary elegance.',
-      category: 'Style Stories',
-      image: 'https://images.unsplash.com/photo-1624533523809-3d27d9ea6d80?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtaW5pbWFsaXN0JTIwZmFzaGlvbiUyMG1vZGVsfGVufDF8fHx8MTc2MTQ4OTQyN3ww&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Ava Smith',
-      date: 'Oct 18, 2025',
-      readTime: '5 min read',
-    },
-    {
-      id: 5,
-      title: 'The Jewelry Renaissance',
-      excerpt: 'Discovering treasures: how vintage accessories are making a powerful comeback in modern wardrobes.',
-      category: 'Journal Notes',
-      image: 'https://images.unsplash.com/photo-1652816691871-252a93d1e39d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwYWNjZXNzb3JpZXMlMjBqZXdlbHJ5fGVufDF8fHx8MTc2MTU1NDgzMnww&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Mia Jones',
-      date: 'Oct 15, 2025',
-      readTime: '4 min read',
-    },
-    {
-      id: 6,
-      title: 'From Fast to Forever Fashion',
-      excerpt: 'A personal journey of rediscovering style through conscious consumption and meaningful pieces.',
-      category: 'Circular Living',
-      image: 'https://images.unsplash.com/photo-1639244151653-7807947de5a5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmYXNoaW9uJTIwbWFnYXppbmUlMjBlZGl0b3JpYWx8ZW58MXx8fHwxNzYxNTAxNzM2fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      author: 'Olivia Taylor',
-      date: 'Oct 12, 2025',
-      readTime: '8 min read',
-    },
-  ];
+  // Fetch blogs from API
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_BASE_URL}/blogs`);
+        
+        if (response.data.status === 'success' && response.data.data) {
+          const blogs: Blog[] = response.data.data;
+          // Filter only published blogs
+          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
+          setArticles(mappedArticles);
+        } else {
+          setError('Failed to load blogs');
+        }
+      } catch (err) {
+        console.error('Error fetching blogs:', err);
+        setError('Failed to load blogs. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const categories = ['All', 'Style Stories', 'Fashion Education', 'Circular Living', 'Journal Notes'];
+    fetchBlogs();
+  }, []);
+
+  // Extract unique categories from articles
+  const categories = ['All', ...Array.from(new Set(articles.map(article => article.category).filter(Boolean)))];
 
   const filteredArticles = selectedCategory === 'All' 
     ? articles 
     : articles.filter(article => article.category === selectedCategory);
 
-  const featuredArticle = articles[0];
+  const featuredArticle = articles.length > 0 ? articles[0] : null;
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,71 +199,94 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
 
       {/* Main Content */}
       <div className="journal-main-content">
-        {/* Hero Featured Article */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          onClick={() => handleArticleClick(featuredArticle.id)}
-          className="journal-featured-article"
-        >
-          <ImageWithFallback
-            src={featuredArticle.image}
-            alt={featuredArticle.title}
-            className="journal-featured-image"
-          />
-
-          {/* Gradient Overlay */}
-          <div className="journal-featured-overlay" />
-
-          {/* Content */}
-          <div className="journal-featured-content">
-            <motion.span
-              whileHover={{ backgroundColor: '#9F8151' }}
-              className="journal-featured-category"
-            >
-              {featuredArticle.category}
-            </motion.span>
-
-            <h2 className="journal-featured-title">
-              {featuredArticle.title}
-            </h2>
-
-            <p className="journal-featured-excerpt">
-              {featuredArticle.excerpt}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '18px', color: '#9F8151' }}>
+              Loading blogs...
             </p>
-
-            <motion.button
-              whileHover={{ borderColor: '#9F8151', color: '#9F8151' }}
-              whileTap={{ scale: 0.98 }}
-              className="journal-featured-btn"
-            >
-              Read Article <ArrowRight size={18} />
-            </motion.button>
           </div>
-        </motion.div>
+        ) : error ? (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '18px', color: '#9F8151' }}>
+              {error}
+            </p>
+          </div>
+        ) : articles.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+            <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '18px', color: '#9F8151' }}>
+              No blogs available at the moment.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Hero Featured Article */}
+            {featuredArticle && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8 }}
+                onClick={() => handleArticleClick(featuredArticle.id)}
+                className="journal-featured-article"
+              >
+                <ImageWithFallback
+                  src={featuredArticle.image}
+                  alt={featuredArticle.title}
+                  className="journal-featured-image"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
 
-        {/* Categories Filter */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="journal-categories"
-        >
-          {categories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`journal-category-btn ${selectedCategory === category ? 'active' : ''}`}
+                {/* Gradient Overlay */}
+                <div className="journal-featured-overlay" />
+
+                {/* Content */}
+                <div className="journal-featured-content">
+                  <motion.span
+                    whileHover={{ backgroundColor: '#9F8151' }}
+                    className="journal-featured-category"
+                  >
+                    {featuredArticle.category}
+                  </motion.span>
+
+                  <h2 className="journal-featured-title">
+                    {featuredArticle.title}
+                  </h2>
+
+                  <p className="journal-featured-excerpt">
+                    {featuredArticle.excerpt}
+                  </p>
+
+                  <motion.button
+                    whileHover={{ borderColor: '#9F8151', color: '#9F8151' }}
+                    whileTap={{ scale: 0.98 }}
+                    className="journal-featured-btn"
+                  >
+                    Read Article <ArrowRight size={18} />
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Categories Filter */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="journal-categories"
             >
-              {category}
-            </button>
-          ))}
-        </motion.div>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`journal-category-btn ${selectedCategory === category ? 'active' : ''}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </motion.div>
 
-        {/* Article Grid */}
-        <div className="journal-article-grid">
-          {filteredArticles.slice(1).map((article, index) => (
+            {/* Article Grid */}
+            <div className="journal-article-grid">
+              {filteredArticles.slice(featuredArticle ? 1 : 0).map((article, index) => (
             <motion.div
               key={article.id}
               initial={{ opacity: 0, y: 20 }}
@@ -227,6 +307,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                     src={article.image}
                     alt={article.title}
                     className="journal-article-img"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                   />
                 </motion.div>
 
@@ -266,9 +347,11 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                   </motion.div>
                 </div>
               </div>
-            </motion.div>
-          ))}
-        </div>
+              </motion.div>
+            ))}
+            </div>
+          </>
+        )}
 
         {/* Newsletter CTA */}
         <motion.div

@@ -3,7 +3,6 @@ import { StrictMode } from "react";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./routes/index";
 import "./index.css";
-import { AuthProvider } from "./context/AuthContext";
 
 const rootElement = document.getElementById("root");
 
@@ -24,9 +23,7 @@ try {
   const root = createRoot(rootElement);
   root.render(
     <StrictMode>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <RouterProvider router={router} />
     </StrictMode>
   );
 } catch (error) {

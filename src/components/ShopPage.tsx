@@ -151,7 +151,9 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
     const fetchItems = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://127.0.0.1:8000/api/items');
+        const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+        const API_BASE_URL = `${API_ROOT}/api`;
+        const response = await axios.get(`${API_BASE_URL}/items`);
         
         // Console log the full response
         console.log('=== AXIOS RESPONSE ===');
@@ -171,7 +173,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         
         // Map API response to Product interface
         const mappedProducts: Product[] = items.map((item: any) => {
-          console.log('Mapping item:', item.id, item.title);
+          const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+          console.log('Mapping item:', {
+            id: item.id,
+            title: item.title,
+            approval_state: item.approval_state || 'not set',
+            has_images: !!(item.images && item.images.length > 0)
+          });
           return {
           id: item.id,
           title: item.title || 'Untitled Item',
@@ -179,7 +187,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           seller: item.user?.name || item.user?.email || 'Unknown Seller',
           sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
           image: item.images && item.images.length > 0 
-            ? `http://127.0.0.1:8000/storage/${item.images[0]}` 
+            ? `${API_ROOT_FOR_IMAGES}/storage/${item.images[0]}` 
             : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400',
           tags: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) : [],
           category: item.category?.name || 'Uncategorized',

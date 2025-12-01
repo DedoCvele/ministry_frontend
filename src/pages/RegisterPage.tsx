@@ -18,33 +18,42 @@ export function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
     if (!acceptedTerms) {
-      alert('Please accept the terms and conditions');
-      return;
-    }
-
-    const result = register({
-      username: formData.username,
-      password: formData.password,
-      firstName: formData.firstName,
-      lastName: formData.lastName,
-    });
-
-    if (!result.success) {
-      setError(result.message ?? 'Unable to sign up. Please try again.');
+      setError('Please accept the terms and conditions');
       return;
     }
 
     setError(null);
+    setIsLoading(true);
 
-    navigate(result.user?.role === 'admin' ? '/admin' : '/');
+    try {
+      const result = await register({
+        username: formData.username,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        password_confirmation: formData.confirmPassword,
+      });
+
+      if (!result.success) {
+        setError(result.message ?? 'Unable to sign up. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      navigate(result.user?.role === 'admin' ? '/admin' : '/');
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -499,31 +508,37 @@ export function RegisterPage() {
               {/* Sign Up Button */}
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                disabled={isLoading}
+                whileHover={!isLoading ? { scale: 1.02 } : {}}
+                whileTap={!isLoading ? { scale: 0.98 } : {}}
                 style={{
                   width: '100%',
                   fontFamily: 'Manrope, sans-serif',
                   fontSize: '16px',
                   fontWeight: 600,
                   color: '#FFFFFF',
-                  backgroundColor: '#0A4834',
+                  backgroundColor: isLoading ? '#6B8E7A' : '#0A4834',
                   border: 'none',
                   borderRadius: '12px',
                   padding: '16px',
-                  cursor: 'pointer',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
                   transition: 'all 0.3s ease',
                   boxShadow: '0px 4px 12px rgba(10, 72, 52, 0.2)',
                   marginBottom: '24px',
+                  opacity: isLoading ? 0.7 : 1,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#083D2C';
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = '#083D2C';
+                  }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#0A4834';
+                  if (!isLoading) {
+                    e.currentTarget.style.backgroundColor = '#0A4834';
+                  }
                 }}
               >
-                Create Account
+                {isLoading ? 'Creating account...' : 'Create Account'}
               </motion.button>
 
               {/* Divider */}

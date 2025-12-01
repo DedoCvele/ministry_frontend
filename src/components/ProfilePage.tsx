@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { 
   Camera, 
@@ -18,7 +19,8 @@ import {
   Star,
   ChevronRight,
   ArrowLeft,
-  CreditCard
+  CreditCard,
+  LogOut
 } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
@@ -101,7 +103,8 @@ interface Stats {
 
 export function ProfilePage({ isSeller = false, onClose, onUploadClick, language = 'en' }: ProfilePageProps) {
   const t = getTranslation(language);
-  const { user: authUser } = useAuth();
+  const navigate = useNavigate();
+  const { user: authUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -2214,6 +2217,11 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
 
                 <motion.button
                   whileHover={{ backgroundColor: 'rgba(183,92,92,0.15)', x: 4 }}
+                  onClick={async () => {
+                    await logout();
+                    setSettingsOpen(false);
+                    navigate('/');
+                  }}
                   style={{
                     fontFamily: 'Manrope, sans-serif',
                     fontSize: '15px',
@@ -2230,7 +2238,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  <ArrowLeft size={20} />
+                  <LogOut size={20} />
                   Log Out
                 </motion.button>
               </div>

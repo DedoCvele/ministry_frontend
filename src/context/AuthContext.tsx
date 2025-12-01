@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import axios from 'axios';
 
 type Role = 'admin' | 'user';
 
@@ -14,19 +15,23 @@ interface RegisterPayload {
   password: string;
   firstName?: string;
   lastName?: string;
+  password_confirmation?: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => { success: boolean; message?: string; user?: AuthUser };
-  register: (payload: RegisterPayload & { password: string }) => {
+  login: (username: string, password: string) => Promise<{ success: boolean; message?: string; user?: AuthUser }>;
+  register: (payload: RegisterPayload & { password: string }) => Promise<{
     success: boolean;
     message?: string;
     user?: AuthUser;
-  };
-  logout: () => void;
+  }>;
+  logout: () => Promise<void>;
 }
+
+const API_BASE_URL = 'http://localhost:8000/api';
+const BACKEND_BASE_URL = 'http://localhost:8000';
 
 const ADMIN_ACCOUNT = {
   username: 'admin',
@@ -145,12 +150,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback<AuthContextValue['login']>(
-    (username, password) => {
+    async (username, password) => {
       const trimmedUser = username.trim();
       if (!trimmedUser) {
         return { success: false, message: 'Username is required.' };
       }
 
+      // First, validate against local storage (for UI purposes)
       const match = users.find(
         (user) =>
           user.username.toLowerCase() === trimmedUser.toLowerCase() &&
@@ -161,60 +167,209 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, message: 'Invalid username or password.' };
       }
 
-      const { password: _password, ...safeUser } = match;
-      persistCurrent(safeUser);
-      return { success: true, user: safeUser };
+      // Then, authenticate with Laravel backend
+      try {
+        // Get CSRF cookie first (required for Sanctum SPA authentication)
+        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+          withCredentials: true,
+        });
+
+        // Authenticate with Laravel
+        // Note: Laravel expects 'email' but we're using username, so we'll use username as email
+        // If your backend uses a different field, adjust accordingly
+        const loginResponse = await axios.post(
+          `${API_BASE_URL}/login`,
+          {
+            email: trimmedUser, // Using username as email
+            password: password,
+          },
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          }
+        );
+
+        // If Laravel authentication succeeds, store token and proceed with frontend auth
+        const { token } = loginResponse.data;
+        
+        // Store token in localStorage
+        if (token && typeof window !== 'undefined') {
+          window.localStorage.setItem('auth_token', token);
+        }
+
+        const { password: _password, ...safeUser } = match;
+        persistCurrent(safeUser);
+        return { success: true, user: safeUser };
+      } catch (error: any) {
+        console.error('Laravel authentication failed:', error);
+        
+        // If Laravel auth fails, still allow frontend login for development
+        // but log a warning
+        console.warn('Laravel authentication failed, using frontend-only auth. API calls may not work.');
+        
+        // Check if it's a network error (backend not running) or auth error
+        if (!error.response) {
+          // Network error - backend might not be running
+          console.warn('Backend server may not be running. Using frontend-only authentication.');
+        } else if (error.response?.status === 401 || error.response?.status === 422) {
+          // Authentication failed - invalid credentials
+          return { 
+            success: false, 
+            message: error.response?.data?.message || 'Invalid username or password.' 
+          };
+        }
+        
+        // For other errors, still allow frontend login but warn
+        const { password: _password, ...safeUser } = match;
+        persistCurrent(safeUser);
+        return { success: true, user: safeUser };
+      }
     },
     [persistCurrent, users],
   );
 
   const register = useCallback<AuthContextValue['register']>(
-    ({ username, password, firstName, lastName }) => {
+    async ({ username, password, firstName, lastName, password_confirmation }) => {
       const trimmedUser = username.trim();
       if (!trimmedUser) {
-        return { success: false, message: 'Username is required.' };
+        return { success: false, message: 'Username/Email is required.' };
       }
 
       if (!password) {
         return { success: false, message: 'Password is required.' };
       }
 
-      const existing = users.find(
-        (user) => user.username.toLowerCase() === trimmedUser.toLowerCase(),
-      );
-
-      if (existing) {
-        if (existing.password !== password) {
-          return { success: false, message: 'Account already exists with a different password.' };
-        }
-
-        const { password: _password, ...safeUser } = existing;
-        persistCurrent(safeUser);
-        return { success: true, message: 'Logged in with existing account.', user: safeUser };
+      if (password_confirmation && password !== password_confirmation) {
+        return { success: false, message: 'Passwords do not match.' };
       }
 
-      const isAdmin =
-        trimmedUser.toLowerCase() === ADMIN_ACCOUNT.username.toLowerCase() &&
-        password === ADMIN_ACCOUNT.password;
+      // Build name from firstName and lastName, or use username as fallback
+      const name = firstName && lastName 
+        ? `${firstName} ${lastName}`.trim()
+        : firstName || lastName || trimmedUser;
 
-      const newUser: StoredUser = {
-        username: trimmedUser,
-        password,
-        role: isAdmin ? 'admin' : 'user',
-        firstName,
-        lastName,
-      };
+      // Register with Laravel backend
+      try {
+        // Get CSRF cookie first (required for Sanctum SPA authentication)
+        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+          withCredentials: true,
+        });
 
-      setUsers((prev) => [...prev, newUser]);
-      const { password: _password, ...safeUser } = newUser;
-      persistCurrent(safeUser);
+        // Register with Laravel
+        const registerResponse = await axios.post(
+          `${API_BASE_URL}/register`,
+          {
+            name: name,
+            email: trimmedUser, // Using username as email
+            password: password,
+            password_confirmation: password_confirmation || password,
+          },
+          {
+            withCredentials: true,
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          }
+        );
 
-      return { success: true, user: safeUser };
+        // If registration succeeds, extract user data and token
+        const { user: apiUser, token } = registerResponse.data;
+
+        // Store token in localStorage
+        if (token && typeof window !== 'undefined') {
+          window.localStorage.setItem('auth_token', token);
+        }
+
+        // Create AuthUser from API response
+        const newAuthUser: AuthUser = {
+          username: apiUser.email || trimmedUser,
+          role: apiUser.role === 'admin' ? 'admin' : 'user',
+          firstName: firstName || apiUser.name?.split(' ')[0],
+          lastName: lastName || apiUser.name?.split(' ').slice(1).join(' '),
+        };
+
+        // Also store in local users array for compatibility
+        const newStoredUser: StoredUser = {
+          username: trimmedUser,
+          password, // Note: This is only stored locally, not sent to backend
+          role: newAuthUser.role,
+          firstName: newAuthUser.firstName,
+          lastName: newAuthUser.lastName,
+        };
+
+        setUsers((prev) => {
+          const exists = prev.some(
+            (u) => u.username.toLowerCase() === trimmedUser.toLowerCase()
+          );
+          if (exists) {
+            return prev;
+          }
+          return [...prev, newStoredUser];
+        });
+
+        persistCurrent(newAuthUser);
+        return { success: true, user: newAuthUser };
+      } catch (error: any) {
+        console.error('Laravel registration failed:', error);
+        
+        // Handle validation errors
+        if (error.response?.status === 422) {
+          const errors = error.response.data.errors || {};
+          const firstError = Object.values(errors).flat()[0] as string;
+          return { 
+            success: false, 
+            message: firstError || error.response.data.message || 'Validation failed. Please check your input.' 
+          };
+        }
+
+        // Handle other errors
+        if (error.response?.status === 409 || error.response?.status === 400) {
+          return { 
+            success: false, 
+            message: error.response.data.message || 'Registration failed. This email may already be registered.' 
+          };
+        }
+
+        // Network error - backend might not be running
+        if (!error.response) {
+          return { 
+            success: false, 
+            message: 'Unable to connect to server. Please ensure the backend is running.' 
+          };
+        }
+
+        return { 
+          success: false, 
+          message: error.response?.data?.message || 'Registration failed. Please try again.' 
+        };
+      }
     },
     [persistCurrent, users],
   );
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Logout from Laravel backend
+    try {
+      await axios.post(
+        `${API_BASE_URL}/logout`,
+        {},
+        {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+          },
+        }
+      );
+    } catch (error) {
+      // Ignore logout errors - still clear frontend state
+      console.warn('Laravel logout failed, clearing frontend state anyway:', error);
+    }
+    
+    // Clear frontend state
     persistCurrent(null);
   }, [persistCurrent]);
 
