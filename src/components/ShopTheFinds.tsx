@@ -47,8 +47,13 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
         }
 
         // Filter for approved items and map to product format
+        // Support both 'approval_state' field (string: 'approved') and 'approved' field (numeric: 1)
         const approvedProducts: Product[] = items
-          .filter((item: any) => item.approved === 1)
+          .filter((item: any) => {
+            const approvalState = item.approval_state || item.approved;
+            // Support both 'approved' string and 1 (approved) numeric values
+            return approvalState === 'approved' || approvalState === 1 || approvalState === '1';
+          })
           .map((item: any) => {
             // Try multiple possible field names for title
             const itemTitle = item.title || item.name || item.product_name || 'Untitled Item';

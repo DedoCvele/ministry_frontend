@@ -745,7 +745,16 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
             },
             withCredentials: true,
           });
-          console.log('✅ Item verified - exists in database:', verifyResponse.data);
+          const verifiedItem = verifyResponse.data?.data || verifyResponse.data;
+          const approvalState = verifiedItem?.approval_state || verifiedItem?.approved;
+          console.log('✅ Item verified - exists in database:', {
+            id: verifiedItem?.id,
+            title: verifiedItem?.title || verifiedItem?.name,
+            approval_state: approvalState,
+            note: approvalState === 'pending' || approvalState === 0 
+              ? 'Item is pending approval and will not appear on shop page until approved'
+              : 'Item is approved and visible on shop page'
+          });
         } catch (verifyError: any) {
           console.error('❌ ERROR: Could not fetch item back!', {
             status: verifyError?.response?.status,
@@ -1774,7 +1783,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
           `}</style>
           <Check size={20} />
           <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}>
-            Your piece is now live in your Closet!
+            Item saved successfully! It will appear in the shop after admin approval.
           </span>
         </div>
       )}

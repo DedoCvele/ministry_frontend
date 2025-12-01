@@ -156,18 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, message: 'Username is required.' };
       }
 
-      // First, validate against local storage (for UI purposes)
-      const match = users.find(
-        (user) =>
-          user.username.toLowerCase() === trimmedUser.toLowerCase() &&
-          user.password === password,
-      );
-
-      if (!match) {
-        return { success: false, message: 'Invalid username or password.' };
-      }
-
-      // Then, authenticate with Laravel backend
+      // Authenticate with Laravel backend
       try {
         // Get CSRF cookie first (required for Sanctum SPA authentication)
         await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
@@ -193,27 +182,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         );
 
         // If Laravel authentication succeeds, store token and proceed with frontend auth
-        const { token } = loginResponse.data;
+        const responseData = loginResponse.data;
+        const token = responseData?.token || responseData?.access_token;
+        const apiUser = responseData?.user || responseData?.data?.user || responseData;
         
         // Store token in localStorage
         if (token && typeof window !== 'undefined') {
           window.localStorage.setItem('auth_token', token);
         }
 
-        const { password: _password, ...safeUser } = match;
-        persistCurrent(safeUser);
-        return { success: true, user: safeUser };
+        // Create AuthUser from API response (use backend data as source of truth)
+        // Handle different possible field names for role
+        const userRole = apiUser?.role || apiUser?.user_role || 'user';
+        const authUser: AuthUser = {
+          username: apiUser?.email || apiUser?.username || trimmedUser,
+          role: (userRole === 'admin' || userRole === 'Admin' || userRole === 'ADMIN') ? 'admin' : 'user',
+          firstName: apiUser?.name?.split(' ')[0] || apiUser?.first_name || apiUser?.firstName || undefined,
+          lastName: apiUser?.name?.split(' ').slice(1).join(' ') || apiUser?.last_name || apiUser?.lastName || undefined,
+        };
+
+        // Update local storage with the correct user data
+        const existingUserIndex = users.findIndex(
+          (u) => u.username.toLowerCase() === authUser.username.toLowerCase()
+        );
+
+        if (existingUserIndex >= 0) {
+          // Update existing user with correct role
+          const updatedUsers = [...users];
+          updatedUsers[existingUserIndex] = {
+            ...updatedUsers[existingUserIndex],
+            role: authUser.role,
+            firstName: authUser.firstName,
+            lastName: authUser.lastName,
+            password: password, // Keep password for local storage
+          };
+          setUsers(updatedUsers);
+        } else {
+          // Add new user to local storage
+          const newStoredUser: StoredUser = {
+            username: authUser.username,
+            password: password,
+            role: authUser.role,
+            firstName: authUser.firstName,
+            lastName: authUser.lastName,
+          };
+          setUsers((prev) => [...prev, newStoredUser]);
+        }
+
+        persistCurrent(authUser);
+        return { success: true, user: authUser };
       } catch (error: any) {
         console.error('Laravel authentication failed:', error);
         
-        // If Laravel auth fails, still allow frontend login for development
-        // but log a warning
-        console.warn('Laravel authentication failed, using frontend-only auth. API calls may not work.');
-        
         // Check if it's a network error (backend not running) or auth error
         if (!error.response) {
-          // Network error - backend might not be running
-          console.warn('Backend server may not be running. Using frontend-only authentication.');
+          // Network error - backend might not be running, try local storage fallback
+          console.warn('Backend server may not be running. Trying local storage authentication.');
+          
+          const match = users.find(
+            (user) =>
+              user.username.toLowerCase() === trimmedUser.toLowerCase() &&
+              user.password === password,
+          );
+
+          if (!match) {
+            return { success: false, message: 'Invalid username or password.' };
+          }
+
+          const { password: _password, ...safeUser } = match;
+          persistCurrent(safeUser);
+          return { success: true, user: safeUser };
         } else if (error.response?.status === 401 || error.response?.status === 422) {
           // Authentication failed - invalid credentials
           return { 
@@ -222,10 +260,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
         }
         
-        // For other errors, still allow frontend login but warn
-        const { password: _password, ...safeUser } = match;
-        persistCurrent(safeUser);
-        return { success: true, user: safeUser };
+        // For other errors, return failure
+        return { 
+          success: false, 
+          message: error.response?.data?.message || 'Login failed. Please try again.' 
+        };
       }
     },
     [persistCurrent, users],

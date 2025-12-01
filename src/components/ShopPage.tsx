@@ -171,8 +171,28 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           console.log('First item keys:', Object.keys(items[0]));
         }
         
-        // Map API response to Product interface
-        const mappedProducts: Product[] = items.map((item: any) => {
+        // Filter to only show APPROVED items on the shop page
+        // Pending/declined items should not be visible to public
+        const approvedItems = Array.isArray(items) 
+          ? items.filter((item: any) => {
+              const approvalState = item.approval_state || item.approved;
+              // Support both 'approved' string and 1 (approved) numeric values
+              const isApproved = approvalState === 'approved' || approvalState === 1 || approvalState === '1';
+              return isApproved;
+            })
+          : [];
+        
+        console.log('📊 Items filter stats:', {
+          total_items: Array.isArray(items) ? items.length : 0,
+          approved_items: approvedItems.length,
+          pending_items: Array.isArray(items) ? items.filter((item: any) => {
+            const state = item.approval_state || item.approved;
+            return state === 'pending' || state === 0;
+          }).length : 0
+        });
+        
+        // Map API response to Product interface (only approved items)
+        const mappedProducts: Product[] = approvedItems.map((item: any) => {
           const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
           console.log('Mapping item:', {
             id: item.id,
