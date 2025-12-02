@@ -2,16 +2,40 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
 import './styles/ArticleDetail.css';
 
+const API_BASE_URL = 'http://localhost:8000/api';
+const BACKEND_BASE_URL = 'http://localhost:8000';
+
 interface ArticleDetailProps {
   articleId?: number;
   onBack?: () => void;
   language?: Language;
+}
+
+interface Blog {
+  id: number;
+  title: string;
+  category: string;
+  short_summary: string;
+  full_story: string;
+  image_url: string;
+  user_id: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface ContentBlock {
+  type: 'lead' | 'paragraph' | 'heading' | 'quote' | 'tip' | 'image';
+  text?: string;
+  src?: string;
+  caption?: string;
 }
 
 export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en' }: ArticleDetailProps) {
@@ -29,6 +53,146 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
   const t = getTranslation(language);
   const [liked, setLiked] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [blog, setBlog] = useState<Blog | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Helper function to format date
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+  };
+
+  // Helper function to calculate read time
+  const calculateReadTime = (content: string): string => {
+    const wordsPerMinute = 200;
+    const wordCount = content.split(/\s+/).length;
+    const minutes = Math.ceil(wordCount / wordsPerMinute);
+    return `${minutes} min read`;
+  };
+
+  // Helper function to validate and fix URLs
+  const validateAndFixUrl = (url: string | null | undefined): string => {
+    if (!url || url.trim() === '') {
+      return 'https://via.placeholder.com/1200x500?text=No+Image';
+    }
+    
+    const trimmedUrl = url.trim();
+    
+    // If it's already a full URL (http:// or https://), return as is
+    if (trimmedUrl.match(/^https?:\/\//i)) {
+      return trimmedUrl;
+    }
+    
+    // If it starts with storage/ or is a relative path, prepend backend URL
+    if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
+      const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+      return `${BACKEND_BASE_URL}${cleanPath}`;
+    }
+    
+    // If it starts with //, add https:
+    if (trimmedUrl.startsWith('//')) {
+      return `https:${trimmedUrl}`;
+    }
+    
+    // Try to validate as URL
+    try {
+      new URL(trimmedUrl);
+      return trimmedUrl;
+    } catch {
+      // If it doesn't start with http:// or https://, try prepending backend URL first
+      const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+      return `${BACKEND_BASE_URL}${cleanPath}`;
+    }
+  };
+
+  // Helper function to parse full_story into content blocks
+  const parseContent = (fullStory: string): ContentBlock[] => {
+    if (!fullStory) return [];
+    
+    // Split by double newlines to get paragraphs
+    const paragraphs = fullStory.split(/\n\n+/).filter(p => p.trim());
+    
+    const content: ContentBlock[] = [];
+    
+    paragraphs.forEach((para, index) => {
+      const trimmed = para.trim();
+      
+      // Check if it's a heading (starts with # or is short and bold-like)
+      if (trimmed.startsWith('#')) {
+        content.push({
+          type: 'heading',
+          text: trimmed.replace(/^#+\s*/, '')
+        });
+      }
+      // Check if it's a quote (starts with " or ')
+      else if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length < 200) {
+        content.push({
+          type: 'quote',
+          text: trimmed.replace(/^["']|["']$/g, '')
+        });
+      }
+      // Check if it's a tip (contains 💡 or starts with "Tip:")
+      else if (trimmed.includes('💡') || trimmed.toLowerCase().startsWith('tip:')) {
+        content.push({
+          type: 'tip',
+          text: trimmed
+        });
+      }
+      // First paragraph is usually the lead
+      else if (index === 0) {
+        content.push({
+          type: 'lead',
+          text: trimmed
+        });
+      }
+      // Regular paragraph
+      else {
+        content.push({
+          type: 'paragraph',
+          text: trimmed
+        });
+      }
+    });
+    
+    return content;
+  };
+
+  // Fetch blog data from API
+  useEffect(() => {
+    const fetchBlog = async () => {
+      if (!articleId) {
+        setError('Article ID is missing');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await axios.get(`${API_BASE_URL}/blogs/${articleId}`);
+        
+        if (response.data.status === 'success' && response.data.data) {
+          setBlog(response.data.data);
+        } else {
+          setError('Blog not found');
+        }
+      } catch (err: any) {
+        console.error('Error fetching blog:', err);
+        if (err.response?.status === 404) {
+          setError('Blog not found');
+        } else {
+          setError('Failed to load blog. Please try again later.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlog();
+  }, [articleId]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -43,80 +207,18 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Mock article data - in a real app this would be fetched based on articleId
-  const article = {
-    id: articleId,
-    title: 'The New Era of Conscious Luxury',
-    subtitle: 'Why second-hand is the smartest style statement of 2025',
-    author: 'Sofia Laurent',
-    date: 'October 25, 2025',
-    readTime: '5 min read',
-    category: 'Style Stories',
-    heroImage: 'https://images.unsplash.com/photo-1628668003003-85488fe78821?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZmFzaGlvbiUyMGVkaXRvcmlhbHxlbnwxfHx8fDE3NjE1NzE3MTV8MA&ixlib=rb-4.1.0&q=80&w=1080',
-    content: [
-      {
-        type: 'lead',
-        text: 'There was a time when "second-hand" carried a stigma. Today, it\'s the ultimate status symbol — a marker of taste, consciousness, and individuality that new fashion simply cannot replicate.',
-      },
-      {
-        type: 'paragraph',
-        text: 'Walking through the ateliers of Paris, the vintage boutiques of Tokyo, or the curated closets of Instagram, one thing becomes abundantly clear: the future of luxury is circular. What was once old is now gold, and the smartest dressers know it.',
-      },
-      {
-        type: 'heading',
-        text: 'The Shift in Value',
-      },
-      {
-        type: 'paragraph',
-        text: 'For decades, fashion operated on a simple premise: newer was better. Collections changed with the seasons, and last year\'s pieces were forgotten. But something fundamental has changed in how we perceive value.',
-      },
-      {
-        type: 'tip',
-        text: '💡 Styling Tip: Pair muted tones with vintage gold accessories for a timeless 70s look that feels fresh in 2025.',
-      },
-      {
-        type: 'paragraph',
-        text: 'Today\'s luxury consumer is educated, discerning, and increasingly aware of fashion\'s environmental impact. They understand that a vintage Hermès bag carries more cachet than this season\'s mass-produced "it" bag. They know that a perfectly tailored 1980s blazer tells a better story than something fresh off the runway.',
-      },
-      {
-        type: 'quote',
-        text: 'Elegance is not about being noticed, it\'s about being remembered.',
-      },
-      {
-        type: 'heading',
-        text: 'Quality Over Quantity',
-      },
-      {
-        type: 'paragraph',
-        text: 'Second-hand luxury teaches us to be intentional. Each piece in a curated vintage wardrobe has earned its place through timeless design, exceptional craftsmanship, and personal resonance. This is fashion as curation, not consumption.',
-      },
-      {
-        type: 'image',
-        src: 'https://images.unsplash.com/photo-1645550294607-c9955e906ba2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxzdXN0YWluYWJsZSUyMGZhc2hpb24lMjBsaWZlc3R5bGV8ZW58MXx8fHwxNzYxNTc5MDk4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-        caption: 'A thoughtfully curated closet tells a story of style, not trends.',
-      },
-      {
-        type: 'paragraph',
-        text: 'When you buy vintage, you\'re not just purchasing an item — you\'re inheriting a legacy. You\'re choosing pieces that have already proven their worth by surviving decades of changing trends. This is fashion with a past, and therefore, a future.',
-      },
-      {
-        type: 'tip',
-        text: '💡 Shopping Tip: Look for pieces with classic silhouettes and neutral colors — they integrate seamlessly into modern wardrobes.',
-      },
-      {
-        type: 'heading',
-        text: 'The New Status Symbol',
-      },
-      {
-        type: 'paragraph',
-        text: 'In an age of overproduction and overconsumption, restraint is radical. Choosing second-hand is no longer about saving money — it\'s about making a statement. It says you value authenticity over trends, quality over quantity, and consciousness over conformity.',
-      },
-      {
-        type: 'paragraph',
-        text: 'The most stylish people aren\'t those who can afford the latest collection. They\'re the ones who know how to mix a vintage Chanel jacket with contemporary denim, who can spot a treasure in a sea of clothes, who understand that true luxury is timeless.',
-      },
-    ],
-  };
+  // Map blog data to article format
+  const article = blog ? {
+    id: blog.id,
+    title: blog.title,
+    subtitle: blog.short_summary || '',
+    author: 'Ministry Journal',
+    date: formatDate(blog.created_at),
+    readTime: calculateReadTime(blog.full_story || ''),
+    category: blog.category || 'Uncategorized',
+    heroImage: validateAndFixUrl(blog.image_url),
+    content: parseContent(blog.full_story)
+  } : null;
 
   return (
     <div className="article-detail-root">
@@ -158,101 +260,101 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
         />
       </motion.div>
 
-      {/* Article Content */}
+      {/* Article Content - Two Column Layout */}
       <div className="article-container">
-        {/* Header Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="article-header-card"
-        >
-          <span className="article-category">{article.category}</span>
+        <div className="article-content-wrapper">
+          {/* Left Column - Header Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="article-header-card"
+          >
+            <span className="article-category">{article.category}</span>
 
-          <h1 className="article-title">{article.title}</h1>
+            <h1 className="article-title">{article.title}</h1>
 
-          <p className="article-subtitle">{article.subtitle}</p>
+            <p className="article-subtitle">{article.subtitle}</p>
 
-          <div className="article-meta-row">
-            <div className="article-meta">
-              <p className="article-author">By {article.author}</p>
-              <p className="article-date">{article.date} · {article.readTime}</p>
+            <div className="article-meta-row">
+              <div className="article-meta">
+                <p className="article-author">By {article.author}</p>
+                <p className="article-date">{article.date} · {article.readTime}</p>
+              </div>
+
+              <div className="article-actions">
+                <motion.button
+                  onClick={() => setLiked(!liked)}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className={`like-button ${liked ? 'liked' : ''}`}
+                >
+                  <Heart size={18} color="#9F8151" fill={liked ? '#9F8151' : 'none'} />
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="share-button"
+                >
+                  <Share2 size={18} color="#9F8151" />
+                </motion.button>
+              </div>
             </div>
+          </motion.div>
 
-            <div className="article-actions">
-              <motion.button
-                onClick={() => setLiked(!liked)}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className={`like-button ${liked ? 'liked' : ''}`}
-              >
-                <Heart size={18} color="#9F8151" fill={liked ? '#9F8151' : 'none'} />
-              </motion.button>
+          {/* Right Column - Article Body */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="article-body"
+          >
+            {article.content.map((block, index) => {
+              switch (block.type) {
+                case 'lead':
+                  return (
+                    <p key={index} className="lead-paragraph">{block.text}</p>
+                  );
 
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className="share-button"
-              >
-                <Share2 size={18} color="#9F8151" />
-              </motion.button>
-            </div>
-          </div>
-        </motion.div>
+                case 'paragraph':
+                  return (
+                    <p key={index} className="article-paragraph">{block.text}</p>
+                  );
 
-        {/* Article Body */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="article-body"
-        >
-          {article.content.map((block, index) => {
-            switch (block.type) {
-              case 'lead':
-                return (
-                  <p key={index} className="lead-paragraph">{block.text}</p>
-                );
+                case 'heading':
+                  return (
+                    <h2 key={index} className="article-heading">{block.text}</h2>
+                  );
 
-              case 'paragraph':
-                return (
-                  <p key={index} className="article-paragraph">{block.text}</p>
-                );
+                case 'quote':
+                  return (
+                    <div key={index} className="quote-block">
+                      <p className="quote-text">"{block.text}"</p>
+                    </div>
+                  );
 
-              case 'heading':
-                return (
-                  <h2 key={index} className="article-heading">{block.text}</h2>
-                );
+                case 'tip':
+                  return (
+                    <div key={index} className="tip-block">
+                      <p className="tip-text">{block.text}</p>
+                    </div>
+                  );
 
-              case 'quote':
-                return (
-                  <div key={index} className="quote-block">
-                    <p className="quote-text">"{block.text}"</p>
-                  </div>
-                );
+                case 'image':
+                  return (
+                    <div key={index} className="image-block">
+                      <ImageWithFallback src={block.src} alt={block.caption || ''} className="article-image" />
+                      {block.caption && <p className="image-caption">{block.caption}</p>}
+                    </div>
+                  );
 
-              case 'tip':
-                return (
-                  <div key={index} className="tip-block">
-                    <p className="tip-text">{block.text}</p>
-                  </div>
-                );
-
-              case 'image':
-                return (
-                  <div key={index} className="image-block">
-                    <ImageWithFallback src={block.src} alt={block.caption || ''} className="article-image" />
-                    {block.caption && <p className="image-caption">{block.caption}</p>}
-                  </div>
-                );
-
-              default:
-                return null;
-            }
-          })}
-        </motion.div>
-
-
+                default:
+                  return null;
+              }
+            })}
+          </motion.div>
+        </div>
       </div>
 
       <FooterAlt />

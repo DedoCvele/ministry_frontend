@@ -172,22 +172,23 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         }
         
         // Filter to only show APPROVED items on the shop page
-        // Pending/declined items should not be visible to public
+        // Database schema uses 'approved' field (1 = approved, 2 = special status)
         const approvedItems = Array.isArray(items) 
           ? items.filter((item: any) => {
-              const approvalState = item.approval_state || item.approved;
-              // Support both 'approved' string and 1 (approved) numeric values
-              const isApproved = approvalState === 'approved' || approvalState === 1 || approvalState === '1';
+              const approvedStatus = item.approved;
+              // 1 = approved, 2 = special status (both should be visible)
+              const isApproved = approvedStatus === 1 || approvedStatus === '1' || approvedStatus === 2 || approvedStatus === '2';
               return isApproved;
             })
           : [];
         
-        console.log('📊 Items filter stats:', {
+          console.log('📊 Items filter stats:', {
           total_items: Array.isArray(items) ? items.length : 0,
           approved_items: approvedItems.length,
           pending_items: Array.isArray(items) ? items.filter((item: any) => {
-            const state = item.approval_state || item.approved;
-            return state === 'pending' || state === 0;
+            const approvedStatus = item.approved;
+            // Items with approved !== 1 or 2 are considered pending
+            return approvedStatus !== 1 && approvedStatus !== '1' && approvedStatus !== 2 && approvedStatus !== '2';
           }).length : 0
         });
         
@@ -196,19 +197,46 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
           console.log('Mapping item:', {
             id: item.id,
-            title: item.title,
-            approval_state: item.approval_state || 'not set',
-            has_images: !!(item.images && item.images.length > 0)
+            name: item.name,
+            title: item.title, // Legacy field
+            approved: item.approved,
+            has_image: !!(item.image),
+            image_data: item.image
           });
+          
+          // Handle different image formats from backend
+          // Per API docs: response includes 'image_url' (preferred) or 'image' (path)
+          const getImageUrl = (item: any): string => {
+            // Per API docs: Use 'image_url' if available (preferred)
+            if (item?.image_url) {
+              return item.image_url;
+            }
+            
+            // Otherwise use 'image' path and construct URL
+            if (item?.image) {
+              const img = item.image;
+              // If already a full URL
+              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                return img;
+              }
+              // Construct from path
+              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+              if (cleanPath.startsWith('storage/')) {
+                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+              }
+              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+            }
+            
+            return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+          };
+          
           return {
           id: item.id,
-          title: item.title || 'Untitled Item',
+          title: item.title || item.name || 'Untitled Item', // Per API docs: both 'title' and 'name' are available
           price: parseFloat(item.price) || 0,
           seller: item.user?.name || item.user?.email || 'Unknown Seller',
           sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
-          image: item.images && item.images.length > 0 
-            ? `${API_ROOT_FOR_IMAGES}/storage/${item.images[0]}` 
-            : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400',
+          image: getImageUrl(item), // Per API docs: use 'image_url' or construct from 'image'
           tags: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) : [],
           category: item.category?.name || 'Uncategorized',
           brand: item.brand?.name || 'Unknown',
@@ -470,11 +498,11 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                         )}
                       </div>
 
-                      {product.apiData.approval_state && (
+                      {product.apiData.approved && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Approval State:</strong>
-                          <span style={{ color: '#0A4834', backgroundColor: product.apiData.approval_state === 'approved' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
-                            {product.apiData.approval_state}
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Approval Status:</strong>
+                          <span style={{ color: '#0A4834', backgroundColor: (product.apiData.approved === 1 || product.apiData.approved === '1') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
+                            {product.apiData.approved === 1 || product.apiData.approved === '1' ? 'Approved' : product.apiData.approved === 2 || product.apiData.approved === '2' ? 'Special' : 'Pending'}
                           </span>
                         </div>
                       )}
@@ -507,13 +535,15 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                         </div>
                       )}
 
-                      {product.apiData.images && product.apiData.images.length > 1 && (
+                      {product.apiData.image && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>All Images ({product.apiData.images.length}):</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>Image:</strong>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {product.apiData.images.map((img: string, idx: number) => (
-                              <img key={idx} src={`http://127.0.0.1:8000/storage/${img}`} alt={`Image ${idx + 1}`} style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(159,129,81,0.2)' }} />
-                            ))}
+                            <img 
+                              src={product.image} 
+                              alt="Product image" 
+                              style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(159,129,81,0.2)' }} 
+                            />
                           </div>
                         </div>
                       )}

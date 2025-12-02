@@ -536,7 +536,9 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
     const payload = new FormData();
     
     // Required fields for Item model
-    payload.append('title', formData.title.trim());
+    // Database uses 'name' field - send 'name' to match database schema
+    // (Backend API docs say either 'title' or 'name' works, but database has 'name')
+    payload.append('name', formData.title.trim());
     payload.append('description', formData.description.trim());
     payload.append('price', priceValue.toString());
     
@@ -581,8 +583,8 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       payload.append('material', formData.material.trim());
     }
     
-    // Boolean field - convert to string
-    payload.append('auto_expire', formData.autoExpire ? '1' : '0');
+    // Note: auto_expire is not in the database schema, so we don't send it
+    // If you need this feature, add it to the database schema first
 
     // Tags array (only send if there are tags)
     // Backend should handle tags[] array
@@ -594,12 +596,21 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       });
     }
     
-    // Images array (only send if there are images)
-    // Backend should handle images[] array of files
+    // Image uploads - per API docs:
+    // - 'image' (singular) = main/primary image
+    // - 'images[]' (array) = additional images
     if (uploadedImages.length > 0) {
-      uploadedImages.forEach((image) => {
-        payload.append('images[]', image.file);
-      });
+      // Send the first image as the main image
+      payload.append('image', uploadedImages[0].file);
+      console.log('📤 Sending main image:', uploadedImages[0].file.name);
+      
+      // Send remaining images as additional images (if any)
+      if (uploadedImages.length > 1) {
+        for (let i = 1; i < uploadedImages.length; i++) {
+          payload.append('images[]', uploadedImages[i].file);
+          console.log(`📤 Sending additional image ${i}:`, uploadedImages[i].file.name);
+        }
+      }
     }
 
     // Final validation: Ensure category_id is a valid number
@@ -616,7 +627,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
 
     // Debug: Log what we're sending (without files for readability)
     console.log('📤 Sending item data to backend:', {
-      title: formData.title,
+      name: formData.title, // Database uses 'name' field
       description: formData.description.substring(0, 50) + '...',
       price: priceValue,
       brand_id: brandId ? String(brandId) : '(not sending - optional)',
@@ -624,10 +635,20 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       size: formData.size || '(not set)',
       condition: formData.condition || '(not set)',
       material: formData.material || '(not set)',
-      auto_expire: formData.autoExpire,
       tags_count: tagsPayload.length,
-      images_count: uploadedImages.length,
+      main_image: uploadedImages.length > 0 ? uploadedImages[0].file.name : '(no image)',
+      additional_images_count: uploadedImages.length > 1 ? uploadedImages.length - 1 : 0,
     });
+    
+    // Log FormData contents for debugging
+    console.log('📤 FormData contents:');
+    for (const [key, value] of payload.entries()) {
+      if (value instanceof File) {
+        console.log(`  ${key}: [File] ${value.name} (${value.size} bytes, ${value.type})`);
+      } else {
+        console.log(`  ${key}: ${value}`);
+      }
+    }
 
     // FINAL SAFETY CHECK: Verify we're sending an ID, not a name
     // This prevents the backend mass assignment error
@@ -655,11 +676,12 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
 
       // Log what we're sending (for debugging)
       console.log('📤 Preparing to send item data:', {
-        title: formData.title,
+        name: formData.title, // Database uses 'name' field
         price: priceValue,
         brand_id: brandId,
         category_id: categoryId,
-        images_count: uploadedImages.length,
+        main_image: uploadedImages.length > 0 ? 'yes' : 'no',
+        additional_images: uploadedImages.length > 1 ? uploadedImages.length - 1 : 0,
         has_token: !!token,
       });
 
@@ -696,6 +718,25 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Extract the created item from response (handle different response formats)
       // Backend might return: { data: {...} } or just {...} or { item: {...} }
       const createdItem = response.data?.data || response.data?.item || response.data;
+      
+      // CRITICAL: Log image data from response
+      // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
+      console.log('🖼️ IMAGE DEBUG - Checking images in response:');
+      console.log('🖼️ Created item image (path):', createdItem?.image);
+      console.log('🖼️ Created item image_url (full URL):', createdItem?.image_url);
+      console.log('🖼️ Created item images (array):', createdItem?.images);
+      console.log('🖼️ Created item name:', createdItem?.name);
+      console.log('🖼️ Created item title:', createdItem?.title);
+      
+      // Use image_url if available (per API docs), otherwise construct from image path
+      if (createdItem?.image_url) {
+        console.log('✅ Using image_url from response:', createdItem.image_url);
+      } else if (createdItem?.image) {
+        console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${createdItem.image}`);
+      } else {
+        console.warn('⚠️ No image or image_url field in response!');
+        console.warn('⚠️ Created item keys:', Object.keys(createdItem || {}));
+      }
       
       // CRITICAL: Verify the item was actually created by checking for an ID
       if (!createdItem) {
@@ -746,15 +787,37 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
             withCredentials: true,
           });
           const verifiedItem = verifyResponse.data?.data || verifyResponse.data;
-          const approvalState = verifiedItem?.approval_state || verifiedItem?.approved;
+          // Database schema uses 'approved' field (1 = approved, 2 = special status)
+          const approvedStatus = verifiedItem?.approved;
+          const isApproved = approvedStatus === 1 || approvedStatus === '1';
           console.log('✅ Item verified - exists in database:', {
             id: verifiedItem?.id,
-            title: verifiedItem?.title || verifiedItem?.name,
-            approval_state: approvalState,
-            note: approvalState === 'pending' || approvalState === 0 
-              ? 'Item is pending approval and will not appear on shop page until approved'
-              : 'Item is approved and visible on shop page'
+            name: verifiedItem?.name || verifiedItem?.title,
+            approved: approvedStatus,
+            isApproved: isApproved,
+            note: isApproved 
+              ? 'Item is approved and visible on shop page'
+              : 'Item is not approved and will not appear on shop page until approved'
           });
+          
+          // CRITICAL: Log images from verified item
+          // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
+          console.log('🖼️ IMAGE DEBUG - Verified item images:');
+          console.log('🖼️ Verified item image (path):', verifiedItem?.image);
+          console.log('🖼️ Verified item image_url (full URL):', verifiedItem?.image_url);
+          console.log('🖼️ Verified item images (array):', verifiedItem?.images);
+          console.log('🖼️ Verified item name:', verifiedItem?.name);
+          console.log('🖼️ Verified item title:', verifiedItem?.title);
+          
+          if (verifiedItem?.image_url) {
+            console.log('✅ Using image_url from response:', verifiedItem.image_url);
+          } else if (verifiedItem?.image) {
+            console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${verifiedItem.image}`);
+          } else {
+            console.error('❌ Verified item has NO image or image_url field!');
+            console.error('❌ Verified item keys:', Object.keys(verifiedItem || {}));
+            console.error('❌ Full verified item:', JSON.stringify(verifiedItem, null, 2));
+          }
         } catch (verifyError: any) {
           console.error('❌ ERROR: Could not fetch item back!', {
             status: verifyError?.response?.status,
@@ -779,8 +842,9 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 ? allItemsResponse.data.data
                 : [];
             
-            // Try to find the item by title/name
-            const searchTitle = createdItem.title || createdItem.name || formData.title;
+            // Try to find the item by name/title
+            // Database schema uses 'name' field
+            const searchTitle = createdItem.name || createdItem.title || formData.title;
             const foundItem = allItems.find((item: any) => 
               (item.title === searchTitle || item.name === searchTitle) &&
               (item.description === createdItem.description || item.description === formData.description)
@@ -789,8 +853,8 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
             if (foundItem) {
               console.log('✅ Found item in all items list!', {
                 foundId: foundItem.id,
-                title: foundItem.title || foundItem.name,
-                approval_state: foundItem.approval_state
+                name: foundItem.name || foundItem.title,
+                approved: foundItem.approved
               });
               console.warn('⚠️ Backend returned item but with different ID or structure. Item exists with ID:', foundItem.id);
             } else {
@@ -802,18 +866,18 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               // Log all item titles/names for debugging
               console.error('❌ Current items in database:', allItems.map((item: any) => ({
                 id: item.id,
-                title: item.title || item.name,
+                name: item.name || item.title,
                 user_id: item.user_id || item.user?.id,
-                approval_state: item.approval_state
+                approved: item.approved
               })));
               
               // Log the created item structure for comparison
               console.error('❌ Created item structure:', {
                 id: createdItem.id || createdItem.item_id,
-                title: createdItem.title || createdItem.name,
-                name: createdItem.name,
+                name: createdItem.name || createdItem.title,
+                title: createdItem.title,
                 description: createdItem.description,
-                approval_state: createdItem.approval_state,
+                approved: createdItem.approved,
                 user_id: createdItem.user_id || createdItem.user?.id,
                 all_keys: Object.keys(createdItem)
               });
@@ -918,13 +982,23 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Handle validation errors
       if (status === 422) {
         console.error('❌ Validation error');
+        console.error('❌ Full error response:', error?.response?.data);
         const validationErrors = error?.response?.data?.errors;
+        console.error('❌ Validation errors object:', validationErrors);
+        
         if (validationErrors) {
+          // Log each validation error in detail
+          Object.entries(validationErrors).forEach(([field, messages]: [string, any]) => {
+            console.error(`❌ Field "${field}":`, messages);
+          });
+          
           const errorMessages = Object.entries(validationErrors)
             .map(([field, messages]: [string, any]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
             .join('\n');
-          setSubmitError(`Validation errors:\n${errorMessages}`);
+          setSubmitError(`Validation errors:\n${errorMessages}\n\nPlease check the browser console for more details.`);
         } else {
+          console.error('❌ No validation errors object found in response');
+          console.error('❌ Response data:', error?.response?.data);
           setSubmitError(error?.response?.data?.message || 'Please check your input and try again.');
         }
         return;
@@ -933,10 +1007,28 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Handle server errors (500, 502, 503, etc.)
       if (status >= 500) {
         console.error('❌ Server error');
+        const errorData = error?.response?.data;
+        const errorMessage = errorData?.message || error?.message || 'Unknown server error';
+        const sqlError = errorData?.error || '';
+        
+        console.error('❌ Full error response:', errorData);
+        console.error('❌ SQL Error (if any):', sqlError);
+        
+        // Check if it's a database schema error
+        if (sqlError && sqlError.includes('table items')) {
+          console.error('❌ DATABASE SCHEMA ERROR DETECTED!');
+          console.error('❌ This usually means a column mismatch between what we send and what the database expects.');
+          console.error('❌ Check: Are we sending fields that don\'t exist in the database?');
+        }
+        
         setSubmitError(
-          `Server error (${status}): The server encountered an error while processing your request.\n` +
-          'Please try again later or contact support if the problem persists.\n\n' +
-          'Details: ' + (error?.response?.data?.message || error?.message || 'Unknown server error')
+          `Server error (${status}): The server encountered an error while processing your request.\n\n` +
+          `Error: ${errorMessage}\n\n` +
+          (sqlError ? `SQL Error: ${sqlError.substring(0, 200)}...\n\n` : '') +
+          'This is likely a backend database schema issue. Please check:\n' +
+          '1. Backend Laravel logs for full error details\n' +
+          '2. Database schema matches what the backend expects\n' +
+          '3. All required fields are being sent correctly'
         );
         return;
       }

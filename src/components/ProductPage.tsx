@@ -77,6 +77,23 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         console.log('Product title:', response.data.title);
         console.log('Product name:', response.data.name);
         
+        // CRITICAL: Log image data
+        // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
+        console.log('🖼️ PRODUCT PAGE - Image Debug:');
+        console.log('🖼️ Product image (path):', response.data.image);
+        console.log('🖼️ Product image_url (full URL):', response.data.image_url);
+        console.log('🖼️ Product images (array):', response.data.images);
+        console.log('🖼️ Product name:', response.data.name);
+        console.log('🖼️ Product title:', response.data.title);
+        
+        if (response.data.image_url) {
+          console.log('✅ Using image_url from response:', response.data.image_url);
+        } else if (response.data.image) {
+          console.log('⚠️ No image_url, constructing from image path:', `http://127.0.0.1:8000/storage/${response.data.image}`);
+        } else {
+          console.warn('⚠️ Product has NO image or image_url field!');
+        }
+        
         setProduct(response.data);
       } catch (err: any) {
         console.error('Error fetching product:', err);
@@ -93,11 +110,55 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   }, [productId]);
 
   // Map API product data to display format
-  const productImages = product?.images && product.images.length > 0
-    ? product.images.map((img: string) => `http://127.0.0.1:8000/storage/${img}`)
-    : ['https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400'];
+  // Per API docs: response includes 'image_url' (preferred) or 'image' (path), plus 'images' array
+  const getImageUrl = (img: any): string => {
+    if (!img) {
+      return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+    }
+    
+    // If image is already a full URL, return as is
+    if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+      return img;
+    }
+    
+    // If image is an object with url or path property (from images array)
+    if (typeof img === 'object' && img !== null) {
+      const url = img.url || img.image_url || img.path || img.image || img.src;
+      if (url) {
+        if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+          return url;
+        }
+        const cleanPath = url.startsWith('/') ? url.substring(1) : url;
+        if (cleanPath.startsWith('storage/')) {
+          return `http://127.0.0.1:8000/${cleanPath}`;
+        }
+        return `http://127.0.0.1:8000/storage/${cleanPath}`;
+      }
+    }
+    
+    // If image is a string (path), construct URL
+    if (typeof img === 'string') {
+      const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+      if (cleanPath.startsWith('storage/')) {
+        return `http://127.0.0.1:8000/${cleanPath}`;
+      }
+      return `http://127.0.0.1:8000/storage/${cleanPath}`;
+    }
+    
+    return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+  };
+  
+  // Per API docs: Use 'image_url' if available (preferred), otherwise construct from 'image' path
+  // Also include additional images from 'images' array
+  const mainImageUrl = product?.image_url || getImageUrl(product?.image);
+  const additionalImages = product?.images && Array.isArray(product.images) 
+    ? product.images.map((img: any) => img.url || getImageUrl(img.path || img))
+    : [];
+  
+  // Combine main image with additional images
+  const productImages = [mainImageUrl, ...additionalImages].filter(Boolean);
 
-  // Try multiple possible field names for title
+  // Per API docs: response includes both 'name' and 'title' fields
   const productTitle = product?.title || product?.name || product?.product_name || 'Loading...';
   const productPrice = product?.price ? `€${parseFloat(product.price).toFixed(2)}` : '€0';
   const productBrand = product?.brand?.name || 'Unknown Brand';

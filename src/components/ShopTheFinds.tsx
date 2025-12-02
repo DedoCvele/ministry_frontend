@@ -47,15 +47,15 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
         }
 
         // Filter for approved items and map to product format
-        // Support both 'approval_state' field (string: 'approved') and 'approved' field (numeric: 1)
+        // Database schema uses 'approved' field (1 = approved, 2 = special status)
         const approvedProducts: Product[] = items
           .filter((item: any) => {
-            const approvalState = item.approval_state || item.approved;
-            // Support both 'approved' string and 1 (approved) numeric values
-            return approvalState === 'approved' || approvalState === 1 || approvalState === '1';
+            const approvedStatus = item.approved;
+            // 1 = approved, 2 = special status (both should be visible)
+            return approvedStatus === 1 || approvedStatus === '1' || approvedStatus === 2 || approvedStatus === '2';
           })
           .map((item: any) => {
-            // Try multiple possible field names for title
+            // Per API docs: response includes both 'title' and 'name' fields
             const itemTitle = item.title || item.name || item.product_name || 'Untitled Item';
             
             // Format price with euro symbol
@@ -65,10 +65,33 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
               maximumFractionDigits: 0,
             });
 
-            // Get image URL
-            const imageUrl = item.images && item.images.length > 0
-              ? `http://127.0.0.1:8000/storage/${item.images[0]}`
-              : 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+            // Get image URL - handle different formats from backend
+            // Per API docs: response includes 'image_url' (preferred) or 'image' (path)
+            const getImageUrl = (item: any): string => {
+              // Per API docs: Use 'image_url' if available (preferred)
+              if (item?.image_url) {
+                return item.image_url;
+              }
+              
+              // Otherwise use 'image' path and construct URL
+              if (item?.image) {
+                const img = item.image;
+                // If already a full URL
+                if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                  return img;
+                }
+                // Construct from path
+                const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+                if (cleanPath.startsWith('storage/')) {
+                  return `http://127.0.0.1:8000/${cleanPath}`;
+                }
+                return `http://127.0.0.1:8000/storage/${cleanPath}`;
+              }
+              
+              return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+            };
+            
+            const imageUrl = getImageUrl(item);
 
             // Get seller name
             const sellerName = item.user?.name || item.user?.email || 'Unknown Seller';
