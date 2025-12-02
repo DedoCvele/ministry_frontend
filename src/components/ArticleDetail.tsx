@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ArrowLeft, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -23,7 +23,7 @@ interface Blog {
   title: string;
   category: string;
   short_summary: string;
-  full_story: string;
+  content: string;
   image_url: string;
   user_id: number;
   status: string;
@@ -39,9 +39,9 @@ interface ContentBlock {
 }
 
 export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en' }: ArticleDetailProps) {
-  const { articleId: paramArticleId } = useParams<{ articleId: string }>();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const articleId = propArticleId || (paramArticleId ? parseInt(paramArticleId, 10) : 1);
+  const articleId = propArticleId || (id ? parseInt(id, 10) : undefined);
   
   const handleBack = () => {
     if (onBack) {
@@ -108,31 +108,62 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
     }
   };
 
-  // Helper function to parse full_story into content blocks
+  // Helper function to parse content into content blocks
   const parseContent = (fullStory: string): ContentBlock[] => {
-    if (!fullStory) return [];
+    if (!fullStory || typeof fullStory !== 'string' || fullStory.trim() === '') {
+      return [];
+    }
     
-    // Split by double newlines to get paragraphs
-    const paragraphs = fullStory.split(/\n\n+/).filter(p => p.trim());
+    const trimmedStory = fullStory.trim();
+    
+    // First, try to split by double newlines
+    let paragraphs = trimmedStory.split(/\n\n+/).filter(p => p.trim());
+    
+    // If that doesn't work, try single newlines
+    if (paragraphs.length === 0 || (paragraphs.length === 1 && paragraphs[0].length > 500)) {
+      paragraphs = trimmedStory.split(/\n+/).filter(p => p.trim());
+    }
+    
+    // If still no paragraphs, treat the whole thing as one paragraph
+    if (paragraphs.length === 0) {
+      paragraphs = [trimmedStory];
+    }
     
     const content: ContentBlock[] = [];
     
     paragraphs.forEach((para, index) => {
       const trimmed = para.trim();
       
-      // Check if it's a heading (starts with # or is short and bold-like)
+      if (!trimmed || trimmed.length === 0) return; // Skip empty paragraphs
+      
+      // Check if it's a heading (starts with #)
       if (trimmed.startsWith('#')) {
-        content.push({
-          type: 'heading',
-          text: trimmed.replace(/^#+\s*/, '')
-        });
+        const headingText = trimmed.replace(/^#+\s*/, '').trim();
+        if (headingText) {
+          content.push({
+            type: 'heading',
+            text: headingText
+          });
+        }
       }
-      // Check if it's a quote (starts with " or ')
-      else if (trimmed.startsWith('"') && trimmed.endsWith('"') && trimmed.length < 200) {
-        content.push({
-          type: 'quote',
-          text: trimmed.replace(/^["']|["']$/g, '')
-        });
+      // Check if it's a quote (starts and ends with quotes, and is relatively short)
+      else if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || 
+               (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        if (trimmed.length < 300) {
+          const quoteText = trimmed.replace(/^["']|["']$/g, '').trim();
+          if (quoteText) {
+            content.push({
+              type: 'quote',
+              text: quoteText
+            });
+          }
+        } else {
+          // Long quoted text, treat as paragraph
+          content.push({
+            type: index === 0 ? 'lead' : 'paragraph',
+            text: trimmed
+          });
+        }
       }
       // Check if it's a tip (contains 💡 or starts with "Tip:")
       else if (trimmed.includes('💡') || trimmed.toLowerCase().startsWith('tip:')) {
@@ -141,8 +172,8 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
           text: trimmed
         });
       }
-      // First paragraph is usually the lead
-      else if (index === 0) {
+      // First paragraph is usually the lead (if it's substantial)
+      else if (index === 0 && trimmed.length > 50) {
         content.push({
           type: 'lead',
           text: trimmed
@@ -160,7 +191,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
     return content;
   };
 
-  // Fetch blog data from API
+  // Fetch blog data from API when page opens
   useEffect(() => {
     const fetchBlog = async () => {
       if (!articleId) {
@@ -175,7 +206,12 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
         const response = await axios.get(`${API_BASE_URL}/blogs/${articleId}`);
         
         if (response.data.status === 'success' && response.data.data) {
-          setBlog(response.data.data);
+          const blogData = response.data.data;
+          // Debug: Check if content exists
+          if (!blogData.content || blogData.content.trim() === '') {
+            console.warn('Blog fetched but content is empty:', blogData);
+          }
+          setBlog(blogData);
         } else {
           setError('Blog not found');
         }
@@ -203,22 +239,33 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
       setScrollProgress(progress);
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Map blog data to article format
-  const article = blog ? {
-    id: blog.id,
-    title: blog.title,
-    subtitle: blog.short_summary || '',
-    author: 'Ministry Journal',
-    date: formatDate(blog.created_at),
-    readTime: calculateReadTime(blog.full_story || ''),
-    category: blog.category || 'Uncategorized',
-    heroImage: validateAndFixUrl(blog.image_url),
-    content: parseContent(blog.full_story)
-  } : null;
+  // Memoize parsed content to prevent re-parsing on every render
+  const parsedContent = useMemo(() => {
+    if (!blog || !blog.content) return [];
+    const content = parseContent(blog.content);
+    return content;
+  }, [blog?.id, blog?.content]);
+
+  // Map blog data to article format - memoized to prevent re-renders
+  const article = useMemo(() => {
+    if (!blog) return null;
+    
+    return {
+      id: blog.id,
+      title: blog.title,
+      subtitle: blog.short_summary || '',
+      author: 'Ministry Journal',
+      date: formatDate(blog.created_at),
+      readTime: calculateReadTime(blog.content || ''),
+      category: blog.category || 'Uncategorized',
+      heroImage: validateAndFixUrl(blog.image_url),
+      content: parsedContent
+    };
+  }, [blog, parsedContent]);
 
   // Loading state
   if (loading) {
@@ -355,53 +402,93 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
             transition={{ duration: 0.6, delay: 0.4 }}
             className="article-body"
           >
-            {article.content.length > 0 ? (
-              article.content.map((block, index) => {
-                switch (block.type) {
-                  case 'lead':
-                    return (
-                      <p key={index} className="lead-paragraph">{block.text}</p>
-                    );
+            {(() => {
+              // First, check if we have blog data with content
+              if (!blog || !blog.content) {
+                return <p className="article-paragraph">No content available.</p>;
+              }
 
-                  case 'paragraph':
-                    return (
-                      <p key={index} className="article-paragraph">{block.text}</p>
-                    );
+              // Try to use parsed content first
+              if (article && article.content && article.content.length > 0) {
+                return article.content.map((block, index) => {
+                  if (!block || (!block.text && !block.src)) return null;
+                  
+                  switch (block.type) {
+                    case 'lead':
+                      return block.text ? (
+                        <p key={`lead-${index}`} className="lead-paragraph">{block.text}</p>
+                      ) : null;
 
-                  case 'heading':
-                    return (
-                      <h2 key={index} className="article-heading">{block.text}</h2>
-                    );
+                    case 'paragraph':
+                      return block.text ? (
+                        <p key={`para-${index}`} className="article-paragraph">{block.text}</p>
+                      ) : null;
 
-                  case 'quote':
-                    return (
-                      <div key={index} className="quote-block">
-                        <p className="quote-text">"{block.text}"</p>
-                      </div>
-                    );
+                    case 'heading':
+                      return block.text ? (
+                        <h2 key={`heading-${index}`} className="article-heading">{block.text}</h2>
+                      ) : null;
 
-                  case 'tip':
-                    return (
-                      <div key={index} className="tip-block">
-                        <p className="tip-text">{block.text}</p>
-                      </div>
-                    );
+                    case 'quote':
+                      return block.text ? (
+                        <div key={`quote-${index}`} className="quote-block">
+                          <p className="quote-text">"{block.text}"</p>
+                        </div>
+                      ) : null;
 
-                  case 'image':
-                    return (
-                      <div key={index} className="image-block">
-                        <ImageWithFallback src={block.src || ''} alt={block.caption || ''} className="article-image" />
-                        {block.caption && <p className="image-caption">{block.caption}</p>}
-                      </div>
-                    );
+                    case 'tip':
+                      return block.text ? (
+                        <div key={`tip-${index}`} className="tip-block">
+                          <p className="tip-text">{block.text}</p>
+                        </div>
+                      ) : null;
 
-                  default:
-                    return null;
+                    case 'image':
+                      return block.src ? (
+                        <div key={`image-${index}`} className="image-block">
+                          <ImageWithFallback src={block.src} alt={block.caption || ''} className="article-image" />
+                          {block.caption && <p className="image-caption">{block.caption}</p>}
+                        </div>
+                      ) : null;
+
+                    default:
+                      return block.text ? (
+                        <p key={`unknown-${index}`} className="article-paragraph">{block.text}</p>
+                      ) : null;
+                  }
+                }).filter(Boolean);
+              }
+              
+              // Fallback: display raw content as paragraphs
+              const fullStory = blog.content.trim();
+              if (fullStory) {
+                const paragraphs = fullStory.split(/\n\n+/).filter(p => p.trim());
+                if (paragraphs.length === 0) {
+                  // If no double newlines, try single newlines
+                  const singleLineParas = fullStory.split(/\n+/).filter(p => p.trim());
+                  if (singleLineParas.length > 0) {
+                    return singleLineParas.map((para, index) => (
+                      <p key={`fallback-${index}`} className={index === 0 ? 'lead-paragraph' : 'article-paragraph'}>
+                        {para.trim()}
+                      </p>
+                    ));
+                  }
+                  // If still no paragraphs, treat entire content as one paragraph
+                  return (
+                    <p key="fallback-single" className="lead-paragraph">
+                      {fullStory}
+                    </p>
+                  );
                 }
-              })
-            ) : (
-              <p className="article-paragraph">No content available.</p>
-            )}
+                return paragraphs.map((para, index) => (
+                  <p key={`fallback-${index}`} className={index === 0 ? 'lead-paragraph' : 'article-paragraph'}>
+                    {para.trim()}
+                  </p>
+                ));
+              }
+              
+              return <p className="article-paragraph">No content available.</p>;
+            })()}
           </motion.div>
         </div>
       </div>

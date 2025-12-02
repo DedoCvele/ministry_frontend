@@ -66,7 +66,7 @@ export const router = createBrowserRouter([
             element: <JournalHomepage language="en" />,
           },
           {
-            path: ':articleId',
+            path: ':id',
             element: <ArticleDetail language="en" />,
           },
         ],
