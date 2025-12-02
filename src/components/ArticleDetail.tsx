@@ -220,6 +220,49 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
     content: parseContent(blog.full_story)
   } : null;
 
+  // Loading state
+  if (loading) {
+    return (
+      <div className="article-detail-root">
+        <HeaderAlt />
+        <div className="article-container" style={{ paddingTop: '200px', textAlign: 'center' }}>
+          <p style={{ fontSize: '18px', color: '#9F8151' }}>Loading article...</p>
+        </div>
+        <FooterAlt />
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !article) {
+    return (
+      <div className="article-detail-root">
+        <HeaderAlt />
+        <div className="article-container" style={{ paddingTop: '200px', textAlign: 'center' }}>
+          <p style={{ fontSize: '18px', color: '#9F8151', marginBottom: '16px' }}>{error || 'Article not found'}</p>
+          <motion.button
+            onClick={handleBack}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#9F8151',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontFamily: 'Manrope, sans-serif'
+            }}
+          >
+            Back to Blog
+          </motion.button>
+        </div>
+        <FooterAlt />
+      </div>
+    );
+  }
+
   return (
     <div className="article-detail-root">
       {/* Header */}
@@ -274,7 +317,9 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
 
             <h1 className="article-title">{article.title}</h1>
 
-            <p className="article-subtitle">{article.subtitle}</p>
+            {article.subtitle && (
+              <p className="article-subtitle">{article.subtitle}</p>
+            )}
 
             <div className="article-meta-row">
               <div className="article-meta">
@@ -310,49 +355,53 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
             transition={{ duration: 0.6, delay: 0.4 }}
             className="article-body"
           >
-            {article.content.map((block, index) => {
-              switch (block.type) {
-                case 'lead':
-                  return (
-                    <p key={index} className="lead-paragraph">{block.text}</p>
-                  );
+            {article.content.length > 0 ? (
+              article.content.map((block, index) => {
+                switch (block.type) {
+                  case 'lead':
+                    return (
+                      <p key={index} className="lead-paragraph">{block.text}</p>
+                    );
 
-                case 'paragraph':
-                  return (
-                    <p key={index} className="article-paragraph">{block.text}</p>
-                  );
+                  case 'paragraph':
+                    return (
+                      <p key={index} className="article-paragraph">{block.text}</p>
+                    );
 
-                case 'heading':
-                  return (
-                    <h2 key={index} className="article-heading">{block.text}</h2>
-                  );
+                  case 'heading':
+                    return (
+                      <h2 key={index} className="article-heading">{block.text}</h2>
+                    );
 
-                case 'quote':
-                  return (
-                    <div key={index} className="quote-block">
-                      <p className="quote-text">"{block.text}"</p>
-                    </div>
-                  );
+                  case 'quote':
+                    return (
+                      <div key={index} className="quote-block">
+                        <p className="quote-text">"{block.text}"</p>
+                      </div>
+                    );
 
-                case 'tip':
-                  return (
-                    <div key={index} className="tip-block">
-                      <p className="tip-text">{block.text}</p>
-                    </div>
-                  );
+                  case 'tip':
+                    return (
+                      <div key={index} className="tip-block">
+                        <p className="tip-text">{block.text}</p>
+                      </div>
+                    );
 
-                case 'image':
-                  return (
-                    <div key={index} className="image-block">
-                      <ImageWithFallback src={block.src} alt={block.caption || ''} className="article-image" />
-                      {block.caption && <p className="image-caption">{block.caption}</p>}
-                    </div>
-                  );
+                  case 'image':
+                    return (
+                      <div key={index} className="image-block">
+                        <ImageWithFallback src={block.src || ''} alt={block.caption || ''} className="article-image" />
+                        {block.caption && <p className="image-caption">{block.caption}</p>}
+                      </div>
+                    );
 
-                default:
-                  return null;
-              }
-            })}
+                  default:
+                    return null;
+                }
+              })
+            ) : (
+              <p className="article-paragraph">No content available.</p>
+            )}
           </motion.div>
         </div>
       </div>
