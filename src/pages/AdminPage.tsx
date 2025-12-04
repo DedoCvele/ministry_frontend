@@ -89,6 +89,31 @@ interface Blog {
 const API_BASE_URL = 'http://localhost:8000/api';
 const BACKEND_BASE_URL = 'http://localhost:8000';
 
+// Helper function to get auth token from localStorage
+const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return window.localStorage.getItem('auth_token');
+};
+
+// Helper function to get axios config with authentication
+const getAuthConfig = () => {
+  const token = getAuthToken();
+  const config: any = {
+    withCredentials: true,
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+  };
+  
+  // Add Bearer token if available
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return config;
+};
+
 // Helper function to normalize image URLs
 const normalizeImageUrl = (url: string | null | undefined): string => {
   if (!url || url.trim() === '') {
@@ -120,9 +145,11 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
 
 export function AdminPage() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'approve' | 'add-blog' | 'manage-blogs'>('approve');
+  const [activeTab, setActiveTab] = useState<'approve' | 'approved-menu' | 'add-blog' | 'manage-blogs'>('approve');
   const [query, setQuery] = useState('');
-  const [items, setItems] = useState(APPROVAL_QUEUE);
+  const [items, setItems] = useState<ApprovalItem[]>([]);
+  const [approvedItems, setApprovedItems] = useState<ApprovalItem[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [blogForm, setBlogForm] = useState({
     title: '',
     category: DEFAULT_BLOG_CATEGORIES[0] ?? '',
@@ -158,6 +185,190 @@ export function AdminPage() {
       fetchBlogs();
     }
   }, [activeTab]);
+
+  // Fetch pending items (approved = 1) for Approve Items tab
+  useEffect(() => {
+    if (activeTab === 'approve') {
+      fetchPendingItems();
+    }
+  }, [activeTab]);
+
+  // Fetch approved items (approved = 2) for Approved Menu tab
+  useEffect(() => {
+    if (activeTab === 'approved-menu') {
+      fetchApprovedItems();
+    }
+  }, [activeTab]);
+
+  const fetchPendingItems = async () => {
+    try {
+      setLoadingItems(true);
+      
+      // Get CSRF cookie first
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      const response = await axios.get(`${API_BASE_URL}/items`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+          ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
+        },
+      });
+      
+      // Filter items with approved = 1 (pending approval)
+      // NOTE: Only items that were explicitly set to approved = 1 by admin action should appear
+      // Items with approved = 0, null, or undefined are not in the approval queue
+      const pendingItems = Array.isArray(response.data) 
+        ? response.data.filter((item: any) => {
+            const approvedStatus = item.approved;
+            // Only show items with exactly approved = 1 (not 0, null, undefined, or 2)
+            return approvedStatus === 1 || approvedStatus === '1';
+          })
+        : [];
+      
+      // Map to ApprovalItem format
+      const mappedItems: ApprovalItem[] = pendingItems.map((item: any) => {
+        const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+        
+        const getImageUrl = (item: any): string => {
+          if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
+            const mainImage = item.images[0];
+            if (mainImage?.url) return mainImage.url;
+            if (mainImage?.path) {
+              const img = mainImage.path;
+              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                return img;
+              }
+              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+              if (cleanPath.startsWith('storage/')) {
+                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+              }
+              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+            }
+          }
+          if (item?.image_url) return item.image_url;
+          if (item?.image) {
+            const img = item.image;
+            if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+              return img;
+            }
+            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+            if (cleanPath.startsWith('storage/')) {
+              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+            }
+            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+          }
+          return '';
+        };
+        
+        return {
+          id: String(item.id),
+          title: item.title || item.name || 'Untitled Item',
+          seller: item.user?.name || item.user?.email || 'Unknown Seller',
+          category: item.category?.name || 'Uncategorized',
+          price: parseFloat(item.price) || 0,
+          submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
+          image: getImageUrl(item),
+        };
+      });
+      
+      setItems(mappedItems);
+    } catch (error) {
+      console.error('Error fetching pending items:', error);
+      toast.error('Failed to load pending items', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoadingItems(false);
+    }
+  };
+
+  const fetchApprovedItems = async () => {
+    try {
+      setLoadingItems(true);
+      const response = await axios.get(`${API_BASE_URL}/items`, {
+        withCredentials: true,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      // Filter items with approved = 2 (approved)
+      const approved = Array.isArray(response.data) 
+        ? response.data.filter((item: any) => {
+            const approvedStatus = item.approved;
+            return approvedStatus === 2 || approvedStatus === '2';
+          })
+        : [];
+      
+      // Map to ApprovalItem format
+      const mappedItems: ApprovalItem[] = approved.map((item: any) => {
+        const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+        
+        const getImageUrl = (item: any): string => {
+          if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
+            const mainImage = item.images[0];
+            if (mainImage?.url) return mainImage.url;
+            if (mainImage?.path) {
+              const img = mainImage.path;
+              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                return img;
+              }
+              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+              if (cleanPath.startsWith('storage/')) {
+                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+              }
+              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+            }
+          }
+          if (item?.image_url) return item.image_url;
+          if (item?.image) {
+            const img = item.image;
+            if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+              return img;
+            }
+            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+            if (cleanPath.startsWith('storage/')) {
+              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+            }
+            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+          }
+          return '';
+        };
+        
+        return {
+          id: String(item.id),
+          title: item.title || item.name || 'Untitled Item',
+          seller: item.user?.name || item.user?.email || 'Unknown Seller',
+          category: item.category?.name || 'Uncategorized',
+          price: parseFloat(item.price) || 0,
+          submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
+          image: getImageUrl(item),
+        };
+      });
+      
+      setApprovedItems(mappedItems);
+    } catch (error) {
+      console.error('Error fetching approved items:', error);
+      toast.error('Failed to load approved items', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoadingItems(false);
+    }
+  };
 
   // Load draft from localStorage on component mount
   useEffect(() => {
@@ -237,21 +448,112 @@ export function AdminPage() {
     );
   }, [blogs, blogQuery]);
 
-  const handleDecision = (id: string, decision: 'approved' | 'rejected') => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-    toast.success(
-      decision === 'approved'
-        ? 'Item approved and published ✅'
-        : 'Item rejected and seller notified ❌',
-      {
+  const handleDecision = async (id: string, decision: 'approved' | 'rejected') => {
+    try {
+      // Get CSRF cookie first
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      if (decision === 'approved') {
+        // Set approved = 2 (approved)
+        await axios.put(
+          `${API_BASE_URL}/items/${id}`,
+          { approved: 2 },
+          getAuthConfig()
+        );
+        
+        // Remove from pending items and add to approved items
+        const item = items.find((i) => i.id === id);
+        if (item) {
+          setItems((prev) => prev.filter((item) => item.id !== id));
+          setApprovedItems((prev) => [...prev, item]);
+        }
+        
+        toast.success('Item approved and moved to Approved Menu ✅', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+      } else {
+        // Reject: set approved = 0 to remove from approval queue
+        // Based on requirements: "it will stay as 1 and will be moved out of the approve item tab"
+        // But to prevent it from showing again, we'll set it to 0
+        await axios.put(
+          `${API_BASE_URL}/items/${id}`,
+          { approved: 0 },
+          getAuthConfig()
+        );
+        
+        // Remove from the list
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        
+        toast.success('Item rejected and removed from queue ❌', {
+          style: {
+            background: '#FFFFFF',
+            color: '#0A4834',
+            border: '1px solid #9F8151',
+            fontFamily: 'Manrope, sans-serif',
+          },
+        });
+      }
+    } catch (error: any) {
+      console.error('Error updating item approval:', error);
+      toast.error('Failed to update item approval status', {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
           border: '1px solid #9F8151',
           fontFamily: 'Manrope, sans-serif',
         },
-      },
-    );
+      });
+    }
+  };
+
+  const handleRejectApproved = async (id: string) => {
+    try {
+      // Get CSRF cookie first
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      // Reset approved from 2 to 1 (move back to approval queue)
+      await axios.put(
+        `${API_BASE_URL}/items/${id}`,
+        { approved: 1 },
+        getAuthConfig()
+      );
+      
+      // Remove from approved items
+      setApprovedItems((prev) => prev.filter((item) => item.id !== id));
+      
+      toast.success('Item rejected and moved back to pending queue', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      
+      // Refresh pending items if on that tab
+      if (activeTab === 'approve') {
+        fetchPendingItems();
+      }
+    } catch (error: any) {
+      console.error('Error rejecting approved item:', error);
+      toast.error('Failed to reject item', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    }
   };
 
   const saveDraftToLocalStorage = () => {
@@ -905,6 +1207,15 @@ export function AdminPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => setActiveTab('approved-menu')}
+                className={`admin-tab-button ${activeTab === 'approved-menu' ? 'is-active' : ''}`}
+              >
+                <Check />
+                Approved Menu
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setActiveTab('add-blog');
                   handleCancelEdit();
@@ -949,7 +1260,12 @@ export function AdminPage() {
                     </div>
                   </div>
 
-                  {filteredItems.length > 0 ? (
+                  {loadingItems ? (
+                    <div className="admin-empty-state">
+                      <Loader2 size={40} className="animate-spin" />
+                      <strong>Loading items...</strong>
+                    </div>
+                  ) : filteredItems.length > 0 ? (
                     <div className="admin-queue">
                       {filteredItems.map((item) => (
                         <div key={item.id} className="admin-queue-card">
@@ -997,6 +1313,86 @@ export function AdminPage() {
                       <ShieldCheck size={40} />
                       <strong>All caught up.</strong>
                       <span>There are no pending items to review right now.</span>
+                    </div>
+                  )}
+                </>
+              ) : activeTab === 'approved-menu' ? (
+                <>
+                  <div className="admin-content-header">
+                    <h3>Approved Items</h3>
+                    <div className="admin-search">
+                      <Search />
+                      <input
+                        type="text"
+                        placeholder="Filter by name, seller, or category"
+                        value={query}
+                        onChange={(event) => setQuery(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {loadingItems ? (
+                    <div className="admin-empty-state">
+                      <Loader2 size={40} className="animate-spin" />
+                      <strong>Loading items...</strong>
+                    </div>
+                  ) : approvedItems.filter((item) => {
+                    if (!query.trim()) return true;
+                    const lowered = query.toLowerCase();
+                    return (
+                      item.title.toLowerCase().includes(lowered) ||
+                      item.seller.toLowerCase().includes(lowered) ||
+                      item.category.toLowerCase().includes(lowered)
+                    );
+                  }).length > 0 ? (
+                    <div className="admin-queue">
+                      {approvedItems.filter((item) => {
+                        if (!query.trim()) return true;
+                        const lowered = query.toLowerCase();
+                        return (
+                          item.title.toLowerCase().includes(lowered) ||
+                          item.seller.toLowerCase().includes(lowered) ||
+                          item.category.toLowerCase().includes(lowered)
+                        );
+                      }).map((item) => (
+                        <div key={item.id} className="admin-queue-card">
+                          {item.image ? (
+                            <img
+                              className="admin-queue-image"
+                              src={item.image}
+                              alt={item.title}
+                            />
+                          ) : (
+                            <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <ImageOff size={32} color="#9F8151" />
+                            </div>
+                          )}
+                          <div className="admin-queue-details">
+                            <h4>{item.title}</h4>
+                            <div className="admin-queue-meta">
+                              <span>@{item.seller.replace(/^@/, '')}</span>
+                              <span>{item.category}</span>
+                              <span>${item.price.toLocaleString()}</span>
+                              <span>Approved {item.submittedAt}</span>
+                            </div>
+                          </div>
+                          <div className="admin-queue-actions">
+                            <button
+                              className="reject"
+                              onClick={() => handleRejectApproved(item.id)}
+                            >
+                              <X size={18} />
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="admin-empty-state">
+                      <Check size={40} />
+                      <strong>No approved items.</strong>
+                      <span>There are no approved items in the menu right now.</span>
                     </div>
                   )}
                 </>

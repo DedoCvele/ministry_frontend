@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dial
 import { HeaderAlt } from './HeaderAlt';
 import { ContactSellerPopup } from './ContactSellerPopup';
 import { type Language, getTranslation } from '../translations';
+import { useAuth } from '../context/AuthContext';
+import { toast } from 'sonner';
 import './styles/ProductPage.css';
 
 interface ProductPageProps {
@@ -25,6 +27,7 @@ interface ProductPageProps {
 export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPageProps) {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   
   const handleBack = () => {
     if (onBack) {
@@ -41,6 +44,62 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
       navigate('/cart');
     }
   };
+
+  const handleAddToApprove = async () => {
+    if (!productId) return;
+    
+    try {
+      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+      const API_BASE_URL = `${API_ROOT}/api`;
+      
+      // Get CSRF cookie first
+      await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      // Get auth token
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      
+      // Update item to set approved = 1 (pending approval)
+      await axios.put(
+        `${API_BASE_URL}/items/${productId}`,
+        { approved: 1 },
+        {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        }
+      );
+      
+      toast.success('Item added to approval queue ✅', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      
+      // Optionally navigate to admin page
+      setTimeout(() => {
+        navigate('/admin');
+      }, 1000);
+    } catch (error: any) {
+      console.error('Error adding to approve:', error);
+      toast.error('Failed to add item to approval queue', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    }
+  };
+  
   const t = getTranslation(language);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -66,39 +125,58 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         setLoading(true);
         setError(null);
         setSelectedImage(0); // Reset image selection when product changes
-        const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
+        
+        const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+        const API_BASE_URL = `${API_ROOT}/api`;
+        const response = await axios.get(`${API_BASE_URL}/items/${productId}`);
+        
+        // Per API docs: response structure is { status: "success", data: {...} }
+        // Extract the actual product data from the nested structure
+        const productData = response.data?.data || response.data;
         
         // Console log the response for debugging
         console.log('=== PRODUCT PAGE - API RESPONSE ===');
         console.log('Full response:', response);
         console.log('Response data:', response.data);
+        console.log('Extracted product data:', productData);
         console.log('Product ID:', productId);
-        console.log('Product keys:', Object.keys(response.data));
-        console.log('Product title:', response.data.title);
-        console.log('Product name:', response.data.name);
+        console.log('Product keys:', Object.keys(productData || {}));
+        console.log('Product title:', productData?.title);
+        console.log('Product name:', productData?.name);
+        console.log('Product description:', productData?.description);
+        console.log('Product size:', productData?.size);
+        console.log('Product condition:', productData?.condition);
+        console.log('Product brand:', productData?.brand);
         
         // CRITICAL: Log image data
         // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
         console.log('🖼️ PRODUCT PAGE - Image Debug:');
-        console.log('🖼️ Product image (path):', response.data.image);
-        console.log('🖼️ Product image_url (full URL):', response.data.image_url);
-        console.log('🖼️ Product images (array):', response.data.images);
-        console.log('🖼️ Product name:', response.data.name);
-        console.log('🖼️ Product title:', response.data.title);
+        console.log('🖼️ Product image (path):', productData?.image);
+        console.log('🖼️ Product image_url (full URL):', productData?.image_url);
+        console.log('🖼️ Product images (array):', productData?.images);
         
-        if (response.data.image_url) {
-          console.log('✅ Using image_url from response:', response.data.image_url);
-        } else if (response.data.image) {
-          console.log('⚠️ No image_url, constructing from image path:', `http://127.0.0.1:8000/storage/${response.data.image}`);
+        if (productData?.image_url) {
+          console.log('✅ Using image_url from response:', productData.image_url);
+        } else if (productData?.image) {
+          console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${productData.image}`);
         } else {
           console.warn('⚠️ Product has NO image or image_url field!');
         }
         
-        setProduct(response.data);
+        // Verify we have the essential product data
+        if (!productData || (!productData.name && !productData.title)) {
+          console.error('❌ Product data is missing name/title field!');
+          setError('Product data is incomplete');
+          setLoading(false);
+          return;
+        }
+        
+        setProduct(productData);
       } catch (err: any) {
         console.error('Error fetching product:', err);
         console.error('Error response:', err.response);
         console.error('Error status:', err.response?.status);
+        console.error('Error data:', err.response?.data);
         setError(err.response?.status === 404 ? 'Product not found' : 'Failed to load product');
         setLoading(false); // Make sure to set loading to false on error
       } finally {
@@ -110,10 +188,12 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   }, [productId]);
 
   // Map API product data to display format
-  // Per API docs: response includes 'image_url' (preferred) or 'image' (path), plus 'images' array
+  // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
+  const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+  
   const getImageUrl = (img: any): string => {
     if (!img) {
-      return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+      return '';
     }
     
     // If image is already a full URL, return as is
@@ -130,9 +210,9 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         }
         const cleanPath = url.startsWith('/') ? url.substring(1) : url;
         if (cleanPath.startsWith('storage/')) {
-          return `http://127.0.0.1:8000/${cleanPath}`;
+          return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
         }
-        return `http://127.0.0.1:8000/storage/${cleanPath}`;
+        return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
       }
     }
     
@@ -140,20 +220,32 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
     if (typeof img === 'string') {
       const cleanPath = img.startsWith('/') ? img.substring(1) : img;
       if (cleanPath.startsWith('storage/')) {
-        return `http://127.0.0.1:8000/${cleanPath}`;
+        return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
       }
-      return `http://127.0.0.1:8000/storage/${cleanPath}`;
+      return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
     }
     
-    return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+    return '';
   };
   
-  // Per API docs: Use 'image_url' if available (preferred), otherwise construct from 'image' path
-  // Also include additional images from 'images' array
-  const mainImageUrl = product?.image_url || getImageUrl(product?.image);
-  const additionalImages = product?.images && Array.isArray(product.images) 
-    ? product.images.map((img: any) => img.url || getImageUrl(img.path || img))
-    : [];
+  // Per API docs: Check 'images[]' array first - first image is main image
+  // Then fall back to 'image_url' or 'image' path
+  let mainImageUrl = '';
+  let additionalImages: string[] = [];
+  
+  if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
+    // Use images array - first image is main
+    const mainImage = product.images[0];
+    mainImageUrl = mainImage?.url || getImageUrl(mainImage?.path || mainImage);
+    
+    // Additional images (skip first one as it's the main)
+    additionalImages = product.images.slice(1).map((img: any) => 
+      img.url || getImageUrl(img.path || img)
+    ).filter(Boolean);
+  } else {
+    // Fallback to image_url or image path
+    mainImageUrl = product?.image_url || getImageUrl(product?.image);
+  }
   
   // Combine main image with additional images
   const productImages = [mainImageUrl, ...additionalImages].filter(Boolean);
@@ -619,11 +711,11 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               </AccordionItem>
             </Accordion>
 
-            {/* Add to Cart Button */}
+            {/* Add to Cart / Add to Approve Button */}
             <motion.button
               whileHover={{ backgroundColor: '#083D2C', y: -2 }}
               whileTap={{ scale: 0.98 }}
-              onClick={handleCheckout}
+              onClick={isAdmin ? handleAddToApprove : handleCheckout}
               style={{
                 width: '100%',
                 fontFamily: 'Manrope, sans-serif',
@@ -641,7 +733,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 boxShadow: '0px 4px 12px rgba(10,72,52,0.3)',
               }}
             >
-              Add to Cart
+              {isAdmin ? 'Add to Approve' : 'Add to Cart'}
             </motion.button>
           </motion.div>
         </div>

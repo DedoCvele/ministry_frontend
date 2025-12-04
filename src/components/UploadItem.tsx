@@ -596,21 +596,16 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       });
     }
     
-    // Image uploads - per API docs:
-    // - 'image' (singular) = main/primary image
-    // - 'images[]' (array) = additional images
+    // Image uploads - per API docs (RECOMMENDED WAY):
+    // - 'images[]' (array) = all images - the first image is automatically set as the main image
+    // This is the recommended approach per API documentation
     if (uploadedImages.length > 0) {
-      // Send the first image as the main image
-      payload.append('image', uploadedImages[0].file);
-      console.log('📤 Sending main image:', uploadedImages[0].file.name);
-      
-      // Send remaining images as additional images (if any)
-      if (uploadedImages.length > 1) {
-        for (let i = 1; i < uploadedImages.length; i++) {
-          payload.append('images[]', uploadedImages[i].file);
-          console.log(`📤 Sending additional image ${i}:`, uploadedImages[i].file.name);
-        }
-      }
+      // Send all images via images[] array - recommended way per API docs
+      // The first image will automatically be set as the main image (is_main = true)
+      uploadedImages.forEach((img, index) => {
+        payload.append('images[]', img.file);
+        console.log(`📤 Sending image ${index + 1}${index === 0 ? ' (main)' : ''}:`, img.file.name);
+      });
     }
 
     // Final validation: Ensure category_id is a valid number

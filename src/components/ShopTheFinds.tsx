@@ -46,13 +46,13 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
           console.log('First item name:', items[0].name);
         }
 
-        // Filter for approved items and map to product format
-        // Database schema uses 'approved' field (1 = approved, 2 = special status)
+        // Filter for approved items (only approved = 2) and map to product format
+        // Only items with approved = 2 should appear on the main page
         const approvedProducts: Product[] = items
           .filter((item: any) => {
             const approvedStatus = item.approved;
-            // 1 = approved, 2 = special status (both should be visible)
-            return approvedStatus === 1 || approvedStatus === '1' || approvedStatus === 2 || approvedStatus === '2';
+            // Only show items with approved = 2 (fully approved)
+            return approvedStatus === 2 || approvedStatus === '2';
           })
           .map((item: any) => {
             // Per API docs: response includes both 'title' and 'name' fields
@@ -66,8 +66,31 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
             });
 
             // Get image URL - handle different formats from backend
-            // Per API docs: response includes 'image_url' (preferred) or 'image' (path)
+            // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
             const getImageUrl = (item: any): string => {
+              const API_ROOT_FOR_IMAGES = 'http://127.0.0.1:8000';
+              
+              // Per API docs: Check 'images[]' array first - first image is main image
+              if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
+                const mainImage = item.images[0];
+                // Use 'url' field if available (preferred)
+                if (mainImage?.url) {
+                  return mainImage.url;
+                }
+                // Otherwise construct from 'path'
+                if (mainImage?.path) {
+                  const img = mainImage.path;
+                  if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                    return img;
+                  }
+                  const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+                  if (cleanPath.startsWith('storage/')) {
+                    return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+                  }
+                  return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+                }
+              }
+              
               // Per API docs: Use 'image_url' if available (preferred)
               if (item?.image_url) {
                 return item.image_url;
@@ -83,12 +106,13 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
                 // Construct from path
                 const cleanPath = img.startsWith('/') ? img.substring(1) : img;
                 if (cleanPath.startsWith('storage/')) {
-                  return `http://127.0.0.1:8000/${cleanPath}`;
+                  return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
                 }
-                return `http://127.0.0.1:8000/storage/${cleanPath}`;
+                return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
               }
               
-              return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+              // Only return default if no image is available at all
+              return '';
             };
             
             const imageUrl = getImageUrl(item);

@@ -8,6 +8,7 @@ import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { NewsletterPopup } from './NewsletterPopup';
 import { type Language, getTranslation } from '../translations';
+import { useAuth } from '../context/AuthContext';
 import './styles/ShopPage.css';
 
 interface Product {
@@ -22,6 +23,7 @@ interface Product {
   brand: string;
   size: string;
   condition: string;
+  description?: string; // Optional description for search
   apiData?: any; // Store full API response for additional details
 }
 
@@ -32,6 +34,7 @@ interface ShopPageProps {
 
 export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   
   const handleProductClick = (productId: number) => {
     if (onProductClick) {
@@ -134,15 +137,31 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
     },
   ];
 
-  const filterOptions = {
-    Category: ['All', 'Outerwear', 'Dresses', 'Bags', 'Shoes', 'Bottoms', 'Tops'],
-    Brand: ['All', 'Hermès', 'Dior', "Levi's", 'YSL', 'MaxMara'],
-    Size: ['All', 'XS', 'S', 'M', 'L', 'XL'],
-    Condition: ['All', 'Like New', 'Excellent', 'Very Good', 'Good'],
-    Price: ['All', 'Under €200', '€200-€400', 'Over €400'],
-    Color: ['All', 'Black', 'White', 'Beige', 'Brown', 'Green', 'Blue'],
-    Style: ['All', 'Vintage', 'Minimalist', 'Designer', 'Casual', 'Evening'],
+  // Dynamically generate filter options from actual products
+  const getFilterOptions = () => {
+    const allProducts = apiProducts.length > 0 ? apiProducts : mockProducts;
+    
+    // Extract unique categories
+    const categories = Array.from(new Set(allProducts.map(p => p.category).filter(Boolean)));
+    categories.sort();
+    
+    // Extract unique brands
+    const brands = Array.from(new Set(allProducts.map(p => p.brand).filter(Boolean)));
+    brands.sort();
+    
+    // Extract unique sizes
+    const sizes = Array.from(new Set(allProducts.map(p => p.size).filter(Boolean)));
+    sizes.sort();
+    
+    return {
+      Category: ['All', ...categories],
+      Brand: ['All', ...brands],
+      Size: ['All', ...sizes],
+      Price: ['All', 'Price: Low to High', 'Price: High to Low'],
+    };
   };
+
+  const filterOptions = getFilterOptions();
 
   const sortOptions = ['Newest', 'Trending', 'Lowest Price', 'Highest Price', 'Highest Rated'];
 
@@ -171,16 +190,9 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           console.log('First item keys:', Object.keys(items[0]));
         }
         
-        // Filter to only show APPROVED items on the shop page
-        // Database schema uses 'approved' field (1 = approved, 2 = special status)
-        const approvedItems = Array.isArray(items) 
-          ? items.filter((item: any) => {
-              const approvedStatus = item.approved;
-              // 1 = approved, 2 = special status (both should be visible)
-              const isApproved = approvedStatus === 1 || approvedStatus === '1' || approvedStatus === 2 || approvedStatus === '2';
-              return isApproved;
-            })
-          : [];
+        // Show all items on shop page (no filtering by approved status)
+        // Admins and regular users see all items
+        const approvedItems = Array.isArray(items) ? items : [];
         
           console.log('📊 Items filter stats:', {
           total_items: Array.isArray(items) ? items.length : 0,
@@ -205,8 +217,29 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           });
           
           // Handle different image formats from backend
-          // Per API docs: response includes 'image_url' (preferred) or 'image' (path)
+          // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
           const getImageUrl = (item: any): string => {
+            // Per API docs: Check 'images[]' array first - first image is main image
+            if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
+              const mainImage = item.images[0];
+              // Use 'url' field if available (preferred)
+              if (mainImage?.url) {
+                return mainImage.url;
+              }
+              // Otherwise construct from 'path'
+              if (mainImage?.path) {
+                const img = mainImage.path;
+                if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+                  return img;
+                }
+                const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+                if (cleanPath.startsWith('storage/')) {
+                  return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+                }
+                return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+              }
+            }
+            
             // Per API docs: Use 'image_url' if available (preferred)
             if (item?.image_url) {
               return item.image_url;
@@ -227,7 +260,8 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
               return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
             }
             
-            return 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400';
+            // Only return empty string if no image is available - ImageWithFallback will handle the fallback
+            return '';
           };
           
           return {
@@ -237,11 +271,12 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           seller: item.user?.name || item.user?.email || 'Unknown Seller',
           sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
           image: getImageUrl(item), // Per API docs: use 'image_url' or construct from 'image'
-          tags: item.tags ? (Array.isArray(item.tags) ? item.tags : [item.tags]) : [],
+          tags: item.tags ? (Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? item.tags.split(',').map(t => t.trim()) : [item.tags]) : [],
           category: item.category?.name || 'Uncategorized',
           brand: item.brand?.name || 'Unknown',
           size: item.size || 'One Size',
           condition: item.condition || 'Good',
+          description: item.description || '', // Add description for search
           // Store full API data for additional info
           apiData: item,
           };
@@ -265,7 +300,89 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   }, []);
 
   // Use API products if available, otherwise use mock products
-  const products = apiProducts.length > 0 ? apiProducts : mockProducts;
+  const allProducts = apiProducts.length > 0 ? apiProducts : mockProducts;
+
+  // Filter and sort products based on active filters, search query, and sort option
+  const filteredAndSortedProducts = (() => {
+    let filtered = [...allProducts];
+
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(product => 
+        product.title.toLowerCase().includes(query) ||
+        product.description?.toLowerCase().includes(query) ||
+        product.brand.toLowerCase().includes(query) ||
+        product.category.toLowerCase().includes(query) ||
+        product.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply Category filter
+    if (activeFilters.Category && activeFilters.Category !== 'All') {
+      filtered = filtered.filter(product => 
+        product.category === activeFilters.Category
+      );
+    }
+
+    // Apply Brand filter
+    if (activeFilters.Brand && activeFilters.Brand !== 'All') {
+      filtered = filtered.filter(product => 
+        product.brand === activeFilters.Brand
+      );
+    }
+
+    // Apply Size filter
+    if (activeFilters.Size && activeFilters.Size !== 'All') {
+      filtered = filtered.filter(product => 
+        product.size === activeFilters.Size || 
+        product.size?.toUpperCase() === activeFilters.Size.toUpperCase()
+      );
+    }
+
+    // Apply sorting
+    // Note: If Price filter is set, it will override the sort option for price sorting
+    const priceFilterActive = activeFilters.Price && activeFilters.Price !== 'All';
+    
+    if (priceFilterActive) {
+      // Price filter takes priority for price sorting
+      if (activeFilters.Price === 'Price: Low to High') {
+        filtered = filtered.sort((a, b) => a.price - b.price);
+      } else if (activeFilters.Price === 'Price: High to Low') {
+        filtered = filtered.sort((a, b) => b.price - a.price);
+      }
+    } else {
+      // Apply other sort options only if price filter is not active
+      switch (sortBy) {
+        case 'Newest':
+          // Sort by ID descending (assuming higher ID = newer)
+          filtered = filtered.sort((a, b) => b.id - a.id);
+          break;
+        case 'Lowest Price':
+          filtered = filtered.sort((a, b) => a.price - b.price);
+          break;
+        case 'Highest Price':
+          filtered = filtered.sort((a, b) => b.price - a.price);
+          break;
+        case 'Trending':
+          // For now, sort by ID (can be enhanced with actual trending logic)
+          filtered = filtered.sort((a, b) => b.id - a.id);
+          break;
+        case 'Highest Rated':
+          // For now, sort by ID (can be enhanced with actual rating logic)
+          filtered = filtered.sort((a, b) => b.id - a.id);
+          break;
+        default:
+          // Default: keep original order
+          break;
+      }
+    }
+
+    return filtered;
+  })();
+
+  // Use filtered and sorted products
+  const products = filteredAndSortedProducts;
 
   const toggleWishlist = (productId: number) => {
     setWishlist(prev => 
