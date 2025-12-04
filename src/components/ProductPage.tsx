@@ -121,23 +121,69 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         return;
       }
 
+      setLoading(true);
+      setError(null);
+      setSelectedImage(0); // Reset image selection when product changes
+      
+      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+      const API_BASE_URL = `${API_ROOT}/api`;
+      
       try {
-        setLoading(true);
-        setError(null);
-        setSelectedImage(0); // Reset image selection when product changes
+        // No authentication required for viewing products - public endpoint
+        // Simple GET request without any auth headers
+        let response;
+        let productData;
         
-        const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-        const API_BASE_URL = `${API_ROOT}/api`;
-        const response = await axios.get(`${API_BASE_URL}/items/${productId}`);
+        try {
+          // First, try to fetch the single item directly
+          response = await axios.get(`${API_BASE_URL}/items/${productId}`);
+          productData = response.data?.data || response.data;
+        } catch (singleItemError: any) {
+          // WORKAROUND: If single item fetch fails (e.g., backend incorrectly filtering by approval status),
+          // fallback to fetching from items list and finding by ID.
+          // 
+          // NOTE: Approval ratings (1, 2, 3) should only be used for filtering/sorting, NOT for access control.
+          // All approved items (1, 2, or 3) should be viewable by all users.
+          // The backend should be fixed to return all approved items regardless of rating for single item requests.
+          // 
+          // This fallback ensures items with approval rating 2 or 3 are still accessible.
+          console.warn('Single item fetch failed, trying fallback from items list:', singleItemError);
+          
+          const listResponse = await axios.get(`${API_BASE_URL}/items`);
+          let items = listResponse.data;
+          
+          // Handle different response structures
+          if (items?.data && Array.isArray(items.data)) {
+            items = items.data;
+          } else if (Array.isArray(items)) {
+            items = items;
+          } else {
+            items = [];
+          }
+          
+          // Find the item by ID from the list
+          const foundItem = items.find((item: any) => 
+            item.id === Number(productId) || item.id === productId
+          );
+          
+          if (foundItem) {
+            productData = foundItem;
+            console.log('✅ Found product in items list fallback');
+          } else {
+            // If still not found, throw the original error
+            throw singleItemError;
+          }
+        }
         
         // Per API docs: response structure is { status: "success", data: {...} }
-        // Extract the actual product data from the nested structure
-        const productData = response.data?.data || response.data;
+        // Extract the actual product data from the nested structure (already extracted above)
         
         // Console log the response for debugging
         console.log('=== PRODUCT PAGE - API RESPONSE ===');
-        console.log('Full response:', response);
-        console.log('Response data:', response.data);
+        if (response) {
+          console.log('Full response:', response);
+          console.log('Response data:', response.data);
+        }
         console.log('Extracted product data:', productData);
         console.log('Product ID:', productId);
         console.log('Product keys:', Object.keys(productData || {}));
@@ -177,7 +223,21 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         console.error('Error response:', err.response);
         console.error('Error status:', err.response?.status);
         console.error('Error data:', err.response?.data);
-        setError(err.response?.status === 404 ? 'Product not found' : 'Failed to load product');
+        console.error('Product ID attempted:', productId);
+        console.error('API URL:', `${API_BASE_URL}/items/${productId}`);
+        
+        // Provide more specific error messages
+        if (err.response?.status === 404) {
+          setError('Product not found. This item may not be available or may have been removed.');
+        } else if (err.response?.status === 403) {
+          setError('You do not have permission to view this product.');
+        } else if (err.response?.status === 401) {
+          setError('Please log in to view this product.');
+        } else if (err.response?.status >= 500) {
+          setError('Server error. Please try again later.');
+        } else {
+          setError(err.response?.data?.message || 'Failed to load product. Please try again.');
+        }
         setLoading(false); // Make sure to set loading to false on error
       } finally {
         setLoading(false);
