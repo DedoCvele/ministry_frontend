@@ -19,6 +19,48 @@ interface Product {
   condition: string;
 }
 
+// Robust helper to safely extract numeric approval value from various response shapes
+const getApprovalNumber = (item: any): number | null => {
+  if (!item) return null;
+
+  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
+  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+
+  if (candidate !== undefined && candidate !== null) {
+    // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
+    if (typeof candidate === 'object') {
+      if (candidate.value !== undefined) return Number(candidate.value);
+      if (candidate.approved_number !== undefined) return Number(candidate.approved_number);
+      if (candidate.approved !== undefined) return Number(candidate.approved);
+      
+      // Try to find first numeric-like value in the object
+      for (const v of Object.values(candidate)) {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
+      }
+      
+      // Fallback to null if no numeric value found
+      return null;
+    }
+
+    // If it's a string or number, coerce safely
+    const coerced = Number(String(candidate).trim());
+    return Number.isNaN(coerced) ? null : coerced;
+  }
+
+  // 2) Try alternative keys (some responses include additional keys)
+  const altKeys = ['approved_number', 'approved_type', 'approval', 'approvalNumber', 'data', 'attributes'];
+  for (const k of altKeys) {
+    const v = item[k];
+    if (v !== undefined && v !== null) {
+      const n = Number(String(v).trim());
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+
+  return null;
+};
+
 export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
   const t = getTranslation(language);
   const navigate = useNavigate();
@@ -26,34 +68,38 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch approved items from API
+  // Fetch approved items from API with proper filtering
   useEffect(() => {
     const fetchApprovedItems = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://127.0.0.1:8000/api/items');
-        const items = response.data;
-
-        // Console log the full response to debug
-        console.log('=== SHOP THE FINDS - API RESPONSE ===');
-        console.log('Full response:', response);
-        console.log('Response data:', response.data);
-        console.log('Is array?', Array.isArray(response.data));
-        if (Array.isArray(items) && items.length > 0) {
-          console.log('First item structure:', items[0]);
-          console.log('First item keys:', Object.keys(items[0]));
-          console.log('First item title:', items[0].title);
-          console.log('First item name:', items[0].name);
+        
+        // Use API endpoint with approved=3 query parameter to filter items
+        // According to API docs: GET /api/items?approved=3
+        const response = await axios.get('http://127.0.0.1:8000/api/items', {
+          params: {
+            approved: 3
+          }
+        });
+        
+        // Handle different response structures
+        let items = response.data;
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          items = response.data.data;
+        } else if (response.data && Array.isArray(response.data)) {
+          items = response.data;
+        } else {
+          items = [];
         }
 
-        // Filter for approved items (only approved = 2) and map to product format
-        // Only items with approved = 2 should appear on the main page
+        console.log('=== SHOP THE FINDS - API RESPONSE (approved=3) ===');
+        console.log('Full response:', response);
+        console.log('Response.data:', response.data);
+        console.log('Processed items:', items);
+        console.log('Items count:', Array.isArray(items) ? items.length : 0);
+
+        // Map items to product format (all items from API are already filtered to approved=3)
         const approvedProducts: Product[] = items
-          .filter((item: any) => {
-            const approvedStatus = item.approved;
-            // Only show items with approved = 2 (fully approved)
-            return approvedStatus === 2 || approvedStatus === '2';
-          })
           .map((item: any) => {
             // Per API docs: response includes both 'title' and 'name' fields
             const itemTitle = item.title || item.name || item.product_name || 'Untitled Item';
@@ -139,7 +185,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
             };
           });
 
-        console.log('Approved products:', approvedProducts);
+        console.log('Approved products (approved=3):', approvedProducts);
         setProducts(approvedProducts);
       } catch (error) {
         console.error('Error fetching approved items:', error);

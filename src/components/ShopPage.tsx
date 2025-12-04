@@ -32,6 +32,48 @@ interface ShopPageProps {
   language?: Language;
 }
 
+// Robust helper to safely extract numeric approval value from various response shapes
+const getApprovalNumber = (item: any): number | null => {
+  if (!item) return null;
+
+  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
+  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+
+  if (candidate !== undefined && candidate !== null) {
+    // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
+    if (typeof candidate === 'object') {
+      if (candidate.value !== undefined) return Number(candidate.value);
+      if (candidate.approved_number !== undefined) return Number(candidate.approved_number);
+      if (candidate.approved !== undefined) return Number(candidate.approved);
+      
+      // Try to find first numeric-like value in the object
+      for (const v of Object.values(candidate)) {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
+      }
+      
+      // Fallback to null if no numeric value found
+      return null;
+    }
+
+    // If it's a string or number, coerce safely
+    const coerced = Number(String(candidate).trim());
+    return Number.isNaN(coerced) ? null : coerced;
+  }
+
+  // 2) Try alternative keys (some responses include additional keys)
+  const altKeys = ['approved_number', 'approved_type', 'approval', 'approvalNumber', 'data', 'attributes'];
+  for (const k of altKeys) {
+    const v = item[k];
+    if (v !== undefined && v !== null) {
+      const n = Number(String(v).trim());
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+
+  return null;
+};
+
 export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
@@ -182,17 +224,46 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         console.log('Is array?', Array.isArray(response.data));
         console.log('Number of items:', Array.isArray(response.data) ? response.data.length : 'Not an array');
         
-        const items = response.data;
+        // Handle different response structures
+        let items = response.data;
+        
+        // Check if response has nested data structure
+        if (response.data && response.data.data && Array.isArray(response.data.data)) {
+          items = response.data.data;
+        } else if (response.data && Array.isArray(response.data)) {
+          items = response.data;
+        } else {
+          items = [];
+        }
+        
+        console.log('📦 Processed items:', items);
+        console.log('📦 Items count:', Array.isArray(items) ? items.length : 0);
         
         // Log first item structure if available
         if (Array.isArray(items) && items.length > 0) {
           console.log('First item structure:', items[0]);
           console.log('First item keys:', Object.keys(items[0]));
+          console.log('First item approved status:', items[0].approved);
         }
         
-        // Show all items on shop page (no filtering by approved status)
-        // Admins and regular users see all items
-        const approvedItems = Array.isArray(items) ? items : [];
+        // Filter items for shop page: show items with approved = 1, 2, or 3
+        // 0 = Pending (not shown), 1 = Approved, 2 = Special, 3 = Premium
+        const approvedItems = Array.isArray(items) 
+          ? items.filter((item: any) => {
+              const status = getApprovalNumber(item);
+              return status !== null && (status === 1 || status === 2 || status === 3);
+            })
+          : [];
+        
+        console.log('🛍️ ShopPage - Filtered Items:', {
+          total_items: Array.isArray(items) ? items.length : 0,
+          approved_items: approvedItems.length,
+          items_by_status: {
+            status_1: items.filter((item: any) => getApprovalNumber(item) === 1).length,
+            status_2: items.filter((item: any) => getApprovalNumber(item) === 2).length,
+            status_3: items.filter((item: any) => getApprovalNumber(item) === 3).length,
+          }
+        });
         
           console.log('📊 Items filter stats:', {
           total_items: Array.isArray(items) ? items.length : 0,
@@ -289,8 +360,9 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         setApiProducts(mappedProducts);
       } catch (error) {
         console.error('Error fetching items:', error);
-        // Use mock products as fallback
-        setApiProducts(mockProducts);
+        // On error, set empty array (don't use mock products)
+        // This way we can see if there's actually an error vs no items
+        setApiProducts([]);
       } finally {
         setLoading(false);
       }
@@ -299,8 +371,9 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
     fetchItems();
   }, []);
 
-  // Use API products if available, otherwise use mock products
-  const allProducts = apiProducts.length > 0 ? apiProducts : mockProducts;
+  // Always use API products if they exist, otherwise show empty (no fallback to mock)
+  // This ensures we see actual database items, not hardcoded ones
+  const allProducts = apiProducts;
 
   // Filter and sort products based on active filters, search query, and sort option
   const filteredAndSortedProducts = (() => {

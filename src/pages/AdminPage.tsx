@@ -143,6 +143,48 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
   return `${BACKEND_BASE_URL}${cleanPath}`;
 };
 
+// Robust helper to safely extract numeric approval value from various response shapes
+const getApprovalNumber = (item: any): number | null => {
+  if (!item) return null;
+
+  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
+  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+
+  if (candidate !== undefined && candidate !== null) {
+    // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
+    if (typeof candidate === 'object') {
+      if (candidate.value !== undefined) return Number(candidate.value);
+      if (candidate.approved_number !== undefined) return Number(candidate.approved_number);
+      if (candidate.approved !== undefined) return Number(candidate.approved);
+      
+      // Try to find first numeric-like value in the object
+      for (const v of Object.values(candidate)) {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
+      }
+      
+      // Fallback to null if no numeric value found
+      return null;
+    }
+
+    // If it's a string or number, coerce safely
+    const coerced = Number(String(candidate).trim());
+    return Number.isNaN(coerced) ? null : coerced;
+  }
+
+  // 2) Try alternative keys (some responses include additional keys)
+  const altKeys = ['approved_number', 'approved_type', 'approval', 'approvalNumber', 'data', 'attributes'];
+  for (const k of altKeys) {
+    const v = item[k];
+    if (v !== undefined && v !== null) {
+      const n = Number(String(v).trim());
+      if (!Number.isNaN(n)) return n;
+    }
+  }
+
+  return null;
+};
+
 export function AdminPage() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'approve' | 'approved-menu' | 'add-blog' | 'manage-blogs'>('approve');
@@ -217,16 +259,38 @@ export function AdminPage() {
         },
       });
       
-      // Filter items with approved = 1 (pending approval)
-      // NOTE: Only items that were explicitly set to approved = 1 by admin action should appear
-      // Items with approved = 0, null, or undefined are not in the approval queue
-      const pendingItems = Array.isArray(response.data) 
-        ? response.data.filter((item: any) => {
-            const approvedStatus = item.approved;
-            // Only show items with exactly approved = 1 (not 0, null, undefined, or 2)
-            return approvedStatus === 1 || approvedStatus === '1';
+      // Handle different response structures
+      let items = response.data;
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        items = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        items = response.data;
+      } else {
+        items = [];
+      }
+      
+      console.log('🔍 AdminPage - Pending Items Fetch:', {
+        total_items: Array.isArray(items) ? items.length : 0,
+        items_with_approved_2: Array.isArray(items) ? items.filter((item: any) => {
+          const status = getApprovalNumber(item);
+          return status === 2;
+        }).length : 0
+      });
+      
+      // Filter items with approved = 2 (in approval queue)
+      // Items with approved = 2 are waiting for admin review
+      const pendingItems = Array.isArray(items) 
+        ? items.filter((item: any) => {
+            const status = getApprovalNumber(item);
+            const matches = status === 2;
+            if (matches) {
+              console.log(`✅ Found pending item: ${item.id} - ${item.title || item.name} (numericStatus=${status}, approved=${item.approved})`);
+            }
+            return matches;
           })
         : [];
+      
+      console.log('🔍 AdminPage - Filtered Pending Items:', pendingItems.length);
       
       // Map to ApprovalItem format
       const mappedItems: ApprovalItem[] = pendingItems.map((item: any) => {
@@ -293,23 +357,46 @@ export function AdminPage() {
   const fetchApprovedItems = async () => {
     try {
       setLoadingItems(true);
+      
+      // Get CSRF cookie first
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      // Use API endpoint with approved=3 query parameter to filter items
+      // According to API docs: GET /api/items?approved=3 (or /api/admin/items?approved=3 for admin)
       const response = await axios.get(`${API_BASE_URL}/items`, {
+        params: {
+          approved: 3
+        },
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
+          ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
         },
       });
       
-      // Filter items with approved = 2 (approved)
-      const approved = Array.isArray(response.data) 
-        ? response.data.filter((item: any) => {
-            const approvedStatus = item.approved;
-            return approvedStatus === 2 || approvedStatus === '2';
-          })
-        : [];
+      // Handle different response structures
+      let items = response.data;
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        items = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        items = response.data;
+      } else {
+        items = [];
+      }
       
-      // Map to ApprovalItem format
-      const mappedItems: ApprovalItem[] = approved.map((item: any) => {
+      console.log('🔍 AdminPage - Approved Items Fetch (approved=3):', {
+        total_items: Array.isArray(items) ? items.length : 0
+      });
+      
+      // All items from API are already filtered to approved=3, so use them directly
+      const approvedItems = Array.isArray(items) ? items : [];
+      
+      console.log('🔍 AdminPage - Approved Items:', approvedItems.length);
+      
+      // Map to ApprovalItem format (all items are already approved=3 from API)
+      const mappedItems: ApprovalItem[] = approvedItems.map((item: any) => {
         const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
         
         const getImageUrl = (item: any): string => {
@@ -456,21 +543,41 @@ export function AdminPage() {
       });
       
       if (decision === 'approved') {
-        // Set approved = 2 (approved)
-        await axios.put(
+        // Set approved = 3 (move to Approved Menu - tier 3)
+        console.log(`🔄 Updating item ${id} to approved = 3`);
+        const updateResponse = await axios.put(
           `${API_BASE_URL}/items/${id}`,
-          { approved: 2 },
+          { approved: 3 },
           getAuthConfig()
         );
         
-        // Remove from pending items and add to approved items
-        const item = items.find((i) => i.id === id);
-        if (item) {
-          setItems((prev) => prev.filter((item) => item.id !== id));
-          setApprovedItems((prev) => [...prev, item]);
+        // Verify the update worked by checking the response
+        const updatedItem = updateResponse.data?.data || updateResponse.data;
+        const updatedApprovedStatus = getApprovalNumber(updatedItem);
+        
+        console.log('✅ Update response:', updateResponse.data);
+        console.log('✅ Updated item approved status:', updatedApprovedStatus);
+        
+        if (updatedApprovedStatus !== 3) {
+          console.error('❌ Update failed: Item approved status is not 3 after update:', updatedApprovedStatus);
+          toast.error(`Update may have failed. Item status is ${updatedApprovedStatus}, expected 3.`, {
+            style: {
+              background: '#FFFFFF',
+              color: '#0A4834',
+              border: '1px solid #9F8151',
+              fontFamily: 'Manrope, sans-serif',
+            },
+          });
+          return;
         }
         
-        toast.success('Item approved and moved to Approved Menu ✅', {
+        // Remove from pending items
+        setItems((prev) => prev.filter((item) => item.id !== id));
+        
+        // Refetch approved items to ensure we have the latest data
+        await fetchApprovedItems();
+        
+        toast.success('Item approved to tier 3 and moved to Approved Menu ✅', {
           style: {
             background: '#FFFFFF',
             color: '#0A4834',
@@ -479,19 +586,17 @@ export function AdminPage() {
           },
         });
       } else {
-        // Reject: set approved = 0 to remove from approval queue
-        // Based on requirements: "it will stay as 1 and will be moved out of the approve item tab"
-        // But to prevent it from showing again, we'll set it to 0
+        // Reject: set approved = 1 (back to approved status)
         await axios.put(
           `${API_BASE_URL}/items/${id}`,
-          { approved: 0 },
+          { approved: 1 },
           getAuthConfig()
         );
         
         // Remove from the list
         setItems((prev) => prev.filter((item) => item.id !== id));
         
-        toast.success('Item rejected and removed from queue ❌', {
+        toast.success('Item rejected and set to approved = 1 ❌', {
           style: {
             background: '#FFFFFF',
             color: '#0A4834',
@@ -520,7 +625,7 @@ export function AdminPage() {
         withCredentials: true,
       });
       
-      // Reset approved from 2 to 1 (move back to approval queue)
+      // Reset approved from 3 to 1 (back to approved status)
       await axios.put(
         `${API_BASE_URL}/items/${id}`,
         { approved: 1 },
@@ -530,7 +635,7 @@ export function AdminPage() {
       // Remove from approved items
       setApprovedItems((prev) => prev.filter((item) => item.id !== id));
       
-      toast.success('Item rejected and moved back to pending queue', {
+      toast.success('Item rejected and set to approved = 1', {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',

@@ -60,10 +60,10 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
       // Get auth token
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
       
-      // Update item to set approved = 1 (pending approval)
+      // Update item to set approved = 2 (add to approval queue)
       await axios.put(
         `${API_BASE_URL}/items/${productId}`,
-        { approved: 1 },
+        { approved: 2 },
         {
           withCredentials: true,
           headers: {
