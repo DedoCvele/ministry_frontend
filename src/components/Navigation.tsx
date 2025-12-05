@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslation } from '../translations';
 import './styles/Navigation.css';
 
 interface NavigationProps {
@@ -12,6 +14,8 @@ export function Navigation({ onProfileClick }: NavigationProps) {
   const lastScrollYRef = useRef(0);
   const ticking = useRef(false);
   const location = useLocation();
+  const { language, toggleLanguage } = useLanguage();
+  const t = getTranslation(language);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,11 +42,11 @@ export function Navigation({ onProfileClick }: NavigationProps) {
   }, [isScrolled]);
 
   const navItems = [
-    { id: 'home', label: 'Home' },
-    { id: 'shop', label: 'Shop' },
-    { id: 'closets', label: 'Closets' },
-    { id: 'blog', label: 'Journal' },
-    { id: 'become-seller', label: 'Become a Seller' },
+    { id: 'home', labelKey: 'home' as const },
+    { id: 'shop', labelKey: 'shop' as const },
+    { id: 'closets', labelKey: 'closets' as const },
+    { id: 'blog', labelKey: 'journal' as const },
+    { id: 'become-seller', labelKey: 'becomeSeller' as const },
   ];
 
   return (
@@ -73,7 +77,7 @@ export function Navigation({ onProfileClick }: NavigationProps) {
                     : ''
                 }`}
               >
-                {item.label}
+                {t.nav[item.labelKey]}
                 {((location.pathname === '/' && item.id === 'home') || 
                   location.pathname === `/${item.id}` ||
                   (item.id === 'blog' && location.pathname.startsWith('/blog/'))) && (
@@ -83,6 +87,16 @@ export function Navigation({ onProfileClick }: NavigationProps) {
                 )}
               </Link>
             ))}
+
+            {/* Language Switcher */}
+            <button
+              onClick={() => toggleLanguage()}
+              className="nav-language-btn"
+              aria-label="Switch language"
+              type="button"
+            >
+              {language === 'en' ? 'ENG' : 'MKD'}
+            </button>
 
             {/* Profile Icon */}
             <button

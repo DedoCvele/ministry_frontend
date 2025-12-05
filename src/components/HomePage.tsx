@@ -14,7 +14,6 @@ export function HomePage() {
   return (
     <div className="home-page-root">
       <HeaderAlt 
-        language="en"
         onShopClick={() => navigate('/shop')}
         onClosetsClick={() => navigate('/closets')}
         onJournalClick={() => navigate('/blog')}
@@ -22,22 +21,22 @@ export function HomePage() {
       />
       
       {/* Hero Section */}
-      <HeroSectionAlt language="en" />
+      <HeroSectionAlt />
       
       {/* Vintage Banner */}
-      <VintageBanner language="en" />
+      <VintageBanner />
       
       {/* Shop The Finds */}
-      <ShopTheFinds language="en" />
+      <ShopTheFinds />
       
       {/* Become Seller Section */}
-      <BecomeSellerSection language="en" />
+      <BecomeSellerSection />
       
       {/* Journal Spread */}
-      <JournalSpread language="en" />
+      <JournalSpread />
       
       {/* Footer */}
-      <FooterAlt language="en" />
+      <FooterAlt />
     </div>
   );
 }

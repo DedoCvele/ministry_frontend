@@ -37,7 +37,11 @@ export const translations = {
       subtitle: 'Discover one-of-a-kind pieces from luxury closets around the world.',
       label: 'Curated Selection',
       viewAll: 'View All',
+      viewAllItems: 'View All Items',
       addToCart: 'Add to Cart',
+      loading: 'Loading products...',
+      noProducts: 'No approved products available at the moment.',
+      bySeller: 'by',
       condition: {
         excellent: 'Excellent',
         good: 'Very Good',
@@ -111,6 +115,15 @@ export const translations = {
       continueReading: 'Continue Reading',
       shareArticle: 'Share Article',
       relatedArticles: 'Related Articles',
+      spread: {
+        sustainable: 'Sustainable',
+        fashionThatCares: 'Fashion that cares',
+        luxuryRedefined: 'Luxury redefined through conscious choices.',
+        ministryJournal: 'Ministry Journal',
+        stories: 'Stories',
+        readArticle: 'Read Article →',
+        viewAllStories: 'View All Stories',
+      },
     },
     
     // Footer
@@ -121,6 +134,27 @@ export const translations = {
         description: 'Get first access to new arrivals and editorial content.',
         placeholder: 'Your email address',
         button: 'Subscribe',
+      },
+      seller: {
+        text: 'Want to sell your pre-loved pieces?',
+        button: 'Become a Seller →',
+      },
+      brand: {
+        tagline: 'Where stories live on.',
+        subtitle: 'Second-hand luxury, timeless style.',
+      },
+      explore: 'Explore',
+      connect: 'Connect',
+      links: {
+        shop: 'Shop',
+        closets: 'Closets',
+        journal: 'Journal',
+        about: 'About',
+      },
+      social: {
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+        pinterest: 'Pinterest',
       },
       quickLinks: 'Quick Links',
       support: 'Support',
@@ -431,7 +465,11 @@ export const translations = {
       subtitle: 'Откриј уникатни парчиња од луксузни плакари низ целиот свет.',
       label: 'Курирана селекција',
       viewAll: 'Погледни сè',
+      viewAllItems: 'Погледни ги сите артикли',
       addToCart: 'Додади во кошничка',
+      loading: 'Се вчитуваат артикли...',
+      noProducts: 'Моментално нема одобрени артикли.',
+      bySeller: 'од',
       condition: {
         excellent: 'Одлична',
         good: 'Многу добра',
@@ -505,6 +543,15 @@ export const translations = {
       continueReading: 'Продолжи со читање',
       shareArticle: 'Сподели статија',
       relatedArticles: 'Поврзани статии',
+      spread: {
+        sustainable: 'Одржливо',
+        fashionThatCares: 'Мода која се грижи',
+        luxuryRedefined: 'Луксузот редефиниран преку свесни избори.',
+        ministryJournal: 'Ministry Блог',
+        stories: 'Приказни',
+        readArticle: 'Прочитај статија →',
+        viewAllStories: 'Погледни ги сите приказни',
+      },
     },
     
     // Footer
@@ -515,6 +562,27 @@ export const translations = {
         description: 'Добивај прв пристап до нови пристигнувања и уредувачка содржина.',
         placeholder: 'Твоја е-маил адреса',
         button: 'Претплати се',
+      },
+      seller: {
+        text: 'Сакаш да ги продадеш твоите претходно носени парчиња?',
+        button: 'Стани продавач →',
+      },
+      brand: {
+        tagline: 'Каде приказните продолжуваат да живеат.',
+        subtitle: 'Второрачна луксузна облека, невремен стил.',
+      },
+      explore: 'Истражи',
+      connect: 'Поврзи се',
+      links: {
+        shop: 'Продавница',
+        closets: 'Плакари',
+        journal: 'Блог',
+        about: 'За нас',
+      },
+      social: {
+        instagram: 'Instagram',
+        tiktok: 'TikTok',
+        pinterest: 'Pinterest',
       },
       quickLinks: 'Брзи линкови',
       support: 'Поддршка',

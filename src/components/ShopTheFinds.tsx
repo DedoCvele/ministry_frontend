@@ -3,11 +3,11 @@ import { Heart } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import axios from 'axios';
 
 interface ShopTheFindsProps {
-  language?: Language;
 }
 
 interface Product {
@@ -61,7 +61,8 @@ const getApprovalNumber = (item: any): number | null => {
   return null;
 };
 
-export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
+export function ShopTheFinds({}: ShopTheFindsProps = {}) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
   const [wishlistedItems, setWishlistedItems] = useState<number[]>([]);
@@ -244,7 +245,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
               marginBottom: '12px',
             }}
           >
-            Curated Selection
+            {t.shopFinds.label}
           </p>
           <h2
             style={{
@@ -270,7 +271,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
               maxWidth: '600px',
             }}
           >
-            Discover one-of-a-kind pieces from luxury closets around the world.
+            {t.shopFinds.subtitle}
           </p>
         </div>
 
@@ -286,13 +287,13 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
           {loading ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '64px 0' }}>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#0A4834', opacity: 0.7 }}>
-                Loading products...
+                {t.shopFinds.loading}
               </p>
             </div>
           ) : products.length === 0 ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '64px 0' }}>
               <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#0A4834', opacity: 0.7 }}>
-                No approved products available at the moment.
+                {t.shopFinds.noProducts}
               </p>
             </div>
           ) : (
@@ -436,7 +437,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
                     opacity: 0.6,
                   }}
                 >
-                  by {product.seller}
+                  {t.shopFinds.bySeller} {product.seller}
                 </p>
               </div>
             </motion.div>
@@ -466,7 +467,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
               boxShadow: '0px 4px 16px rgba(10,72,52,0.2)',
             }}
           >
-            View All Items
+            {t.shopFinds.viewAllItems}
           </motion.button>
         </div>
       </div>

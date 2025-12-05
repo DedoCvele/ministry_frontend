@@ -493,7 +493,6 @@ export default function App() {
       {currentPage === 'home' ? (
         <div style={{ backgroundColor: '#FFFFFF' }}>
           <HeaderAlt 
-            language={language}
             onAccountClick={() => setLoginOpen(true)}
             onShopClick={() => {
               setCurrentPage('shop');
@@ -514,22 +513,22 @@ export default function App() {
           />
           
           {/* Hero Section */}
-          <HeroSectionAlt language={language} />
+          <HeroSectionAlt />
           
           {/* Vintage Banner */}
-          <VintageBanner language={language} />
+          <VintageBanner />
           
           {/* Shop The Finds */}
-          <ShopTheFinds language={language} />
+          <ShopTheFinds />
           
           {/* Become Seller Section */}
-          <BecomeSellerSection language={language} />
+          <BecomeSellerSection />
           
           {/* Journal Spread */}
-          <JournalSpread language={language} />
+          <JournalSpread />
           
           {/* Footer */}
-          <FooterAlt language={language} />
+          <FooterAlt />
         </div>
       ) : currentPage === 'blog' ? (
         <JournalHomepage language={language} onArticleClick={(id) => {

@@ -1,11 +1,12 @@
 import { motion } from 'motion/react';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 
 interface VintageBannerProps {
-  language?: Language;
 }
 
-export function VintageBanner({ language = 'en' }: VintageBannerProps = {}) {
+export function VintageBanner({}: VintageBannerProps = {}) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   
   return (

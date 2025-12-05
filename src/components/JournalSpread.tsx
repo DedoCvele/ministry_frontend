@@ -1,12 +1,13 @@
 import { ImageWithFallback } from './figma/ImageWithFallback';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/JournalSpread.css';
 
 interface JournalSpreadProps {
-  language?: Language;
 }
 
-export function JournalSpread({ language = 'en' }: JournalSpreadProps = {}) {
+export function JournalSpread({}: JournalSpreadProps = {}) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   
   const articles = language === 'en' ? [
@@ -76,13 +77,13 @@ export function JournalSpread({ language = 'en' }: JournalSpreadProps = {}) {
         {/* Centered Text */}
          <div className="journal-spread-banner-text">
            <p className="journal-spread-banner-label">
-            Sustainable
+            {t.journal.spread.sustainable}
           </p>
            <h2 className="journal-spread-banner-title">
-            Fashion that cares
+            {t.journal.spread.fashionThatCares}
           </h2>
            <p className="journal-spread-banner-subtitle">
-            Luxury redefined through conscious choices.
+            {t.journal.spread.luxuryRedefined}
           </p>
         </div>
       </section>
@@ -92,10 +93,10 @@ export function JournalSpread({ language = 'en' }: JournalSpreadProps = {}) {
           {/* Section Title */}
            <div className="journal-spread-title-container">
              <p className="journal-spread-title-label">
-              Ministry Journal
+              {t.journal.spread.ministryJournal}
             </p>
              <h2 className="journal-spread-title">
-              Stories
+              {t.journal.spread.stories}
             </h2>
           </div>
 
@@ -154,7 +155,7 @@ export function JournalSpread({ language = 'en' }: JournalSpreadProps = {}) {
 
                   <p className="article-excerpt">{article.excerpt}</p>
 
-                  <a href="#" className="article-link">Read Article →</a>
+                  <a href="#" className="article-link">{t.journal.spread.readArticle}</a>
                 </div>
               </article>
             ))}
@@ -162,7 +163,7 @@ export function JournalSpread({ language = 'en' }: JournalSpreadProps = {}) {
 
           {/* View All Stories Link */}
           <div className="journal-spread-view-all">
-            <a href="#stories" className="view-all-stories">View All Stories</a>
+            <a href="#stories" className="view-all-stories">{t.journal.spread.viewAllStories}</a>
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ import { User } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/HeaderAlt.css';
 
 interface HeaderAltProps {
@@ -20,14 +21,16 @@ export function HeaderAlt({
   onClosetsClick,
   onJournalClick,
   onBecomeSellerClick,
-  language = 'en'
+  language: languageProp
 }: HeaderAltProps = {}) {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+  const { language: contextLanguage, toggleLanguage } = useLanguage();
   
-  const t = getTranslation(language);
+  // Always use context language for translations so navbar updates when language changes
+  const t = getTranslation(contextLanguage);
   
   // Use React Router navigation if callbacks are not provided
   const handleShopClick = () => {
@@ -75,6 +78,10 @@ export function HeaderAlt({
     } else {
       navigate('/profile');
     }
+  };
+
+  const handleLanguageToggle = () => {
+    toggleLanguage();
   };
 
   useEffect(() => {
@@ -189,7 +196,17 @@ export function HeaderAlt({
               </div>
 
               {/* Account Icon - Far Right */}
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                {/* Language Switcher */}
+                <button
+                  onClick={handleLanguageToggle}
+                  className="header-language-btn"
+                  aria-label="Switch language"
+                  type="button"
+                >
+                  {contextLanguage === 'en' ? 'MKD' : 'ENG'}
+                </button>
+                
                 {/* Account Icon */}
                 <button
                   onClick={handleAccountClick}

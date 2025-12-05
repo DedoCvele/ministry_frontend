@@ -1,13 +1,14 @@
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/FooterAlt.css';
 
 interface FooterAltProps {
   onNewsletterClick?: () => void;
   onBecomeSellerClick?: () => void;
-  language?: Language;
 }
 
-export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = 'en' }: FooterAltProps = {}) {
+export function FooterAlt({ onNewsletterClick, onBecomeSellerClick }: FooterAltProps = {}) {
+  const { language, toggleLanguage } = useLanguage();
   const t = getTranslation(language);
   
   return (
@@ -40,7 +41,7 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = '
         {/* Seller CTA Section */}
         <div className="footer-seller-box">
           <p className="footer-seller-text">
-            Want to sell your pre-loved pieces?
+            {t.footer.seller.text}
           </p>
           <button
             onClick={onBecomeSellerClick}
@@ -54,7 +55,7 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = '
               e.currentTarget.style.color = '#9F8151';
             }}
           >
-            Become a Seller →
+            {t.footer.seller.button}
           </button>
         </div>
 
@@ -66,45 +67,69 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = '
               MINISTRY
             </h3>
             <p className="footer-brand-desc">
-              Where stories live on.
+              {t.footer.brand.tagline}
               <br />
-              Second-hand luxury, timeless style.
+              {t.footer.brand.subtitle}
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
             <h4 className="footer-section-header">
-              Explore
+              {t.footer.explore}
             </h4>
             <div className="flex flex-col gap-3">
-              {['Shop', 'Closets', 'Journal', 'About'].map((link) => (
-                <a
-                  key={link}
-                  href={`#${link.toLowerCase()}`}
-                  className="footer-link-alt"
-                >
-                  {link}
-                </a>
-              ))}
+              <a
+                href="#shop"
+                className="footer-link-alt"
+              >
+                {t.footer.links.shop}
+              </a>
+              <a
+                href="#closets"
+                className="footer-link-alt"
+              >
+                {t.footer.links.closets}
+              </a>
+              <a
+                href="#journal"
+                className="footer-link-alt"
+              >
+                {t.footer.links.journal}
+              </a>
+              <a
+                href="#about"
+                className="footer-link-alt"
+              >
+                {t.footer.links.about}
+              </a>
             </div>
           </div>
 
           {/* Connect */}
           <div>
             <h4 className="footer-section-header">
-              Connect
+              {t.footer.connect}
             </h4>
             <div className="flex flex-col gap-3 mb-6">
-              {['Instagram', 'TikTok', 'Pinterest'].map((social) => (
-                <a
-                  key={social}
-                  href="#"
-                  className="footer-link-alt"
-                >
-                  {social}
-                </a>
-              ))}
+              <a
+                href="#"
+                className="footer-link-alt"
+              >
+                {t.footer.social.instagram}
+              </a>
+              <a
+                href="#"
+                className="footer-link-alt"
+              >
+                {t.footer.social.tiktok}
+              </a>
+              <a
+                href="#"
+                className="footer-link-alt"
+              >
+                {t.footer.social.pinterest}
+              </a>
             </div>
             <a
               href="mailto:hello@ministry.com"
@@ -124,7 +149,7 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = '
             {t.footer.copyright}
           </p>
           
-          <div className="flex gap-6">
+          <div className="flex items-center gap-6">
             <a
               href="#"
               className="footer-bottom-link"
@@ -137,6 +162,15 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, language = '
             >
               {t.footer.terms}
             </a>
+            {/* Language Switcher */}
+            <button
+              onClick={toggleLanguage}
+              className="header-language-btn"
+              aria-label="Switch language"
+              type="button"
+            >
+              {language === 'en' ? 'MKD' : 'ENG'}
+            </button>
           </div>
         </div>
       </div>

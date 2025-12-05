@@ -52,6 +52,25 @@
   }
 }
 
+.nav-language-btn {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: 1px solid #0A4834;
+  border-radius: 4px;
+  background-color: transparent;
+  color: #0A4834;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.nav-language-btn:hover {
+  background-color: rgba(159, 129, 81, 0.1);
+  border-color: #9F8151;
+  color: #9F8151;
+}
+
 .nav-profile-btn {
   padding: 8px;
   border-radius: 50%;

@@ -25,7 +25,6 @@ export function HomePage() {
   return (
     <div style={{ backgroundColor: '#FFFFFF' }}>
       <HeaderAlt 
-        language="en"
         onAccountClick={handleAccountClick}
         onShopClick={() => navigate('/shop')}
         onClosetsClick={() => navigate('/closets')}
@@ -34,22 +33,22 @@ export function HomePage() {
       />
       
       {/* Hero Section */}
-      <HeroSectionAlt language="en" />
+      <HeroSectionAlt />
       
       {/* Vintage Banner */}
-      <VintageBanner language="en" />
+      <VintageBanner />
       
       {/* Shop The Finds */}
-      <ShopTheFinds language="en" />
+      <ShopTheFinds />
       
       {/* Become Seller Section */}
-      <BecomeSellerSection language="en" />
+      <BecomeSellerSection />
       
       {/* Journal Spread */}
-      <JournalSpread language="en" />
+      <JournalSpread />
       
       {/* Footer */}
-      <FooterAlt language="en" />
+      <FooterAlt />
     </div>
   );
 }

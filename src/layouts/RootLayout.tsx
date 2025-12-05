@@ -1,11 +1,13 @@
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '../context/AuthContext';
+import { LanguageProvider } from '../context/LanguageContext';
 
 export function RootLayout() {
   return (
     <AuthProvider>
-      <Toaster position="top-center" />
+      <LanguageProvider>
+        <Toaster position="top-center" />
       <style>{`
         * {
           box-sizing: border-box;
@@ -38,6 +40,7 @@ export function RootLayout() {
 
       {/* This is where the route content will be rendered */}
       <Outlet />
+      </LanguageProvider>
     </AuthProvider>
   );
 }

@@ -1,11 +1,12 @@
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/HeroSectionAlt.css';
 
 interface HeroSectionAltProps {
-  language?: Language;
 }
 
-export function HeroSectionAlt({ language = 'en' }: HeroSectionAltProps = {}) {
+export function HeroSectionAlt({}: HeroSectionAltProps = {}) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   
   return (

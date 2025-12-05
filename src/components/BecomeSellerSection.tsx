@@ -1,13 +1,14 @@
 import { DollarSign, Users, Upload, Shield } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/BecomeSellerSection.css';
 
 interface BecomeSellerSectionProps {
-  language?: Language;
 }
 
-export function BecomeSellerSection({ language = 'en' }: BecomeSellerSectionProps = {}) {
+export function BecomeSellerSection({}: BecomeSellerSectionProps = {}) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
   
