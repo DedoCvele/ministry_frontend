@@ -92,11 +92,11 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
           items = [];
         }
 
-        console.log('=== SHOP THE FINDS - API RESPONSE (approved=3) ===');
-        console.log('Full response:', response);
-        console.log('Response.data:', response.data);
-        console.log('Processed items:', items);
-        console.log('Items count:', Array.isArray(items) ? items.length : 0);
+        // console.log('=== SHOP THE FINDS - API RESPONSE (approved=3) ===');
+        // console.log('Full response:', response);
+        // console.log('Response.data:', response.data);
+        // console.log('Processed items:', items);
+        // console.log('Items count:', Array.isArray(items) ? items.length : 0);
 
         // Map items to product format (all items from API are already filtered to approved=3)
         const approvedProducts: Product[] = items
@@ -166,14 +166,14 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
             // Get seller name
             const sellerName = item.user?.name || item.user?.email || 'Unknown Seller';
 
-            console.log('Mapping item:', {
-              id: item.id,
-              title: itemTitle,
-              originalTitle: item.title,
-              originalName: item.name,
-              price: item.price,
-              seller: sellerName,
-            });
+            // console.log('Mapping item:', {
+            //   id: item.id,
+            //   title: itemTitle,
+            //   originalTitle: item.title,
+            //   originalName: item.name,
+            //   price: item.price,
+            //   seller: sellerName,
+            // });
 
             return {
               id: item.id,
@@ -185,7 +185,7 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
             };
           });
 
-        console.log('Approved products (approved=3):', approvedProducts);
+        // console.log('Approved products (approved=3):', approvedProducts);
         setProducts(approvedProducts);
       } catch (error) {
         console.error('Error fetching approved items:', error);
@@ -206,18 +206,18 @@ export function ShopTheFinds({ language = 'en' }: ShopTheFindsProps = {}) {
   };
 
   const handleProductClick = async (productId: number) => {
-    console.log('=== ITEM CLICKED ===');
-    console.log('Product ID:', productId);
+    // console.log('=== ITEM CLICKED ===');
+    // console.log('Product ID:', productId);
     
     try {
       // Fetch the product data when clicked to log the response
       const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
-      console.log('=== AXIOS RESPONSE ON ITEM CLICK ===');
-      console.log('Full response:', response);
-      console.log('Response data:', response.data);
-      console.log('Product title:', response.data.title);
-      console.log('Product name:', response.data.name);
-      console.log('Product keys:', Object.keys(response.data));
+      // console.log('=== AXIOS RESPONSE ON ITEM CLICK ===');
+      // console.log('Full response:', response);
+      // console.log('Response data:', response.data);
+      // console.log('Product title:', response.data.title);
+      // console.log('Product name:', response.data.name);
+      // console.log('Product keys:', Object.keys(response.data));
     } catch (error) {
       console.error('Error fetching product on click:', error);
     }

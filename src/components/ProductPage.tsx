@@ -60,10 +60,44 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
       // Get auth token
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
       
+      // CRITICAL: Fetch current item data first to preserve images and other fields
+      let currentItem: any = null;
+      try {
+        const itemResponse = await axios.get(`${API_BASE_URL}/items/${productId}`, {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+        });
+        currentItem = itemResponse.data?.data || itemResponse.data;
+        // console.log('📥 Current item data fetched before approval queue:', {
+        //   id: currentItem?.id,
+        //   images: currentItem?.images,
+        //   image: currentItem?.image,
+        //   image_url: currentItem?.image_url
+        // });
+      } catch (fetchError) {
+        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
+      }
+      
       // Update item to set approved = 2 (add to approval queue)
-      await axios.put(
+      // Build update payload - preserve existing image data
+      const updatePayload: any = { approved: 2 };
+      
+      // Preserve image data and other critical fields if they exist
+      if (currentItem) {
+        if (currentItem.name) updatePayload.name = currentItem.name;
+        if (currentItem.title) updatePayload.title = currentItem.title;
+        if (currentItem.description) updatePayload.description = currentItem.description;
+        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
+        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
+        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
+      }
+      
+      const updateResponse = await axios.put(
         `${API_BASE_URL}/items/${productId}`,
-        { approved: 2 },
+        updatePayload,
         {
           withCredentials: true,
           headers: {
@@ -73,6 +107,9 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
           },
         }
       );
+      
+      const updatedItem = updateResponse.data?.data || updateResponse.data;
+      // console.log('🖼️ Images after approval queue update:', updatedItem?.images || updatedItem?.image || 'none');
       
       toast.success('Item added to approval queue ✅', {
         style: {
@@ -168,7 +205,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
           
           if (foundItem) {
             productData = foundItem;
-            console.log('✅ Found product in items list fallback');
+            // console.log('✅ Found product in items list fallback');
           } else {
             // If still not found, throw the original error
             throw singleItemError;
@@ -179,35 +216,35 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         // Extract the actual product data from the nested structure (already extracted above)
         
         // Console log the response for debugging
-        console.log('=== PRODUCT PAGE - API RESPONSE ===');
-        if (response) {
-          console.log('Full response:', response);
-          console.log('Response data:', response.data);
-        }
-        console.log('Extracted product data:', productData);
-        console.log('Product ID:', productId);
-        console.log('Product keys:', Object.keys(productData || {}));
-        console.log('Product title:', productData?.title);
-        console.log('Product name:', productData?.name);
-        console.log('Product description:', productData?.description);
-        console.log('Product size:', productData?.size);
-        console.log('Product condition:', productData?.condition);
-        console.log('Product brand:', productData?.brand);
+        // console.log('=== PRODUCT PAGE - API RESPONSE ===');
+        // if (response) {
+        //   console.log('Full response:', response);
+        //   console.log('Response data:', response.data);
+        // }
+        // console.log('Extracted product data:', productData);
+        // console.log('Product ID:', productId);
+        // console.log('Product keys:', Object.keys(productData || {}));
+        // console.log('Product title:', productData?.title);
+        // console.log('Product name:', productData?.name);
+        // console.log('Product description:', productData?.description);
+        // console.log('Product size:', productData?.size);
+        // console.log('Product condition:', productData?.condition);
+        // console.log('Product brand:', productData?.brand);
         
         // CRITICAL: Log image data
         // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
-        console.log('🖼️ PRODUCT PAGE - Image Debug:');
-        console.log('🖼️ Product image (path):', productData?.image);
-        console.log('🖼️ Product image_url (full URL):', productData?.image_url);
-        console.log('🖼️ Product images (array):', productData?.images);
+        // console.log('🖼️ PRODUCT PAGE - Image Debug:');
+        // console.log('🖼️ Product image (path):', productData?.image);
+        // console.log('🖼️ Product image_url (full URL):', productData?.image_url);
+        // console.log('🖼️ Product images (array):', productData?.images);
         
-        if (productData?.image_url) {
-          console.log('✅ Using image_url from response:', productData.image_url);
-        } else if (productData?.image) {
-          console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${productData.image}`);
-        } else {
-          console.warn('⚠️ Product has NO image or image_url field!');
-        }
+        // if (productData?.image_url) {
+        //   console.log('✅ Using image_url from response:', productData.image_url);
+        // } else if (productData?.image) {
+        //   console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${productData.image}`);
+        // } else {
+        //   console.warn('⚠️ Product has NO image or image_url field!');
+        // }
         
         // Verify we have the essential product data
         if (!productData || (!productData.name && !productData.title)) {

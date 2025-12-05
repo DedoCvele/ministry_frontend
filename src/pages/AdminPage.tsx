@@ -269,13 +269,13 @@ export function AdminPage() {
         items = [];
       }
       
-      console.log('🔍 AdminPage - Pending Items Fetch:', {
-        total_items: Array.isArray(items) ? items.length : 0,
-        items_with_approved_2: Array.isArray(items) ? items.filter((item: any) => {
-          const status = getApprovalNumber(item);
-          return status === 2;
-        }).length : 0
-      });
+      // console.log('🔍 AdminPage - Pending Items Fetch:', {
+      //   total_items: Array.isArray(items) ? items.length : 0,
+      //   items_with_approved_2: Array.isArray(items) ? items.filter((item: any) => {
+      //     const status = getApprovalNumber(item);
+      //     return status === 2;
+      //   }).length : 0
+      // });
       
       // Filter items with approved = 2 (in approval queue)
       // Items with approved = 2 are waiting for admin review
@@ -283,14 +283,14 @@ export function AdminPage() {
         ? items.filter((item: any) => {
             const status = getApprovalNumber(item);
             const matches = status === 2;
-            if (matches) {
-              console.log(`✅ Found pending item: ${item.id} - ${item.title || item.name} (numericStatus=${status}, approved=${item.approved})`);
-            }
+            // if (matches) {
+            //   console.log(`✅ Found pending item: ${item.id} - ${item.title || item.name} (numericStatus=${status}, approved=${item.approved})`);
+            // }
             return matches;
           })
         : [];
       
-      console.log('🔍 AdminPage - Filtered Pending Items:', pendingItems.length);
+      // console.log('🔍 AdminPage - Filtered Pending Items:', pendingItems.length);
       
       // Map to ApprovalItem format
       const mappedItems: ApprovalItem[] = pendingItems.map((item: any) => {
@@ -386,14 +386,14 @@ export function AdminPage() {
         items = [];
       }
       
-      console.log('🔍 AdminPage - Approved Items Fetch (approved=3):', {
-        total_items: Array.isArray(items) ? items.length : 0
-      });
+      // console.log('🔍 AdminPage - Approved Items Fetch (approved=3):', {
+      //   total_items: Array.isArray(items) ? items.length : 0
+      // });
       
       // All items from API are already filtered to approved=3, so use them directly
       const approvedItems = Array.isArray(items) ? items : [];
       
-      console.log('🔍 AdminPage - Approved Items:', approvedItems.length);
+      // console.log('🔍 AdminPage - Approved Items:', approvedItems.length);
       
       // Map to ApprovalItem format (all items are already approved=3 from API)
       const mappedItems: ApprovalItem[] = approvedItems.map((item: any) => {
@@ -542,12 +542,49 @@ export function AdminPage() {
         withCredentials: true,
       });
       
+      // CRITICAL: Fetch current item data first to preserve images and other fields
+      let currentItem: any = null;
+      try {
+        const itemResponse = await axios.get(`${API_BASE_URL}/items/${id}`, getAuthConfig());
+        currentItem = itemResponse.data?.data || itemResponse.data;
+        // console.log('📥 Current item data fetched:', {
+        //   id: currentItem?.id,
+        //   images: currentItem?.images,
+        //   image: currentItem?.image,
+        //   image_url: currentItem?.image_url
+        // });
+      } catch (fetchError) {
+        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
+      }
+      
       if (decision === 'approved') {
         // Set approved = 3 (move to Approved Menu - tier 3)
-        console.log(`🔄 Updating item ${id} to approved = 3`);
+        // console.log(`🔄 Updating item ${id} to approved = 3`);
+        
+        // Build update payload - preserve existing image data
+        const updatePayload: any = { approved: 3 };
+        
+        // Preserve image data if it exists
+        if (currentItem) {
+          // Preserve images array if it exists
+          if (currentItem.images && Array.isArray(currentItem.images) && currentItem.images.length > 0) {
+            // Don't send images array in PUT - backend should preserve it
+            // But we'll preserve other image-related fields if they exist
+            // console.log('🖼️ Preserving images array (backend should maintain it)');
+          }
+          
+          // Preserve other critical fields that shouldn't be lost
+          if (currentItem.name) updatePayload.name = currentItem.name;
+          if (currentItem.title) updatePayload.title = currentItem.title;
+          if (currentItem.description) updatePayload.description = currentItem.description;
+          if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
+          if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
+          if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
+        }
+        
         const updateResponse = await axios.put(
           `${API_BASE_URL}/items/${id}`,
-          { approved: 3 },
+          updatePayload,
           getAuthConfig()
         );
         
@@ -555,8 +592,9 @@ export function AdminPage() {
         const updatedItem = updateResponse.data?.data || updateResponse.data;
         const updatedApprovedStatus = getApprovalNumber(updatedItem);
         
-        console.log('✅ Update response:', updateResponse.data);
-        console.log('✅ Updated item approved status:', updatedApprovedStatus);
+        // console.log('✅ Update response:', updateResponse.data);
+        // console.log('✅ Updated item approved status:', updatedApprovedStatus);
+        // console.log('🖼️ Images after update:', updatedItem?.images || updatedItem?.image || 'none');
         
         if (updatedApprovedStatus !== 3) {
           console.error('❌ Update failed: Item approved status is not 3 after update:', updatedApprovedStatus);
@@ -587,9 +625,23 @@ export function AdminPage() {
         });
       } else {
         // Reject: set approved = 1 (back to approved status)
+        // Build update payload - preserve existing image data
+        const updatePayload: any = { approved: 1 };
+        
+        // Preserve image data if it exists
+        if (currentItem) {
+          // Preserve other critical fields that shouldn't be lost
+          if (currentItem.name) updatePayload.name = currentItem.name;
+          if (currentItem.title) updatePayload.title = currentItem.title;
+          if (currentItem.description) updatePayload.description = currentItem.description;
+          if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
+          if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
+          if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
+        }
+        
         await axios.put(
           `${API_BASE_URL}/items/${id}`,
-          { approved: 1 },
+          updatePayload,
           getAuthConfig()
         );
         
@@ -625,12 +677,44 @@ export function AdminPage() {
         withCredentials: true,
       });
       
+      // CRITICAL: Fetch current item data first to preserve images and other fields
+      let currentItem: any = null;
+      try {
+        const itemResponse = await axios.get(`${API_BASE_URL}/items/${id}`, getAuthConfig());
+        currentItem = itemResponse.data?.data || itemResponse.data;
+        // console.log('📥 Current item data fetched for rejection:', {
+        //   id: currentItem?.id,
+        //   images: currentItem?.images,
+        //   image: currentItem?.image,
+        //   image_url: currentItem?.image_url
+        // });
+      } catch (fetchError) {
+        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
+      }
+      
       // Reset approved from 3 to 1 (back to approved status)
-      await axios.put(
+      // Build update payload - preserve existing image data
+      const updatePayload: any = { approved: 1 };
+      
+      // Preserve image data if it exists
+      if (currentItem) {
+        // Preserve other critical fields that shouldn't be lost
+        if (currentItem.name) updatePayload.name = currentItem.name;
+        if (currentItem.title) updatePayload.title = currentItem.title;
+        if (currentItem.description) updatePayload.description = currentItem.description;
+        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
+        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
+        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
+      }
+      
+      const updateResponse = await axios.put(
         `${API_BASE_URL}/items/${id}`,
-        { approved: 1 },
+        updatePayload,
         getAuthConfig()
       );
+      
+      const updatedItem = updateResponse.data?.data || updateResponse.data;
+      // console.log('🖼️ Images after rejection update:', updatedItem?.images || updatedItem?.image || 'none');
       
       // Remove from approved items
       setApprovedItems((prev) => prev.filter((item) => item.id !== id));
@@ -776,11 +860,10 @@ export function AdminPage() {
 
       if (useFormData) {
         // Use FormData for file upload
+        // Per API docs: title (required), full_story (required), image (optional file)
         const formData = new FormData();
         formData.append('title', blogForm.title);
         formData.append('full_story', blogForm.content);
-        formData.append('content', blogForm.content);
-        formData.append('context', blogForm.content);
         
         if (blogForm.category) {
           formData.append('category', blogForm.category);
@@ -789,17 +872,19 @@ export function AdminPage() {
           formData.append('short_summary', blogForm.summary);
         }
         
-        // Append image file - backend should handle this
-        formData.append('image', heroImageFile);
+        // Append image file - backend expects 'image' field name
+        // Per api_routes.txt: "image (optional file)"
+        if (heroImageFile) {
+          formData.append('image', heroImageFile);
+        }
         
         payload = formData;
       } else {
         // Use JSON for URL or no image
+        // Per API docs: title (required), full_story (required), image_url (optional string)
         payload = {
           title: blogForm.title,
           full_story: blogForm.content,
-          content: blogForm.content,
-          context: blogForm.content,
         };
 
         if (blogForm.category) {
@@ -820,15 +905,23 @@ export function AdminPage() {
         let lastError: any = null;
         
         // Helper to get axios config
+        // CRITICAL: Don't set Content-Type for FormData - browser must set it with boundary
         const getAxiosConfig = () => {
-          if (useFormData) {
-            return {
-              headers: {
-                'Content-Type': 'multipart/form-data',
-              },
-            };
+          const config: any = {
+            withCredentials: true,
+            headers: {
+              'Accept': 'application/json',
+              ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
+            },
+          };
+          
+          // For FormData, DO NOT set Content-Type - let browser set it automatically
+          // For JSON, set Content-Type
+          if (!useFormData) {
+            config.headers['Content-Type'] = 'application/json';
           }
-          return {};
+          
+          return config;
         };
 
         // Try PATCH first (REST standard for updates)
@@ -916,14 +1009,24 @@ export function AdminPage() {
         }
       } else {
         // Create new blog
+        // CRITICAL: Don't set Content-Type for FormData - browser must set it with boundary
+        const createConfig: any = {
+          withCredentials: true,
+          headers: {
+            'Accept': 'application/json',
+            ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
+          },
+        };
+        
+        // Only set Content-Type for JSON payloads, NOT for FormData
+        if (!useFormData) {
+          createConfig.headers['Content-Type'] = 'application/json';
+        }
+        
         const response = await axios.post(
           `${API_BASE_URL}/blogs`, 
           payload,
-          useFormData ? {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          } : {}
+          createConfig
         );
         toast.success('Blog posted successfully ✨', {
           style: {
@@ -956,7 +1059,12 @@ export function AdminPage() {
     } catch (error: any) {
       console.error('Error posting blog:', error);
       console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
-      console.error('Payload that was sent:', JSON.stringify(payload, null, 2));
+      // Note: payload might be FormData which can't be stringified, so log it differently
+      if (useFormData) {
+        console.error('Payload that was sent: FormData with image file');
+      } else {
+        console.error('Payload that was sent:', JSON.stringify(payload, null, 2));
+      }
       
       // Handle Laravel validation errors with detailed messages
       let errorMessage = 'Failed to post blog';
@@ -1115,7 +1223,7 @@ export function AdminPage() {
         },
       });
       
-      console.log('Delete response:', response);
+      // console.log('Delete response:', response);
       
       toast.success('Blog deleted successfully', {
         style: {

@@ -636,7 +636,7 @@ export default function App() {
         isOpen={reviewModalOpen}
         onClose={() => setReviewModalOpen(false)}
         onSubmit={(rating, comment) => {
-          console.log('Review submitted:', rating, comment);
+          // console.log('Review submitted:', rating, comment);
         }}
       />
 
@@ -645,7 +645,7 @@ export default function App() {
         isOpen={avatarModalOpen}
         onClose={() => setAvatarModalOpen(false)}
         onSelect={(avatarId) => {
-          console.log('Avatar selected:', avatarId);
+          // console.log('Avatar selected:', avatarId);
         }}
       />
 
