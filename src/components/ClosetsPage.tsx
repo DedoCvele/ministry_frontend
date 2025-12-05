@@ -336,7 +336,12 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
             Sell, share, and connect with conscious fashion lovers.
           </p>
 
-          <motion.button style={{ backgroundColor: '#9F8151', color: '#FFF', padding: '16px 48px', borderRadius: '16px' }}>
+          <motion.button 
+            onClick={() => navigate('/become-seller')}
+            whileHover={{ backgroundColor: '#0A4834' }}
+            whileTap={{ scale: 0.98 }}
+            style={{ backgroundColor: '#9F8151', color: '#FFF', padding: '16px 48px', borderRadius: '16px', cursor: 'pointer' }}
+          >
             Start Selling
           </motion.button>
         </motion.div>

@@ -1,4 +1,5 @@
 import { DollarSign, Users, Upload, Shield } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 import { type Language, getTranslation } from '../translations';
 import './styles/BecomeSellerSection.css';
 
@@ -8,6 +9,7 @@ interface BecomeSellerSectionProps {
 
 export function BecomeSellerSection({ language = 'en' }: BecomeSellerSectionProps = {}) {
   const t = getTranslation(language);
+  const navigate = useNavigate();
   
   const benefits = [
     {
@@ -82,6 +84,7 @@ export function BecomeSellerSection({ language = 'en' }: BecomeSellerSectionProp
         <div className="text-center">
           <button
             className="seller-cta bs-manrope"
+            onClick={() => navigate('/become-seller')}
           >
             {t.becomeSeller.startSelling}
           </button>
