@@ -10,10 +10,16 @@ import { useAuth } from '../context/AuthContext';
 
 export function HomePage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const handleAccountClick = () => {
-    navigate(user ? '/profile' : '/login');
+    if (!user) {
+      navigate('/login');
+    } else if (isAdmin) {
+      navigate('/admin');
+    } else {
+      navigate('/profile');
+    }
   };
   
   return (

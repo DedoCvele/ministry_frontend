@@ -25,7 +25,7 @@ export function HeaderAlt({
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   
   const t = getTranslation(language);
   
@@ -68,7 +68,13 @@ export function HeaderAlt({
       return;
     }
 
-    navigate(user ? '/profile' : '/login');
+    if (!user) {
+      navigate('/login');
+    } else if (isAdmin) {
+      navigate('/admin');
+    } else {
+      navigate('/profile');
+    }
   };
 
   useEffect(() => {

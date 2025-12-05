@@ -27,7 +27,7 @@ interface ProductPageProps {
 export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPageProps) {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   
   const handleBack = () => {
     if (onBack) {
@@ -38,7 +38,59 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   };
   
   const handleCheckout = () => {
-    if (onCheckout) {
+    if (user && !isAdmin && product) {
+      // Compute image URL
+      const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+      const getImageUrl = (img: any): string => {
+        if (!img) return '';
+        if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
+          return img;
+        }
+        if (typeof img === 'object' && img !== null) {
+          const url = img.url || img.image_url || img.path || img.image || img.src;
+          if (url) {
+            if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+              return url;
+            }
+            const cleanPath = url.startsWith('/') ? url.substring(1) : url;
+            if (cleanPath.startsWith('storage/')) {
+              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+            }
+            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+          }
+        }
+        if (typeof img === 'string') {
+          const cleanPath = img.startsWith('/') ? img.substring(1) : img;
+          if (cleanPath.startsWith('storage/')) {
+            return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
+          }
+          return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
+        }
+        return '';
+      };
+      
+      let mainImageUrl = '';
+      if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
+        const mainImage = product.images[0];
+        mainImageUrl = mainImage?.url || getImageUrl(mainImage?.path || mainImage);
+      } else {
+        mainImageUrl = product?.image_url || getImageUrl(product?.image);
+      }
+      
+      const productTitle = product?.title || product?.name || product?.product_name || 'Product';
+      
+      // User is logged in, navigate to checkout with product info
+      navigate('/checkout', { 
+        state: { 
+          product: {
+            id: product?.id || productId,
+            image: mainImageUrl,
+            title: productTitle,
+            price: parseFloat(product?.price || '0'),
+          }
+        } 
+      });
+    } else if (onCheckout) {
       onCheckout();
     } else {
       navigate('/cart');
@@ -808,7 +860,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               </AccordionItem>
             </Accordion>
 
-            {/* Add to Cart / Add to Approve Button */}
+            {/* Add to Cart / Add to Approve / Go to Checkout Button */}
             <motion.button
               whileHover={{ backgroundColor: '#083D2C', y: -2 }}
               whileTap={{ scale: 0.98 }}
@@ -830,7 +882,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 boxShadow: '0px 4px 12px rgba(10,72,52,0.3)',
               }}
             >
-              {isAdmin ? 'Add to Approve' : 'Add to Cart'}
+              {isAdmin ? 'Add to Approve' : (user ? 'Go to Checkout' : 'Add to Cart')}
             </motion.button>
           </motion.div>
         </div>

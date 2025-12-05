@@ -325,12 +325,18 @@
   color: #a32020;
 }
 
-.admin-queue-actions button.approve:hover {
+.admin-queue-actions button.approve:hover:not(:disabled) {
   background: #083d2c;
 }
 
-.admin-queue-actions button.reject:hover {
+.admin-queue-actions button.reject:hover:not(:disabled) {
   background: rgba(193, 64, 64, 0.18);
+}
+
+.admin-queue-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .admin-divider {

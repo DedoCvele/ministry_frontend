@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CreditCard, Truck, MapPin } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
@@ -28,12 +29,34 @@ interface CheckoutPageProps {
 
 export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en' }: CheckoutPageProps) {
   const t = getTranslation(language);
-  const [deliveryMethod, setDeliveryMethod] = useState('standard');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [deliveryMethod, setDeliveryMethod] = useState('fast');
   const [saveAddress, setSaveAddress] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [cardData, setCardData] = useState({
+    cardNumber: '',
+    cardName: '',
+    expiryDate: '',
+    cvv: '',
+  });
 
-  const subtotal = items.reduce((sum, item) => sum + item.price, 0);
-  const deliveryFee = deliveryMethod === 'express' ? 300 : 150; // 150 DEN for standard, 300 DEN for express
+  // Get product from route state if available
+  const productFromState = (location.state as any)?.product;
+  const displayItems = productFromState ? [productFromState] : items;
+  
+  const subtotal = displayItems.reduce((sum, item) => sum + item.price, 0);
+  // Delivery fees: fast = 300, normal = 150, slow = 100
+  const deliveryFee = deliveryMethod === 'fast' ? 300 : deliveryMethod === 'normal' ? 150 : 100;
   const total = subtotal + deliveryFee;
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
 
   return (
     <div style={{ backgroundColor: '#F0ECE3', minHeight: '100vh' }}>
@@ -47,7 +70,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
         {/* Back Button */}
         <motion.button
           whileHover={{ x: -4 }}
-          onClick={onBack}
+          onClick={handleBack}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -63,7 +86,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
           }}
         >
           <ArrowLeft size={18} />
-          {t.checkout.backToCart}
+          {productFromState ? 'Back to Product' : t.checkout.backToCart}
         </motion.button>
 
         {/* Page Title */}
@@ -223,23 +246,24 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                 </div>
 
                 <RadioGroup value={deliveryMethod} onValueChange={setDeliveryMethod}>
+                  {/* Fast Delivery */}
                   <motion.div
                     whileHover={{ borderColor: '#9F8151' }}
                     style={{
-                      border: `2px solid ${deliveryMethod === 'standard' ? '#9F8151' : '#E0E0E0'}`,
+                      border: `2px solid ${deliveryMethod === 'fast' ? '#9F8151' : '#E0E0E0'}`,
                       borderRadius: '12px',
                       padding: '20px',
                       marginBottom: '16px',
                       cursor: 'pointer',
                       transition: 'all 0.4s ease-in-out',
-                      backgroundColor: deliveryMethod === 'standard' ? '#FFFAF5' : '#FFFFFF',
+                      backgroundColor: deliveryMethod === 'fast' ? '#FFFAF5' : '#FFFFFF',
                     }}
-                    onClick={() => setDeliveryMethod('standard')}
+                    onClick={() => setDeliveryMethod('fast')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <RadioGroupItem value="standard" id="standard" />
+                      <RadioGroupItem value="fast" id="fast" />
                       <Label 
-                        htmlFor="standard"
+                        htmlFor="fast"
                         style={{ 
                           flex: 1,
                           cursor: 'pointer',
@@ -249,46 +273,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                           color: '#0A4834',
                         }}
                       >
-                        {t.checkout.standardDelivery}
-                      </Label>
-                      <span style={{
-                        fontFamily: 'Manrope, sans-serif',
-                        fontSize: '15px',
-                        color: '#0A4834',
-                        fontWeight: 600,
-                      }}>
-                        150 DEN
-                      </span>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    whileHover={{ borderColor: '#9F8151' }}
-                    style={{
-                      border: `2px solid ${deliveryMethod === 'express' ? '#9F8151' : '#E0E0E0'}`,
-                      borderRadius: '12px',
-                      padding: '20px',
-                      marginBottom: '16px',
-                      cursor: 'pointer',
-                      transition: 'all 0.4s ease-in-out',
-                      backgroundColor: deliveryMethod === 'express' ? '#FFFAF5' : '#FFFFFF',
-                    }}
-                    onClick={() => setDeliveryMethod('express')}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <RadioGroupItem value="express" id="express" />
-                      <Label 
-                        htmlFor="express"
-                        style={{ 
-                          flex: 1,
-                          cursor: 'pointer',
-                          fontFamily: 'Manrope, sans-serif',
-                          fontSize: '15px',
-                          fontWeight: 500,
-                          color: '#0A4834',
-                        }}
-                      >
-                        {t.checkout.expressDelivery}
+                        Fast Delivery
                       </Label>
                       <span style={{
                         fontFamily: 'Manrope, sans-serif',
@@ -301,22 +286,24 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                     </div>
                   </motion.div>
 
+                  {/* Normal Delivery */}
                   <motion.div
                     whileHover={{ borderColor: '#9F8151' }}
                     style={{
-                      border: `2px solid ${deliveryMethod === 'pickup' ? '#9F8151' : '#E0E0E0'}`,
+                      border: `2px solid ${deliveryMethod === 'normal' ? '#9F8151' : '#E0E0E0'}`,
                       borderRadius: '12px',
                       padding: '20px',
+                      marginBottom: '16px',
                       cursor: 'pointer',
                       transition: 'all 0.4s ease-in-out',
-                      backgroundColor: deliveryMethod === 'pickup' ? '#FFFAF5' : '#FFFFFF',
+                      backgroundColor: deliveryMethod === 'normal' ? '#FFFAF5' : '#FFFFFF',
                     }}
-                    onClick={() => setDeliveryMethod('pickup')}
+                    onClick={() => setDeliveryMethod('normal')}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <RadioGroupItem value="pickup" id="pickup" />
+                      <RadioGroupItem value="normal" id="normal" />
                       <Label 
-                        htmlFor="pickup"
+                        htmlFor="normal"
                         style={{ 
                           flex: 1,
                           cursor: 'pointer',
@@ -326,22 +313,61 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                           color: '#0A4834',
                         }}
                       >
-                        {t.checkout.pickup}
+                        Normal Delivery
                       </Label>
                       <span style={{
                         fontFamily: 'Manrope, sans-serif',
                         fontSize: '15px',
-                        color: '#9F8151',
+                        color: '#0A4834',
                         fontWeight: 600,
                       }}>
-                        Free
+                        150 DEN
+                      </span>
+                    </div>
+                  </motion.div>
+
+                  {/* Slow Delivery */}
+                  <motion.div
+                    whileHover={{ borderColor: '#9F8151' }}
+                    style={{
+                      border: `2px solid ${deliveryMethod === 'slow' ? '#9F8151' : '#E0E0E0'}`,
+                      borderRadius: '12px',
+                      padding: '20px',
+                      cursor: 'pointer',
+                      transition: 'all 0.4s ease-in-out',
+                      backgroundColor: deliveryMethod === 'slow' ? '#FFFAF5' : '#FFFFFF',
+                    }}
+                    onClick={() => setDeliveryMethod('slow')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <RadioGroupItem value="slow" id="slow" />
+                      <Label 
+                        htmlFor="slow"
+                        style={{ 
+                          flex: 1,
+                          cursor: 'pointer',
+                          fontFamily: 'Manrope, sans-serif',
+                          fontSize: '15px',
+                          fontWeight: 500,
+                          color: '#0A4834',
+                        }}
+                      >
+                        Slow Delivery
+                      </Label>
+                      <span style={{
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '15px',
+                        color: '#0A4834',
+                        fontWeight: 600,
+                      }}>
+                        100 DEN
                       </span>
                     </div>
                   </motion.div>
                 </RadioGroup>
               </div>
 
-              {/* Payment Method - Cash Only */}
+              {/* Payment Method - Tabs */}
               <div style={{
                 backgroundColor: '#FFFFFF',
                 borderRadius: '16px',
@@ -364,43 +390,209 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                   </h2>
                 </div>
 
-                <div style={{
-                  padding: '40px',
-                  textAlign: 'center',
-                  backgroundColor: '#FFFAF5',
-                  borderRadius: '12px',
-                  border: '2px solid #9F8151',
-                }}>
+                <div style={{ width: '100%' }}>
                   <div style={{
-                    fontSize: '48px',
-                    marginBottom: '16px',
+                    display: 'flex',
+                    width: '100%',
+                    backgroundColor: '#F0ECE3',
+                    borderRadius: '12px',
+                    padding: '4px',
+                    marginBottom: '24px',
+                    gap: '4px',
                   }}>
-                    💵
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setPaymentMethod('cash')}
+                      style={{
+                        flex: 1,
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '15px',
+                        fontWeight: 500,
+                        color: paymentMethod === 'cash' ? '#0A4834' : '#666',
+                        backgroundColor: paymentMethod === 'cash' ? '#FFFFFF' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: paymentMethod === 'cash' ? '0px 2px 8px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      Cash
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setPaymentMethod('credit')}
+                      style={{
+                        flex: 1,
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '15px',
+                        fontWeight: 500,
+                        color: paymentMethod === 'credit' ? '#0A4834' : '#666',
+                        backgroundColor: paymentMethod === 'credit' ? '#FFFFFF' : 'transparent',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        boxShadow: paymentMethod === 'credit' ? '0px 2px 8px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      Credit Card
+                    </motion.button>
                   </div>
-                  <h3 style={{
-                    fontFamily: 'Cormorant Garamond, serif',
-                    fontSize: '24px',
-                    color: '#0A4834',
-                    marginBottom: '12px',
-                  }}>
-                    {t.checkout.cashOnDelivery}
-                  </h3>
-                  <p style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '15px',
-                    color: '#666',
-                    marginBottom: '8px',
-                  }}>
-                    {t.checkout.payWithCash}
-                  </p>
-                  <p style={{
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '13px',
-                    color: '#9F8151',
-                    fontWeight: 500,
-                  }}>
-                    {t.checkout.deliveryFee}: {deliveryFee} DEN
-                  </p>
+
+                  {paymentMethod === 'cash' && (
+                    <div style={{
+                      padding: '40px',
+                      textAlign: 'center',
+                      backgroundColor: '#FFFAF5',
+                      borderRadius: '12px',
+                      border: '2px solid #9F8151',
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        marginBottom: '16px',
+                      }}>
+                        💵
+                      </div>
+                      <h3 style={{
+                        fontFamily: 'Cormorant Garamond, serif',
+                        fontSize: '24px',
+                        color: '#0A4834',
+                        marginBottom: '12px',
+                      }}>
+                        {t.checkout.cashOnDelivery}
+                      </h3>
+                      <p style={{
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '15px',
+                        color: '#666',
+                        marginBottom: '8px',
+                      }}>
+                        {t.checkout.payWithCash}
+                      </p>
+                      <p style={{
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '13px',
+                        color: '#9F8151',
+                        fontWeight: 500,
+                      }}>
+                        {t.checkout.deliveryFee}: {deliveryFee} DEN
+                      </p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'credit' && (
+                    <div style={{
+                      padding: '24px',
+                      backgroundColor: '#FFFAF5',
+                      borderRadius: '12px',
+                      border: '2px solid #9F8151',
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div>
+                          <Label htmlFor="cardNumber" style={{ 
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#0A4834',
+                            marginBottom: '8px',
+                            display: 'block',
+                          }}>
+                            Card Number
+                          </Label>
+                          <Input 
+                            id="cardNumber" 
+                            placeholder="1234 5678 9012 3456"
+                            value={cardData.cardNumber}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim();
+                              setCardData({ ...cardData, cardNumber: value });
+                            }}
+                            maxLength={19}
+                            style={{ marginTop: '4px' }}
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="cardName" style={{ 
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            color: '#0A4834',
+                            marginBottom: '8px',
+                            display: 'block',
+                          }}>
+                            Cardholder Name
+                          </Label>
+                          <Input 
+                            id="cardName" 
+                            placeholder="John Doe"
+                            value={cardData.cardName}
+                            onChange={(e) => setCardData({ ...cardData, cardName: e.target.value })}
+                            style={{ marginTop: '4px' }}
+                          />
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                          <div>
+                            <Label htmlFor="expiryDate" style={{ 
+                              fontFamily: 'Manrope, sans-serif',
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#0A4834',
+                              marginBottom: '8px',
+                              display: 'block',
+                            }}>
+                              Expiry Date
+                            </Label>
+                            <Input 
+                              id="expiryDate" 
+                              placeholder="MM/YY"
+                              value={cardData.expiryDate}
+                              onChange={(e) => {
+                                let value = e.target.value.replace(/\D/g, '');
+                                if (value.length >= 2) {
+                                  value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                                }
+                                setCardData({ ...cardData, expiryDate: value });
+                              }}
+                              maxLength={5}
+                              style={{ marginTop: '4px' }}
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="cvv" style={{ 
+                              fontFamily: 'Manrope, sans-serif',
+                              fontSize: '14px',
+                              fontWeight: 500,
+                              color: '#0A4834',
+                              marginBottom: '8px',
+                              display: 'block',
+                            }}>
+                              CVV
+                            </Label>
+                            <Input 
+                              id="cvv" 
+                              placeholder="123"
+                              type="password"
+                              value={cardData.cvv}
+                              onChange={(e) => {
+                                const value = e.target.value.replace(/\D/g, '').substring(0, 3);
+                                setCardData({ ...cardData, cvv: value });
+                              }}
+                              maxLength={3}
+                              style={{ marginTop: '4px' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -434,7 +626,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                 maxHeight: '300px',
                 overflowY: 'auto',
               }}>
-                {items.map((item) => (
+                {displayItems.map((item) => (
                   <div key={item.id} style={{ display: 'flex', gap: '12px' }}>
                     <div style={{
                       width: '60px',
@@ -475,6 +667,50 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                   </div>
                 ))}
               </div>
+
+              {/* Product Image and Title Below Order Summary */}
+              {productFromState && (
+                <div style={{
+                  marginBottom: '24px',
+                  paddingBottom: '24px',
+                  borderBottom: '1px solid #E0E0E0',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                  }}>
+                    <div style={{
+                      width: '120px',
+                      height: '120px',
+                      borderRadius: '12px',
+                      overflow: 'hidden',
+                      backgroundColor: '#F0ECE3',
+                    }}>
+                      <ImageWithFallback
+                        src={productFromState.image}
+                        alt={productFromState.title}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                    </div>
+                    <h3 style={{
+                      fontFamily: 'Cormorant Garamond, serif',
+                      fontSize: '20px',
+                      color: '#0A4834',
+                      fontWeight: 600,
+                      margin: 0,
+                    }}>
+                      {productFromState.title}
+                    </h3>
+                  </div>
+                </div>
+              )}
 
               {/* Summary Breakdown */}
               <div style={{ 
@@ -552,7 +788,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                 {t.checkout.deliveryFeeCash}
               </p>
 
-              {/* Complete Payment Button */}
+              {/* Finish Payment Button */}
               <motion.button
                 whileHover={{ backgroundColor: '#083D2C', y: -2 }}
                 whileTap={{ scale: 0.98 }}
@@ -574,7 +810,7 @@ export function CheckoutPage({ items, onBack, onCompletePayment, language = 'en'
                   boxShadow: '0px 4px 12px rgba(10,72,52,0.3)',
                 }}
               >
-                {t.checkout.completePayment}
+                Finish Payment
               </motion.button>
 
               {/* Security Badge */}

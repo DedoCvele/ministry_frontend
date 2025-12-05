@@ -844,26 +844,28 @@ export function AdminPage() {
 
     setLoading(true);
 
-    try {
-      // Determine if we're using FormData (for file upload) or JSON (for URL)
-      const useFormData = heroImageFile && imageUploadMode === 'upload';
-      
-      let payload: FormData | {
-        title: string;
-        full_story: string;
-        context?: string;
-        content?: string;
-        category?: string;
-        short_summary?: string;
-        image_url?: string;
-      };
+    // Determine if we're using FormData (for file upload) or JSON (for URL)
+    // Declare outside try block so it's accessible in catch block
+    const useFormData = heroImageFile && imageUploadMode === 'upload';
+    
+    let payload: FormData | {
+      title: string;
+      full_story: string;
+      content: string;
+      context?: string;
+      category?: string;
+      short_summary?: string;
+      image_url?: string;
+    };
 
+    try {
       if (useFormData) {
         // Use FormData for file upload
-        // Per API docs: title (required), full_story (required), image (optional file)
+        // API expects: title (required), content (required), image (optional file)
         const formData = new FormData();
         formData.append('title', blogForm.title);
-        formData.append('full_story', blogForm.content);
+        formData.append('content', blogForm.content);
+        formData.append('full_story', blogForm.content); // Include both for compatibility
         
         if (blogForm.category) {
           formData.append('category', blogForm.category);
@@ -881,10 +883,11 @@ export function AdminPage() {
         payload = formData;
       } else {
         // Use JSON for URL or no image
-        // Per API docs: title (required), full_story (required), image_url (optional string)
+        // API expects: title (required), content (required), image_url (optional string)
         payload = {
           title: blogForm.title,
-          full_story: blogForm.content,
+          content: blogForm.content,
+          full_story: blogForm.content, // Include both for compatibility
         };
 
         if (blogForm.category) {
@@ -1216,12 +1219,8 @@ export function AdminPage() {
       }
       
       // Use the API route (DELETE /api/blogs/{id}) - this is the correct route for React SPA
-      const response = await axios.delete(`${API_BASE_URL}/blogs/${id}`, {
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
+      // Use getAuthConfig() to include Authorization header
+      const response = await axios.delete(`${API_BASE_URL}/blogs/${id}`, getAuthConfig());
       
       // console.log('Delete response:', response);
       
