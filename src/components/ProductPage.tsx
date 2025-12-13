@@ -12,9 +12,11 @@ import {
 } from './ui/accordion';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { HeaderAlt } from './HeaderAlt';
+import { FooterAlt } from './FooterAlt';
 import { ContactSellerPopup } from './ContactSellerPopup';
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { toast } from 'sonner';
 import './styles/ProductPage.css';
 
@@ -24,10 +26,15 @@ interface ProductPageProps {
   language?: Language;
 }
 
-export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPageProps) {
+export function ProductPage({ onBack, onCheckout, language: languageProp }: ProductPageProps) {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { isAdmin, user } = useAuth();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
+  const t = getTranslation(language);
   
   const handleBack = () => {
     if (onBack) {
@@ -189,7 +196,6 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
     }
   };
   
-  const t = getTranslation(language);
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
@@ -205,7 +211,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   useEffect(() => {
     const fetchProduct = async () => {
       if (!productId) {
-        setError('Product ID is missing');
+        setError(t.product.errors.idMissing);
         setLoading(false);
         return;
       }
@@ -301,7 +307,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         // Verify we have the essential product data
         if (!productData || (!productData.name && !productData.title)) {
           console.error('❌ Product data is missing name/title field!');
-          setError('Product data is incomplete');
+          setError(t.product.errors.dataIncomplete);
           setLoading(false);
           return;
         }
@@ -317,15 +323,15 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         
         // Provide more specific error messages
         if (err.response?.status === 404) {
-          setError('Product not found. This item may not be available or may have been removed.');
+          setError(t.product.errors.notFound);
         } else if (err.response?.status === 403) {
-          setError('You do not have permission to view this product.');
+          setError(t.product.errors.noPermission);
         } else if (err.response?.status === 401) {
-          setError('Please log in to view this product.');
+          setError(t.product.errors.loginRequired);
         } else if (err.response?.status >= 500) {
-          setError('Server error. Please try again later.');
+          setError(t.product.errors.serverError);
         } else {
-          setError(err.response?.data?.message || 'Failed to load product. Please try again.');
+          setError(err.response?.data?.message || t.product.errors.failedToLoad);
         }
         setLoading(false); // Make sure to set loading to false on error
       } finally {
@@ -400,14 +406,14 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
   const productImages = [mainImageUrl, ...additionalImages].filter(Boolean);
 
   // Per API docs: response includes both 'name' and 'title' fields
-  const productTitle = product?.title || product?.name || product?.product_name || 'Loading...';
+  const productTitle = product?.title || product?.name || product?.product_name || t.product.defaults.loading;
   const productPrice = product?.price ? `€${parseFloat(product.price).toFixed(2)}` : '€0';
-  const productBrand = product?.brand?.name || 'Unknown Brand';
-  const productDescription = product?.description || 'No description available.';
-  const productSize = product?.size || 'One Size';
-  const productCondition = product?.condition || 'Good';
+  const productBrand = product?.brand?.name || t.product.defaults.unknownBrand;
+  const productDescription = product?.description || t.product.defaults.noDescription;
+  const productSize = product?.size || t.product.defaults.oneSize;
+  const productCondition = product?.condition || t.product.defaults.good;
   const productMaterial = product?.material || 'Material information not available';
-  const sellerName = product?.user?.name || product?.user?.email || 'Unknown Seller';
+  const sellerName = product?.user?.name || product?.user?.email || t.product.defaults.unknownSeller;
   const sellerInitial = sellerName.charAt(0).toUpperCase();
   const sellerUsername = `@${sellerName.split(' ')[0]}`;
 
@@ -465,7 +471,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
           fontSize: '18px',
           color: '#0A4834',
         }}>
-          Loading product...
+          {t.product.loading}
         </div>
       </div>
     );
@@ -486,7 +492,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
           gap: '16px',
         }}>
           <div style={{ fontSize: '18px', color: '#0A4834', fontWeight: 600 }}>
-            {error || 'Product not found'}
+            {error || t.product.notFound}
           </div>
           <motion.button
             onClick={handleBack}
@@ -503,7 +509,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
               cursor: 'pointer',
             }}
           >
-            Back to Shop
+            {t.product.backToShop}
           </motion.button>
         </div>
       </div>
@@ -526,7 +532,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
           whileHover={{ x: -4 }}
         >
           <ChevronLeft size={20} />
-          Back to Shop
+          {t.product.backToShop}
         </motion.button>
 
         <div className="product-grid">
@@ -618,7 +624,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 color: '#0A4834',
                 marginBottom: '12px',
               }}>
-                Seller Info
+                {t.product.sellerInfo}
               </div>
 
               <div className="seller-row">
@@ -629,13 +635,13 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
                     {[1,2,3,4,5].map((star) => (<Star key={star} size={12} fill="#9F8151" stroke="#9F8151" />))}
-                    <span className="seller-stats">Verified Seller</span>
+                    <span className="seller-stats">{t.product.verifiedSeller}</span>
                   </div>
 
-                  <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#9F8151', fontWeight: 500 }}>✓ Verified Closet</div>
+                  <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#9F8151', fontWeight: 500 }}>✓ {t.product.verifiedCloset}</div>
                 </div>
 
-                <a href={`/closets/${product?.user?.id || ''}`} className="view-closet-link">View Closet →</a>
+                <a href={`/closets/${product?.user?.id || ''}`} className="view-closet-link">{t.product.viewCloset} →</a>
               </div>
 
               <motion.button
@@ -645,7 +651,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 className="contact-btn"
               >
                 <MessageCircle size={16} />
-                Contact Seller
+                {t.product.contactSeller}
               </motion.button>
             </div>
           </motion.div>
@@ -767,7 +773,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#0A4834',
                   letterSpacing: '0.02em',
                 }}>
-                  Brand
+                  {t.product.brand}
                 </AccordionTrigger>
                 <AccordionContent style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -787,7 +793,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#0A4834',
                   letterSpacing: '0.02em',
                 }}>
-                  Material
+                  {t.product.material}
                 </AccordionTrigger>
                 <AccordionContent style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -807,7 +813,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#0A4834',
                   letterSpacing: '0.02em',
                 }}>
-                  Size
+                  {t.product.size}
                 </AccordionTrigger>
                 <AccordionContent style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -827,7 +833,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#0A4834',
                   letterSpacing: '0.02em',
                 }}>
-                  Condition
+                  {t.product.condition}
                 </AccordionTrigger>
                 <AccordionContent style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -847,7 +853,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#0A4834',
                   letterSpacing: '0.02em',
                 }}>
-                  Care Instructions
+                  {t.product.careInstructions}
                 </AccordionTrigger>
                 <AccordionContent style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -855,7 +861,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                   color: '#000000',
                   paddingTop: '12px',
                 }}>
-                  Store in dust bag when not in use. Clean with soft dry cloth. Avoid water and harsh chemicals.
+                  {t.product.careInstructionsText}
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -882,7 +888,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 boxShadow: '0px 4px 12px rgba(10,72,52,0.3)',
               }}
             >
-              {isAdmin ? 'Add to Approve' : (user ? 'Go to Checkout' : 'Add to Cart')}
+              {isAdmin ? t.product.addToApprove : (user ? t.product.goToCheckout : t.product.addToCart)}
             </motion.button>
           </motion.div>
         </div>
@@ -933,7 +939,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 marginBottom: '8px',
                 letterSpacing: '-0.3px',
               }}>
-                Standard delivery
+                {t.product.standardDelivery}
               </div>
               <div style={{
                 fontFamily: 'Manrope, sans-serif',
@@ -942,7 +948,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 opacity: 0.65,
                 lineHeight: '22px',
               }}>
-                Tracked and insured shipping in 3–5 days
+                {t.product.standardDeliveryDesc}
               </div>
             </div>
 
@@ -978,7 +984,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 marginBottom: '8px',
                 letterSpacing: '-0.3px',
               }}>
-                Easy returns
+                {t.product.easyReturns}
               </div>
               <div style={{
                 fontFamily: 'Manrope, sans-serif',
@@ -987,7 +993,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 opacity: 0.65,
                 lineHeight: '22px',
               }}>
-                Returns accepted within 7 days in original condition
+                {t.product.easyReturnsDesc}
               </div>
             </div>
 
@@ -1023,7 +1029,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 marginBottom: '8px',
                 letterSpacing: '-0.3px',
               }}>
-                Circular fashion
+                {t.product.circularFashion}
               </div>
               <div style={{
                 fontFamily: 'Manrope, sans-serif',
@@ -1032,7 +1038,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
                 opacity: 0.65,
                 lineHeight: '22px',
               }}>
-                Every purchase supports sustainable fashion
+                {t.product.circularFashionDesc}
               </div>
             </div>
           </div>
@@ -1059,7 +1065,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
             marginBottom: '48px',
             textAlign: 'center',
           }}>
-            You May Also Like
+            {t.product.youMayAlsoLike}
           </h2>
 
           <div style={{
@@ -1176,7 +1182,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
             color: '#0A4834',
             marginBottom: '16px',
           }}>
-            From the Same Closet
+            {t.product.fromSameCloset}
           </h2>
 
           <p style={{
@@ -1185,7 +1191,7 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
             color: '#666',
             marginBottom: '48px',
           }}>
-            More curated pieces from Elena C.
+            {t.product.moreFromSeller.replace('{seller}', sellerName.split(' ')[0])}
           </p>
 
           <div style={{
@@ -1350,6 +1356,8 @@ export function ProductPage({ onBack, onCheckout, language = 'en' }: ProductPage
         onClose={() => setIsContactOpen(false)}
         sellerName={sellerName}
       />
+      
+      <FooterAlt />
     </div>
   );
 }

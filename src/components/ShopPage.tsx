@@ -9,6 +9,7 @@ import { FooterAlt } from './FooterAlt';
 import { NewsletterPopup } from './NewsletterPopup';
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/ShopPage.css';
 
 interface Product {
@@ -74,9 +75,13 @@ const getApprovalNumber = (item: any): number | null => {
   return null;
 };
 
-export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
+export function ShopPage({ onProductClick, language: languageProp }: ShopPageProps) {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
   
   const handleProductClick = (productId: number) => {
     if (onProductClick) {
@@ -89,7 +94,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
   const [wishlist, setWishlist] = useState<number[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<{[key: string]: string}>({});
-  const [sortBy, setSortBy] = useState('Newest');
+  const [sortBy, setSortBy] = useState(t.shop.sortOptions.newest);
+
+  // Update sortBy and clear filters when language changes to keep them in sync
+  useEffect(() => {
+    setSortBy(t.shop.sortOptions.newest);
+    setActiveFilters({}); // Clear filters since filter keys are language-dependent
+  }, [language, t.shop.sortOptions.newest]);
   const [showFilterDropdown, setShowFilterDropdown] = useState<string | null>(null);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [apiProducts, setApiProducts] = useState<Product[]>([]);
@@ -196,16 +207,22 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
     sizes.sort();
     
     return {
-      Category: ['All', ...categories],
-      Brand: ['All', ...brands],
-      Size: ['All', ...sizes],
-      Price: ['All', 'Price: Low to High', 'Price: High to Low'],
+      [t.shop.filterNames.category]: [t.shop.filterOptions.all, ...categories],
+      [t.shop.filterNames.brand]: [t.shop.filterOptions.all, ...brands],
+      [t.shop.filterNames.size]: [t.shop.filterOptions.all, ...sizes],
+      [t.shop.filterNames.price]: [t.shop.filterOptions.all, t.shop.filterOptions.priceLowToHigh, t.shop.filterOptions.priceHighToLow],
     };
   };
 
   const filterOptions = getFilterOptions();
 
-  const sortOptions = ['Newest', 'Trending', 'Lowest Price', 'Highest Price', 'Highest Rated'];
+  const sortOptions = [
+    t.shop.sortOptions.newest,
+    t.shop.sortOptions.trending,
+    t.shop.sortOptions.lowestPrice,
+    t.shop.sortOptions.highestPrice,
+    t.shop.sortOptions.highestRated
+  ];
 
   // Fetch items from API
   useEffect(() => {
@@ -392,56 +409,60 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
     }
 
     // Apply Category filter
-    if (activeFilters.Category && activeFilters.Category !== 'All') {
+    const categoryFilterKey = t.shop.filterNames.category;
+    if (activeFilters[categoryFilterKey] && activeFilters[categoryFilterKey] !== t.shop.filterOptions.all) {
       filtered = filtered.filter(product => 
-        product.category === activeFilters.Category
+        product.category === activeFilters[categoryFilterKey]
       );
     }
 
     // Apply Brand filter
-    if (activeFilters.Brand && activeFilters.Brand !== 'All') {
+    const brandFilterKey = t.shop.filterNames.brand;
+    if (activeFilters[brandFilterKey] && activeFilters[brandFilterKey] !== t.shop.filterOptions.all) {
       filtered = filtered.filter(product => 
-        product.brand === activeFilters.Brand
+        product.brand === activeFilters[brandFilterKey]
       );
     }
 
     // Apply Size filter
-    if (activeFilters.Size && activeFilters.Size !== 'All') {
+    const sizeFilterKey = t.shop.filterNames.size;
+    if (activeFilters[sizeFilterKey] && activeFilters[sizeFilterKey] !== t.shop.filterOptions.all) {
       filtered = filtered.filter(product => 
-        product.size === activeFilters.Size || 
-        product.size?.toUpperCase() === activeFilters.Size.toUpperCase()
+        product.size === activeFilters[sizeFilterKey] || 
+        product.size?.toUpperCase() === activeFilters[sizeFilterKey].toUpperCase()
       );
     }
 
     // Apply sorting
     // Note: If Price filter is set, it will override the sort option for price sorting
-    const priceFilterActive = activeFilters.Price && activeFilters.Price !== 'All';
+    const priceFilterKey = t.shop.filterNames.price;
+    const priceFilterActive = activeFilters[priceFilterKey] && activeFilters[priceFilterKey] !== t.shop.filterOptions.all;
     
     if (priceFilterActive) {
       // Price filter takes priority for price sorting
-      if (activeFilters.Price === 'Price: Low to High') {
+      if (activeFilters[priceFilterKey] === t.shop.filterOptions.priceLowToHigh) {
         filtered = filtered.sort((a, b) => a.price - b.price);
-      } else if (activeFilters.Price === 'Price: High to Low') {
+      } else if (activeFilters[priceFilterKey] === t.shop.filterOptions.priceHighToLow) {
         filtered = filtered.sort((a, b) => b.price - a.price);
       }
     } else {
       // Apply other sort options only if price filter is not active
       switch (sortBy) {
-        case 'Newest':
+        case t.shop.sortOptions.newest:
           // Sort by ID descending (assuming higher ID = newer)
           filtered = filtered.sort((a, b) => b.id - a.id);
           break;
-        case 'Lowest Price':
+        case t.shop.sortOptions.lowestPrice:
           filtered = filtered.sort((a, b) => a.price - b.price);
           break;
-        case 'Highest Price':
+        case t.shop.sortOptions.highestPrice:
           filtered = filtered.sort((a, b) => b.price - a.price);
           break;
-        case 'Trending':
+        case t.shop.sortOptions.trending:
           // For now, sort by ID (can be enhanced with actual trending logic)
           filtered = filtered.sort((a, b) => b.id - a.id);
           break;
-        case 'Highest Rated':
+        case t.shop.sortOptions.highestRated:
           // For now, sort by ID (can be enhanced with actual rating logic)
           filtered = filtered.sort((a, b) => b.id - a.id);
           break;
@@ -521,7 +542,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                           <button
                             key={option}
                             onClick={() => {
-                              if (option === 'All') {
+                              if (option === t.shop.filterOptions.all) {
                                 removeFilter(filterName);
                               } else {
                                 setActiveFilters({ ...activeFilters, [filterName]: option });
@@ -581,7 +602,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
       {/* Product Grid */}
       <div className="products-container">
         {loading ? (
-          <div className="loading-placeholder">Loading products...</div>
+          <div className="loading-placeholder">{t.shop.loading}</div>
         ) : (
           <div className="products-grid">
             {products.map((product, index) => (
@@ -602,7 +623,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
 
                   {/* Gold overlay on hover */}
                   <div className="product-overlay">
-                    <span className="view-details-text">View Details →</span>
+                    <span className="view-details-text">{t.shop.viewDetails}</span>
                   </div>
 
                   {/* Wishlist Button */}
@@ -643,13 +664,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="load-more-wrap">
           <motion.button onClick={() => { setShowAdditionalInfo(!showAdditionalInfo); }} whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }} whileTap={{ scale: 0.98 }} className="toggle-info-btn">
             <Info size={18} />
-            {showAdditionalInfo ? 'Hide Additional Info' : 'Show Additional Info'}
+            {showAdditionalInfo ? t.shop.hideAdditionalInfo : t.shop.showAdditionalInfo}
           </motion.button>
 
           {/* Additional Info Cards Display */}
           {showAdditionalInfo && products.length > 0 && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="additional-info-wrap">
-              <h3 className="additional-info-title">Additional Product Information</h3>
+              <h3 className="additional-info-title">{t.shop.additionalProductInfo}</h3>
 
               {/* Grid of Additional Info Cards */}
               <div className="additional-info-grid">
@@ -661,14 +682,14 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                       </div>
                       <div>
                         <h4 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 18, color: '#0A4834', margin: 0 }}>{product.title}</h4>
-                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#9F8151', margin: '4px 0 0 0' }}>ID: {product.id}</p>
+                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#9F8151', margin: '4px 0 0 0' }}>{t.shop.additionalInfo.id}: {product.id}</p>
                       </div>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
                       {product.apiData.description && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Description:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.description}:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.description}</span>
                         </div>
                       )}
@@ -676,13 +697,13 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                         {product.apiData.brand_id && (
                           <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Brand ID:</strong>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.brandId}:</strong>
                             <span style={{ color: '#0A4834' }}>{product.apiData.brand_id}</span>
                           </div>
                         )}
                         {product.apiData.category_id && (
                           <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Category ID:</strong>
+                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.categoryId}:</strong>
                             <span style={{ color: '#0A4834' }}>{product.apiData.category_id}</span>
                           </div>
                         )}
@@ -690,44 +711,44 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
 
                       {product.apiData.approved && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Approval Status:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.approvalStatus}:</strong>
                           <span style={{ color: '#0A4834', backgroundColor: (product.apiData.approved === 1 || product.apiData.approved === '1') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
-                            {product.apiData.approved === 1 || product.apiData.approved === '1' ? 'Approved' : product.apiData.approved === 2 || product.apiData.approved === '2' ? 'Special' : 'Pending'}
+                            {product.apiData.approved === 1 || product.apiData.approved === '1' ? t.shop.approvalStatus.approved : product.apiData.approved === 2 || product.apiData.approved === '2' ? t.shop.approvalStatus.special : t.shop.approvalStatus.pending}
                           </span>
                         </div>
                       )}
 
                       {product.apiData.brand && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Brand:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.brand}:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.brand.name}</span>
                         </div>
                       )}
 
                       {product.apiData.category && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Category:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.category}:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.category.name}</span>
                         </div>
                       )}
 
                       {product.apiData.user && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Seller:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.seller}:</strong>
                           <span style={{ color: '#0A4834' }}>{product.apiData.user.name || product.apiData.user.email}</span>
                         </div>
                       )}
 
                       {product.apiData.created_at && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>Created:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.created}:</strong>
                           <span style={{ color: '#0A4834' }}>{new Date(product.apiData.created_at).toLocaleDateString()}</span>
                         </div>
                       )}
 
                       {product.apiData.image && (
                         <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>Image:</strong>
+                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>{t.shop.additionalInfo.image}:</strong>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <img 
                               src={product.image} 
@@ -750,7 +771,7 @@ export function ShopPage({ onProductClick, language = 'en' }: ShopPageProps) {
           {/* Texture overlay */}
           <div className="bottom-cta-texture" />
 
-          <p className="bottom-cta-quote">"Not old. Not new. Just you."</p>
+          <p className="bottom-cta-quote">"{t.shop.quote}"</p>
         </motion.div>
       </div>
 

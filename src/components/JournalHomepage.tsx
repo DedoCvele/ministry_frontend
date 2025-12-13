@@ -7,6 +7,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/JournalHomepage.css';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -114,8 +115,13 @@ const mapBlogToArticle = (blog: Blog): Article => {
   };
 };
 
-export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: JournalHomepageProps) {
+export function JournalHomepage({ onArticleClick, onClose, language: languageProp }: JournalHomepageProps) {
   const navigate = useNavigate();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
+  const t = getTranslation(language);
   
   const handleArticleClick = (articleId: number) => {
     if (onArticleClick) {
@@ -124,9 +130,14 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
       navigate(`/blog/${articleId}`);
     }
   };
-  const t = getTranslation(language);
+  
   const [email, setEmail] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>(t.journal.homepage.all);
+  
+  // Update selectedCategory when language changes
+  useEffect(() => {
+    setSelectedCategory(t.journal.homepage.all);
+  }, [language, t.journal.homepage.all]);
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,11 +156,11 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           const mappedArticles = publishedBlogs.map(mapBlogToArticle);
           setArticles(mappedArticles);
         } else {
-          setError('Failed to load blogs');
+          setError(t.journal.homepage.failedToLoad);
         }
       } catch (err) {
         console.error('Error fetching blogs:', err);
-        setError('Failed to load blogs. Please try again later.');
+        setError(t.journal.homepage.failedToLoadDesc);
       } finally {
         setLoading(false);
       }
@@ -159,9 +170,9 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
   }, []);
 
   // Extract unique categories from articles
-  const categories = ['All', ...Array.from(new Set(articles.map(article => article.category).filter(Boolean)))];
+  const categories = [t.journal.homepage.all, ...Array.from(new Set(articles.map(article => article.category).filter(Boolean)))];
 
-  const filteredArticles = selectedCategory === 'All' 
+  const filteredArticles = selectedCategory === t.journal.homepage.all
     ? articles 
     : articles.filter(article => article.category === selectedCategory);
 
@@ -186,10 +197,10 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
       <motion.header className="journal-header">
         <div className="journal-header-content">
           <h1 className="journal-header-title">
-            Ministry Journal
+            {t.journal.homepage.title}
           </h1>
           <p className="journal-header-subtitle">
-            Stories, style tips, and sustainable inspiration.
+            {t.journal.homepage.subtitle}
           </p>
 
           {/* Divider */}
@@ -202,7 +213,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
         {loading ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '18px', color: '#9F8151' }}>
-              Loading blogs...
+              {t.journal.homepage.loading}
             </p>
           </div>
         ) : error ? (
@@ -214,7 +225,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
         ) : articles.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '80px 0' }}>
             <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '18px', color: '#9F8151' }}>
-              No blogs available at the moment.
+              {t.journal.homepage.noBlogs}
             </p>
           </div>
         ) : (
@@ -260,7 +271,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                     whileTap={{ scale: 0.98 }}
                     className="journal-featured-btn"
                   >
-                    Read Article <ArrowRight size={18} />
+                    {t.journal.homepage.readArticle} <ArrowRight size={18} />
                   </motion.button>
                 </div>
               </motion.div>
@@ -343,7 +354,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                     whileHover={{ x: 4 }}
                     className="journal-article-read"
                   >
-                    Read <ArrowRight size={16} />
+                    {t.journal.homepage.read} <ArrowRight size={16} />
                   </motion.div>
                 </div>
               </div>
@@ -365,11 +376,11 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
 
           <div className="journal-newsletter-content">
             <h2 className="journal-newsletter-title">
-              Join the Ministry Journal
+              {t.journal.homepage.joinTitle}
             </h2>
 
             <p className="journal-newsletter-desc">
-              Get styling tips, stories, and sustainable inspiration in your inbox.
+              {t.journal.homepage.joinDesc}
             </p>
 
             <form onSubmit={handleSubscribe} className="journal-newsletter-form">
@@ -377,7 +388,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Your email address"
+                placeholder={t.journal.homepage.emailPlaceholder}
                 required
                 className="journal-newsletter-input"
               />
@@ -388,7 +399,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
                 whileTap={{ scale: 0.98 }}
                 className="journal-newsletter-btn"
               >
-              Subscribe <ArrowRight size={18} />
+              {t.journal.homepage.subscribe} <ArrowRight size={18} />
             </motion.button>
             </form>
           </div>
@@ -401,7 +412,7 @@ export function JournalHomepage({ onArticleClick, onClose, language = 'en' }: Jo
           transition={{ duration: 0.8, delay: 0.6 }}
           className="journal-footer-tagline"
         >
-          "Read. Learn. Rewear."
+          "{t.journal.homepage.tagline}"
         </motion.div>
       </div>
 

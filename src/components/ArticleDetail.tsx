@@ -7,6 +7,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/ArticleDetail.css';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -38,9 +39,15 @@ interface ContentBlock {
   caption?: string;
 }
 
-export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en' }: ArticleDetailProps) {
+export function ArticleDetail({ articleId: propArticleId, onBack, language: languageProp }: ArticleDetailProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
+  const t = getTranslation(language);
+  
   const articleId = propArticleId || (id ? parseInt(id, 10) : undefined);
   
   const handleBack = () => {
@@ -50,7 +57,6 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
       navigate('/blog');
     }
   };
-  const t = getTranslation(language);
   const [liked, setLiked] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [blog, setBlog] = useState<Blog | null>(null);
@@ -70,7 +76,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
     const wordsPerMinute = 200;
     const wordCount = content.split(/\s+/).length;
     const minutes = Math.ceil(wordCount / wordsPerMinute);
-    return `${minutes} min read`;
+    return `${minutes} ${t.journal.article.minRead}`;
   };
 
   // Helper function to validate and fix URLs
@@ -195,7 +201,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
   useEffect(() => {
     const fetchBlog = async () => {
       if (!articleId) {
-        setError('Article ID is missing');
+        setError(t.journal.article.notFound);
         setLoading(false);
         return;
       }
@@ -213,14 +219,14 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
           }
           setBlog(blogData);
         } else {
-          setError('Blog not found');
+          setError(t.journal.article.notFound);
         }
       } catch (err: any) {
         console.error('Error fetching blog:', err);
         if (err.response?.status === 404) {
-          setError('Blog not found');
+          setError(t.journal.article.notFound);
         } else {
-          setError('Failed to load blog. Please try again later.');
+          setError(t.journal.article.failedToLoad);
         }
       } finally {
         setLoading(false);
@@ -273,7 +279,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
       <div className="article-detail-root">
         <HeaderAlt />
         <div className="article-container" style={{ paddingTop: '200px', textAlign: 'center' }}>
-          <p style={{ fontSize: '18px', color: '#9F8151' }}>Loading article...</p>
+          <p style={{ fontSize: '18px', color: '#9F8151' }}>{t.journal.article.loading}</p>
         </div>
         <FooterAlt />
       </div>
@@ -286,7 +292,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
       <div className="article-detail-root">
         <HeaderAlt />
         <div className="article-container" style={{ paddingTop: '200px', textAlign: 'center' }}>
-          <p style={{ fontSize: '18px', color: '#9F8151', marginBottom: '16px' }}>{error || 'Article not found'}</p>
+          <p style={{ fontSize: '18px', color: '#9F8151', marginBottom: '16px' }}>{error || t.journal.article.notFound}</p>
           <motion.button
             onClick={handleBack}
             whileHover={{ scale: 1.05 }}
@@ -302,7 +308,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
               fontFamily: 'Manrope, sans-serif'
             }}
           >
-            Back to Blog
+            {t.journal.article.backToBlog}
           </motion.button>
         </div>
         <FooterAlt />
@@ -370,7 +376,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
 
             <div className="article-meta-row">
               <div className="article-meta">
-                <p className="article-author">By {article.author}</p>
+                <p className="article-author">{t.journal.article.by} {article.author}</p>
                 <p className="article-date">{article.date} · {article.readTime}</p>
               </div>
 
@@ -405,7 +411,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
             {(() => {
               // First, check if we have blog data with content
               if (!blog || !blog.content) {
-                return <p className="article-paragraph">No content available.</p>;
+                return <p className="article-paragraph">{t.journal.article.noContent}</p>;
               }
 
               // Try to use parsed content first
@@ -487,7 +493,7 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language = 'en
                 ));
               }
               
-              return <p className="article-paragraph">No content available.</p>;
+              return <p className="article-paragraph">{t.journal.article.noContent}</p>;
             })()}
           </motion.div>
         </div>

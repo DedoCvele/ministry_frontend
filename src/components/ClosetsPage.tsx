@@ -8,6 +8,7 @@ import { NewsletterPopup } from './NewsletterPopup';
 import { HeaderAlt } from './HeaderAlt';
 import { ShareModal } from './ShareModal';
 import { type Language, getTranslation } from '../translations';
+import { useLanguage } from '../context/LanguageContext';
 import './styles/ClosetsPage.css';
 
 interface Closet {
@@ -28,18 +29,27 @@ interface ClosetsPageProps {
   language?: Language;
 }
 
-export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps) {
+export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPageProps) {
   const navigate = useNavigate();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
   const t = getTranslation(language);
 
   const [closets, setClosets] = useState<Closet[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [following, setFollowing] = useState<number[]>([]);
-  const [activeFilter, setActiveFilter] = useState('All Closets');
+  const [activeFilter, setActiveFilter] = useState(t.closets.filters.allClosets);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedCloset, setSelectedCloset] = useState<Closet | null>(null);
+
+  // Update activeFilter when language changes
+  useEffect(() => {
+    setActiveFilter(t.closets.filters.allClosets);
+  }, [language, t.closets.filters.allClosets]);
 
   // ----------------------------
   // FETCH closets from backend
@@ -72,21 +82,19 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
   };
 
   const filters = [
-    'All Closets',
-    'Most Followed',
-    'Newest',
-    'Vintage Lovers',
-    'Minimalist',
-    'Designer Finds',
-    'Street Style'
+    t.closets.filters.allClosets,
+    t.closets.filters.mostFollowed,
+    t.closets.filters.newest,
+    t.closets.filters.vintageLovers,
+    t.closets.filters.minimalist,
+    t.closets.filters.designerFinds,
+    t.closets.filters.streetStyle
   ];
 
   const filteredClosets =
-    activeFilter === 'All Closets'
+    activeFilter === t.closets.filters.allClosets
       ? closets
       : closets.filter(closet => closet.category === activeFilter);
-
-  const featuredCloset = closets[0] ?? null;
 
   const toggleFollow = (closetId: number) => {
     setFollowing(prev =>
@@ -109,7 +117,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
       <div className="closets-root">
         <HeaderAlt />
         <div style={{ padding: 40, textAlign: 'center', color: '#0A4834' }}>
-          <h2>Loading closets...</h2>
+          <h2>{t.closets.loading}</h2>
         </div>
       </div>
     );
@@ -131,8 +139,8 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
           animate={{ opacity: 1, y: 0 }}
           className="closets-header-inner"
         >
-          <h1 className="closets-h1">Discover Closets</h1>
-          <p className="closets-sub">Explore unique wardrobes curated by our community.</p>
+          <h1 className="closets-h1">{t.closets.title}</h1>
+          <p className="closets-sub">{t.closets.subtitle}</p>
           <div className="closets-hr" />
         </motion.div>
       </div>
@@ -201,13 +209,13 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                   <p className="closet-tagline">{closet.tagline}</p>
 
                   <div className="closet-stats-row">
-                    <div className="closet-stat"><Package size={16} color="#9F8151" /><span>{closet.pieces} Pieces</span></div>
-                    <div className="closet-stat"><Users size={16} color="#9F8151" /><span>{closet.followers} Followers</span></div>
+                    <div className="closet-stat"><Package size={16} color="#9F8151" /><span>{closet.pieces} {t.closets.pieces}</span></div>
+                    <div className="closet-stat"><Users size={16} color="#9F8151" /><span>{closet.followers} {t.closets.followers}</span></div>
                   </div>
 
                   <div className="closet-actions">
                     <motion.button onClick={() => handleClosetClick(closet.id)} className="closet-action-primary">
-                      View Closet <ArrowRight size={16} />
+                      {t.closets.viewCloset} <ArrowRight size={16} />
                     </motion.button>
 
                     <motion.button
@@ -220,97 +228,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
                       }}
                     >
                       <Heart size={16} fill={following.includes(closet.id) ? '#FFFFFF' : 'none'} />
-                      {following.includes(closet.id) ? 'Following' : 'Follow'}
+                      {following.includes(closet.id) ? t.closets.following : t.closets.follow}
                     </motion.button>
                   </div>
                 </div>
               </div>
-
-              {/* Featured Closet Spotlight AFTER 3rd card */}
-              {index === 2 && featuredCloset && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  style={{
-                    gridColumn: '1 / -1',
-                    marginTop: '32px',
-                    backgroundColor: '#FFFFFF',
-                    borderRadius: '20px',
-                    padding: '40px',
-                    boxShadow: '0px 8px 24px rgba(0,0,0,0.06)',
-                  }}
-                >
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '32px',
-                    flexWrap: 'wrap',
-                  }}>
-                    <div style={{
-                      width: '180px',
-                      height: '180px',
-                      borderRadius: '16px',
-                      overflow: 'hidden',
-                      flexShrink: 0,
-                    }}>
-                      <ImageWithFallback
-                        src={featuredCloset.coverImage}
-                        alt={featuredCloset.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
-                    </div>
-
-                    <div style={{ flex: 1, minWidth: '250px' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: '#9F8151',
-                        textTransform: 'uppercase',
-                        marginBottom: '12px',
-                        display: 'block',
-                      }}>
-                        Featured Closet
-                      </span>
-
-                      <h3 style={{
-                        fontFamily: 'Cormorant Garamond, serif',
-                        fontStyle: 'italic',
-                        fontSize: '24px',
-                        color: '#9F8151',
-                        margin: '0 0 16px 0',
-                      }}>
-                        "Clothes carry memories — I just help them find new ones."
-                      </h3>
-
-                      <p style={{ fontSize: '16px', color: 'rgba(0,0,0,0.7)', margin: '0 0 20px 0' }}>
-                        — {featuredCloset.name}
-                      </p>
-
-                      <motion.button
-                        onClick={() => handleClosetClick(featuredCloset.id)}
-                        whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }}
-                        whileTap={{ scale: 0.98 }}
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          color: '#9F8151',
-                          backgroundColor: 'transparent',
-                          border: '1px solid #9F8151',
-                          borderRadius: '12px',
-                          padding: '12px 24px',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        Explore @{featuredCloset.username}'s Closet <ArrowRight size={16} />
-                      </motion.button>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
 
             </motion.div>
           ))}
@@ -329,11 +251,11 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
           }}
         >
           <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '40px', color: '#0A4834' }}>
-            Open Your Closet to the World
+            {t.closets.cta.title}
           </h2>
 
           <p style={{ maxWidth: '600px', margin: '0 auto 32px', color: 'rgba(0,0,0,0.7)' }}>
-            Sell, share, and connect with conscious fashion lovers.
+            {t.closets.cta.description}
           </p>
 
           <motion.button 
@@ -342,7 +264,7 @@ export function ClosetsPage({ onClosetClick, language = 'en' }: ClosetsPageProps
             whileTap={{ scale: 0.98 }}
             style={{ backgroundColor: '#9F8151', color: '#FFF', padding: '16px 48px', borderRadius: '16px', cursor: 'pointer' }}
           >
-            Start Selling
+            {t.closets.cta.button}
           </motion.button>
         </motion.div>
       </div>

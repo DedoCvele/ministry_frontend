@@ -4,7 +4,11 @@ import { Button } from './ui/button';
 import { MoreVertical, ArrowLeft, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { ChatWidget } from './ChatWidget';
+import { HeaderAlt } from './HeaderAlt';
+import { FooterAlt } from './FooterAlt';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslation } from '../translations';
 import './styles/ClosetPage.css';
 
 interface ClosetItem {
@@ -30,7 +34,7 @@ export default function ClosetPage({
   onContactSeller,
   onItemClick,
   onAvatarClick,
-  language = 'en',
+  language: languageProp,
 }: {
   userId?: string;
   onBack?: () => void;
@@ -42,6 +46,12 @@ export default function ClosetPage({
   const { closetId } = useParams<{ closetId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { language: contextLanguage } = useLanguage();
+  
+  // Use language from context if available, otherwise use prop, otherwise default to 'en'
+  const language = contextLanguage || languageProp || 'en';
+  const t = getTranslation(language);
+  
   const userId = propUserId || closetId || '1';
 
   
@@ -58,16 +68,29 @@ export default function ClosetPage({
     }
   };
 
+  const handleItemClick = (itemId: number) => {
+    if (onItemClick) {
+      onItemClick(String(itemId));
+    } else {
+      navigate(`/product/${itemId}`);
+    }
+  };
+
 
   const [userProfile, setUserProfile] = useState<ClosetUser | null>(null);
   const [closetItems, setClosetItems] = useState<ClosetItem[]>([]);
 
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState(t.closet.filters.all);
   const [isFollowing, setIsFollowing] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Update selectedFilter when language changes
+  useEffect(() => {
+    setSelectedFilter(t.closet.filters.all);
+  }, [language, t.closet.filters.all]);
 
   // DEFAULT fallback image (fastest option)
   const fallbackImage =
@@ -84,10 +107,16 @@ export default function ClosetPage({
       .catch((err) => console.error('Closet fetch error:', err));
   }, [userId]);
 
-  const filterCategories = ['All', 'Tops', 'Bottoms', 'Outerwear', 'Accessories'];
+  const filterCategories = [
+    t.closet.filters.all,
+    t.closet.filters.tops,
+    t.closet.filters.bottoms,
+    t.closet.filters.outerwear,
+    t.closet.filters.accessories,
+  ];
 
   const filteredItems =
-    selectedFilter === 'All'
+    selectedFilter === t.closet.filters.all
       ? closetItems
       : closetItems.filter((item) => item.category === selectedFilter);
 
@@ -109,10 +138,19 @@ export default function ClosetPage({
   const formatCount = (num: number) =>
     num >= 1000 ? `${(num / 1000).toFixed(1)}k` : num;
 
-  if (!userProfile) return <div style={{ padding: 20 }}>Loading Closet...</div>;
+  if (!userProfile) {
+    return (
+      <div className="closet-page-root">
+        <HeaderAlt />
+        <div style={{ padding: 20 }}>{t.closet.loading}</div>
+        <FooterAlt />
+      </div>
+    );
+  }
 
   return (
     <div className="closet-page-root">
+      <HeaderAlt />
       <div ref={scrollContainerRef} className="scroll-container">
         {/* HEADER */}
         <header
@@ -150,7 +188,7 @@ export default function ClosetPage({
                 onClick={handleBack}
                 className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full inline-flex items-center gap-2"
               >
-                <ArrowLeft className="w-5 h-5" /> Back
+                <ArrowLeft className="w-5 h-5" /> {t.closet.back}
               </button>
 
               <div className="flex gap-6 items-start">
@@ -180,10 +218,10 @@ export default function ClosetPage({
                       {showMenu && (
                         <div className="absolute right-0 top-full mt-2 bg-white rounded-xl shadow-md py-2 min-w-[180px] z-50">
                           <button className="w-full px-4 py-2 text-left hover:bg-[#F0ECE3]">
-                            Share Closet
+                            {t.closet.shareCloset}
                           </button>
                           <button className="w-full px-4 py-2 text-left text-red-500 hover:bg-[#F0ECE3]">
-                            Report
+                            {t.closet.report}
                           </button>
                         </div>
                       )}
@@ -192,7 +230,7 @@ export default function ClosetPage({
 
                   <p className="closet-font-manrope-xl closet-stats">
                     <span className="font-semibold">{closetItems.length}</span>{' '}
-                    items • {formatCount(1200)} followers • 342 following
+                    {t.closet.items} • {formatCount(1200)} {t.closet.followers} • 342 {t.closet.following}
                   </p>
 
                   <p className="closet-font-manrope closet-location">
@@ -214,10 +252,10 @@ export default function ClosetPage({
                       {isFollowing ? (
                         <>
                           <Check className="w-4 h-4 mr-2" />
-                          Following
+                          {t.closet.following}
                         </>
                       ) : (
-                        'Follow'
+                        t.closet.follow
                       )}
                     </Button>
 
@@ -226,7 +264,7 @@ export default function ClosetPage({
                       variant="outline"
                       className="rounded-xl px-6 border-2 border-[#9F8151] text-[#9F8151]"
                     >
-                      Contact Seller
+                      {t.closet.contactSeller}
                     </Button>
                   </div>
                 </div>
@@ -260,8 +298,8 @@ export default function ClosetPage({
             {filteredItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onItemClick?.(String(item.id))}
-                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition"
+                onClick={() => handleItemClick(item.id)}
+                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer"
               >
                 <div className="aspect-square overflow-hidden relative">
                   <ImageWithFallback
@@ -282,7 +320,7 @@ export default function ClosetPage({
 
           <div className="mt-12 text-center">
             <p className="curated-by">
-              Curated by {userProfile.username} — a collection of timeless vintage finds.
+              {t.closet.curatedBy.replace('{username}', userProfile.username)}
             </p>
           </div>
         </div>
@@ -290,6 +328,7 @@ export default function ClosetPage({
 
       {/* Chat Widget - Only show on user's own closet */}
       {isOwnCloset && <ChatWidget />}
+      <FooterAlt />
     </div>
   );
 }

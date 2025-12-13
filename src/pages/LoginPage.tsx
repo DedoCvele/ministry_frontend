@@ -3,11 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { X, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslation } from '../translations';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, register } = useAuth();
+  const { language, toggleLanguage } = useLanguage();
+  const t = getTranslation(language);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -29,7 +33,7 @@ export function LoginPage() {
       if (isRegisterMode) {
         // Registration flow
         if (password !== confirmPassword) {
-          setError('Passwords do not match.');
+          setError(t.auth.errors.passwordsDoNotMatch);
           setIsLoading(false);
           return;
         }
@@ -43,7 +47,7 @@ export function LoginPage() {
         });
 
         if (!result.success) {
-          setError(result.message ?? 'Unable to register. Please try again.');
+          setError(result.message ?? t.auth.errors.unableToRegister);
           setIsLoading(false);
           return;
         }
@@ -57,7 +61,7 @@ export function LoginPage() {
         // Login flow
         const result = await login(username, password);
         if (!result.success) {
-          setError(result.message ?? 'Unable to sign in. Please try again.');
+          setError(result.message ?? t.auth.errors.unableToSignIn);
           setIsLoading(false);
           return;
         }
@@ -73,7 +77,7 @@ export function LoginPage() {
         navigate(destination);
       }
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(t.auth.errors.unexpectedError);
       setIsLoading(false);
     }
   };
@@ -101,6 +105,37 @@ export function LoginPage() {
           overflow: 'hidden',
         }}
       >
+        {/* Language Toggle Button */}
+        <button
+          onClick={toggleLanguage}
+          style={{
+            position: 'absolute',
+            top: '24px',
+            left: '24px',
+            background: 'transparent',
+            border: '1.5px solid #9F8151',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#9F8151',
+            padding: '6px 12px',
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#9F8151';
+            e.currentTarget.style.color = '#FFFFFF';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#9F8151';
+          }}
+        >
+          {language === 'en' ? 'MKD' : 'ENG'}
+        </button>
+
         {/* Close Button */}
         <button
           onClick={() => navigate('/')}
@@ -143,7 +178,7 @@ export function LoginPage() {
             color: '#0A4834',
             margin: '0 0 8px 0',
           }}>
-            {isRegisterMode ? 'Join the Ministry' : 'Welcome Back'}
+            {isRegisterMode ? t.auth.joinMinistry : t.auth.welcomeBack}
           </h2>
 
           <p style={{
@@ -152,7 +187,7 @@ export function LoginPage() {
             color: 'rgba(0, 0, 0, 0.6)',
             margin: 0,
           }}>
-            {isRegisterMode ? 'Create your account and start curating' : 'Log in to access your closet'}
+            {isRegisterMode ? t.auth.createAccount : t.auth.loginSubtitle}
           </p>
         </div>
 
@@ -176,7 +211,7 @@ export function LoginPage() {
                     display: 'block',
                     marginBottom: '8px',
                   }}>
-                    First Name
+                    {t.auth.firstName}
                   </label>
                   <div style={{ position: 'relative' }}>
                     <User
@@ -193,7 +228,7 @@ export function LoginPage() {
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="First"
+                      placeholder={t.auth.firstNamePlaceholder}
                       style={{
                         width: '100%',
                         fontFamily: 'Manrope, sans-serif',
@@ -228,13 +263,13 @@ export function LoginPage() {
                     display: 'block',
                     marginBottom: '8px',
                   }}>
-                    Last Name
+                    {t.auth.lastName}
                   </label>
                   <input
                     type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Last"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder={t.auth.lastNamePlaceholder}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -271,7 +306,7 @@ export function LoginPage() {
                 display: 'block',
                 marginBottom: '8px',
               }}>
-                {isRegisterMode ? 'Email' : 'Username or Email'}
+                {isRegisterMode ? t.auth.email : t.auth.usernameOrEmail}
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail
@@ -289,7 +324,7 @@ export function LoginPage() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  placeholder={isRegisterMode ? "your@email.com" : "email"}
+                  placeholder={isRegisterMode ? t.auth.emailPlaceholderRegister : t.auth.emailPlaceholder}
                   style={{
                     width: '100%',
                     fontFamily: 'Manrope, sans-serif',
@@ -324,9 +359,9 @@ export function LoginPage() {
                   fontWeight: 500,
                   color: '#0A4834',
                   display: 'block',
-                  marginBottom: '8px',
+                    marginBottom: '8px',
                 }}>
-                  Confirm Password
+                  {t.auth.confirmPassword}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock
@@ -344,7 +379,7 @@ export function LoginPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    placeholder="Confirm your password"
+                    placeholder={t.auth.confirmPasswordPlaceholder}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -400,7 +435,7 @@ export function LoginPage() {
                 display: 'block',
                 marginBottom: '8px',
               }}>
-                Password
+                {t.auth.password}
               </label>
               <div style={{ position: 'relative' }}>
                 <Lock
@@ -418,7 +453,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  placeholder={isRegisterMode ? "Create a password" : "Enter your password"}
+                  placeholder={isRegisterMode ? t.auth.passwordPlaceholderRegister : t.auth.passwordPlaceholder}
                   style={{
                     width: '100%',
                     fontFamily: 'Manrope, sans-serif',
@@ -491,7 +526,7 @@ export function LoginPage() {
                       accentColor: '#9F8151',
                     }}
                   />
-                  Remember me
+                  {t.auth.rememberMe}
                 </label>
 
                 <button
@@ -507,7 +542,7 @@ export function LoginPage() {
                     textDecoration: 'underline',
                   }}
                 >
-                  Forgot password?
+                  {t.auth.forgotPassword}
                 </button>
               </div>
             )}
@@ -563,8 +598,8 @@ export function LoginPage() {
               }}
             >
               {isLoading 
-                ? (isRegisterMode ? 'Creating account...' : 'Logging in...') 
-                : (isRegisterMode ? 'Create Account' : 'Log In')}
+                ? (isRegisterMode ? t.auth.creatingAccount : t.auth.loggingIn) 
+                : (isRegisterMode ? t.auth.createAccountButton : t.auth.login)}
             </motion.button>
 
             {/* Divider */}
@@ -580,7 +615,7 @@ export function LoginPage() {
                 fontSize: '14px',
                 color: 'rgba(0, 0, 0, 0.5)',
               }}>
-                OR
+                {t.auth.or}
               </span>
               <div style={{ flex: 1, height: '1px', backgroundColor: '#DCD6C9' }} />
             </div>
@@ -609,37 +644,37 @@ export function LoginPage() {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = '#FFFFFF';
                   e.currentTarget.style.borderColor = '#DCD6C9';
-                }}
-              >
-                Google
-              </button>
+                  }}
+                >
+                  {t.auth.google}
+                </button>
 
-              <button
-                type="button"
-                style={{
-                  flex: 1,
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#0A4834',
-                  backgroundColor: '#FFFFFF',
-                  border: '1.5px solid #DCD6C9',
-                  borderRadius: '12px',
-                  padding: '12px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#F0ECE3';
-                  e.currentTarget.style.borderColor = '#9F8151';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = '#FFFFFF';
-                  e.currentTarget.style.borderColor = '#DCD6C9';
-                }}
-              >
-                Facebook
-              </button>
+                <button
+                  type="button"
+                  style={{
+                    flex: 1,
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#0A4834',
+                    backgroundColor: '#FFFFFF',
+                    border: '1.5px solid #DCD6C9',
+                    borderRadius: '12px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#F0ECE3';
+                    e.currentTarget.style.borderColor = '#9F8151';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#FFFFFF';
+                    e.currentTarget.style.borderColor = '#DCD6C9';
+                  }}
+                >
+                  {t.auth.facebook}
+                </button>
             </div>
 
             {/* Toggle between Login/Register */}
@@ -649,10 +684,10 @@ export function LoginPage() {
               color: 'rgba(0, 0, 0, 0.7)',
               textAlign: 'center',
               margin: 0,
-            }}>
+            }}            >
               {isRegisterMode ? (
                 <>
-                  Already have an account?{' '}
+                  {t.auth.haveAccount}{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -674,12 +709,12 @@ export function LoginPage() {
                       textDecoration: 'underline',
                     }}
                   >
-                    Log in
+                    {t.auth.loginLink}
                   </button>
                 </>
               ) : (
                 <>
-                  Don't have an account?{' '}
+                  {t.auth.noAccount}{' '}
                   <button
                     type="button"
                     onClick={() => {
@@ -698,7 +733,7 @@ export function LoginPage() {
                       textDecoration: 'underline',
                     }}
                   >
-                    Sign up
+                    {t.auth.signupLink}
                   </button>
                 </>
               )}

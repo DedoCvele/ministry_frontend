@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { X, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslation } from '../translations';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { register } = useAuth();
+  const { language, toggleLanguage } = useLanguage();
+  const t = getTranslation(language);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -23,11 +27,11 @@ export function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError(t.auth.errors.passwordsDoNotMatch);
       return;
     }
     if (!acceptedTerms) {
-      setError('Please accept the terms and conditions');
+      setError(t.auth.errors.acceptTerms);
       return;
     }
 
@@ -44,14 +48,14 @@ export function RegisterPage() {
       });
 
       if (!result.success) {
-        setError(result.message ?? 'Unable to sign up. Please try again.');
+        setError(result.message ?? t.auth.errors.unableToSignUp);
         setIsLoading(false);
         return;
       }
 
       navigate(result.user?.role === 'admin' ? '/admin' : '/');
     } catch (err) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(t.auth.errors.unexpectedError);
       setIsLoading(false);
     }
   };
@@ -86,6 +90,37 @@ export function RegisterPage() {
           flexDirection: 'column',
         }}
       >
+        {/* Language Toggle Button */}
+        <button
+          onClick={toggleLanguage}
+          style={{
+            position: 'absolute',
+            top: '24px',
+            left: '24px',
+            background: 'transparent',
+            border: '1.5px solid #9F8151',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            color: '#9F8151',
+            padding: '6px 12px',
+            fontFamily: 'Manrope, sans-serif',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            zIndex: 10,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#9F8151';
+            e.currentTarget.style.color = '#FFFFFF';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = '#9F8151';
+          }}
+        >
+          {language === 'en' ? 'MKD' : 'ENG'}
+        </button>
+
         {/* Close Button */}
         <button
           onClick={() => navigate('/')}
@@ -128,7 +163,7 @@ export function RegisterPage() {
             color: '#0A4834',
             margin: '0 0 8px 0',
           }}>
-            Join the Ministry
+            {t.auth.joinMinistry}
           </h2>
 
           <p style={{
@@ -137,7 +172,7 @@ export function RegisterPage() {
             color: 'rgba(0, 0, 0, 0.6)',
             margin: 0,
           }}>
-            Create your account and start curating
+            {t.auth.createAccount}
           </p>
         </div>
 
@@ -164,7 +199,7 @@ export function RegisterPage() {
                     display: 'block',
                     marginBottom: '8px',
                   }}>
-                    First Name
+                    {t.auth.firstName}
                   </label>
                   <div style={{ position: 'relative' }}>
                     <User
@@ -182,7 +217,7 @@ export function RegisterPage() {
                       value={formData.firstName}
                       onChange={(e) => handleChange('firstName', e.target.value)}
                       required
-                      placeholder="First"
+                      placeholder={t.auth.firstNamePlaceholder}
                       style={{
                         width: '100%',
                         fontFamily: 'Manrope, sans-serif',
@@ -217,14 +252,14 @@ export function RegisterPage() {
                     display: 'block',
                     marginBottom: '8px',
                   }}>
-                    Last Name
+                    {t.auth.lastName}
                   </label>
                   <input
                     type="text"
-                    value={formData.lastName}
-                    onChange={(e) => handleChange('lastName', e.target.value)}
-                    required
-                    placeholder="Last"
+                      value={formData.lastName}
+                      onChange={(e) => handleChange('lastName', e.target.value)}
+                      required
+                      placeholder={t.auth.lastNamePlaceholder}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -260,7 +295,7 @@ export function RegisterPage() {
                   display: 'block',
                   marginBottom: '8px',
                 }}>
-                  Username or Email
+                  {t.auth.usernameOrEmail}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail
@@ -278,7 +313,7 @@ export function RegisterPage() {
                     value={formData.username}
                     onChange={(e) => handleChange('username', e.target.value)}
                     required
-                    placeholder="Choose a username"
+                    placeholder={t.auth.emailPlaceholderRegister}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -331,7 +366,7 @@ export function RegisterPage() {
                   display: 'block',
                   marginBottom: '8px',
                 }}>
-                  Password
+                  {t.auth.password}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock
@@ -349,7 +384,7 @@ export function RegisterPage() {
                     value={formData.password}
                     onChange={(e) => handleChange('password', e.target.value)}
                     required
-                    placeholder="Create a password"
+                    placeholder={t.auth.passwordPlaceholderRegister}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -404,7 +439,7 @@ export function RegisterPage() {
                   display: 'block',
                   marginBottom: '8px',
                 }}>
-                  Confirm Password
+                  {t.auth.confirmPassword}
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Lock
@@ -422,7 +457,7 @@ export function RegisterPage() {
                     value={formData.confirmPassword}
                     onChange={(e) => handleChange('confirmPassword', e.target.value)}
                     required
-                    placeholder="Confirm your password"
+                    placeholder={t.auth.confirmPasswordPlaceholder}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
@@ -493,13 +528,13 @@ export function RegisterPage() {
                     }}
                   />
                   <span>
-                    I agree to the{' '}
+                    {t.auth.termsAndConditions}{' '}
                     <a href="#" style={{ color: '#9F8151', textDecoration: 'underline' }}>
-                      Terms of Service
+                      {t.auth.termsOfService}
                     </a>{' '}
-                    and{' '}
+                    {t.auth.and}{' '}
                     <a href="#" style={{ color: '#9F8151', textDecoration: 'underline' }}>
-                      Privacy Policy
+                      {t.auth.privacyPolicy}
                     </a>
                   </span>
                 </label>
@@ -538,7 +573,7 @@ export function RegisterPage() {
                   }
                 }}
               >
-                {isLoading ? 'Creating account...' : 'Create Account'}
+                {isLoading ? t.auth.creatingAccount : t.auth.createAccountButton}
               </motion.button>
 
               {/* Divider */}
@@ -554,7 +589,7 @@ export function RegisterPage() {
                   fontSize: '14px',
                   color: 'rgba(0, 0, 0, 0.5)',
                 }}>
-                  OR
+                  {t.auth.or}
                 </span>
                 <div style={{ flex: 1, height: '1px', backgroundColor: '#DCD6C9' }} />
               </div>
@@ -585,7 +620,7 @@ export function RegisterPage() {
                     e.currentTarget.style.borderColor = '#DCD6C9';
                   }}
                 >
-                  Google
+                  {t.auth.google}
                 </button>
 
                 <button
@@ -612,7 +647,7 @@ export function RegisterPage() {
                     e.currentTarget.style.borderColor = '#DCD6C9';
                   }}
                 >
-                  Facebook
+                  {t.auth.facebook}
                 </button>
               </div>
 
@@ -624,7 +659,7 @@ export function RegisterPage() {
                 textAlign: 'center',
                 margin: 0,
               }}>
-                Already have an account?{' '}
+                {t.auth.haveAccount}{' '}
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
@@ -640,7 +675,7 @@ export function RegisterPage() {
                     textDecoration: 'underline',
                   }}
                 >
-                  Log in
+                  {t.auth.loginLink}
                 </button>
               </p>
             </form>
