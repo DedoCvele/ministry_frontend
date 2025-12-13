@@ -150,6 +150,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   const [orders, setOrders] = useState<Order[]>([]);
   const [favourites, setFavourites] = useState<FavouriteItem[]>([]);
   const [closet, setCloset] = useState<ClosetItem[]>([]);
+  const [mostRecentItem, setMostRecentItem] = useState<ClosetItem | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -226,6 +227,44 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
     tryUserEndpoints();
   }, [authUser]);
+
+  // Helper function to get image URL from item (handles different API response formats)
+  const getItemImageUrl = (item: any): string => {
+    if (!item) return '';
+    
+    // If item has images array, get first image
+    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+      const firstImage = item.images[0];
+      if (typeof firstImage === 'string') {
+        return firstImage.startsWith('http') ? firstImage : `${BACKEND_BASE_URL}/${firstImage.replace(/^\//, '')}`;
+      }
+      if (typeof firstImage === 'object' && firstImage !== null) {
+        const url = firstImage.url || firstImage.image_url || firstImage.path || firstImage.image;
+        if (url) {
+          if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
+            return url;
+          }
+          const cleanPath = url.startsWith('/') ? url.substring(1) : url;
+          if (cleanPath.startsWith('storage/')) {
+            return `${BACKEND_BASE_URL}/${cleanPath}`;
+          }
+          return `${BACKEND_BASE_URL}/storage/${cleanPath}`;
+        }
+      }
+    }
+    
+    // Try direct image fields
+    if (item.image_url) {
+      return item.image_url.startsWith('http') ? item.image_url : `${BACKEND_BASE_URL}/${item.image_url.replace(/^\//, '')}`;
+    }
+    if (item.image) {
+      if (typeof item.image === 'string') {
+        return item.image.startsWith('http') ? item.image : `${BACKEND_BASE_URL}/${item.image.replace(/^\//, '')}`;
+      }
+    }
+    
+    return '';
+  };
 
   // Load user orders
   useEffect(() => {
@@ -350,15 +389,41 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           const userItems = data.filter((item: any) => 
             item.user_id === userId || item.user?.id === userId
           );
-          setCloset(userItems);
-          console.log('Closet items loaded:', userItems);
+          // Map items to ClosetItem format
+          const mappedItems: ClosetItem[] = userItems.map((item: any) => ({
+            id: item.id,
+            name: item.title || item.name || 'Item',
+            price: item.price || 0,
+            image: getItemImageUrl(item),
+            views: item.views || 0,
+            saves: item.saves || item.likes || 0,
+            messages: item.messages || 0,
+          }));
+          // Sort by created_at to get most recent first
+          const sortedItems = mappedItems.sort((a: any, b: any) => {
+            const originalA = userItems.find((i: any) => i.id === a.id);
+            const originalB = userItems.find((i: any) => i.id === b.id);
+            const dateA = new Date(originalA?.created_at || originalA?.createdAt || 0).getTime();
+            const dateB = new Date(originalB?.created_at || originalB?.createdAt || 0).getTime();
+            return dateB - dateA;
+          });
+          setCloset(sortedItems);
+          // Set most recent item (first in sorted array)
+          if (sortedItems.length > 0) {
+            setMostRecentItem(sortedItems[0]);
+          } else {
+            setMostRecentItem(null);
+          }
+          console.log('Closet items loaded:', sortedItems);
         } else {
           setCloset([]);
+          setMostRecentItem(null);
         }
       })
       .catch(err => {
         console.error('Error loading closet items:', err);
         setCloset([]);
+        setMostRecentItem(null);
       });
   }, [userId]);
 
@@ -377,7 +442,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     }
   };
 
-  const handleSaveProfile = async (bio: string, profilePicture: string | null | undefined) => {
+  const handleSaveProfile = async (bio: string, profilePicture: string | File | null | undefined) => {
     try {
       // Get auth token from localStorage
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
@@ -390,24 +455,45 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
         });
       }
 
-      // JSON request for bio and/or profile picture (color only)
-      const payload: any = {};
-      if (bio !== undefined && bio !== null) {
-        payload.bio = bio;
-      }
-      // Only include profile_picture if it's not undefined (undefined means don't update)
-      if (profilePicture !== undefined) {
-        payload.profile_picture = profilePicture; // Can be string (color hex) or null (to remove)
-      }
+      // Handle file upload (avatar image) or JSON request (bio and/or color)
+      let response;
+      
+      if (profilePicture instanceof File) {
+        // Upload avatar image file
+        const formData = new FormData();
+        formData.append('profile_picture', profilePicture);
+        if (bio !== undefined && bio !== null) {
+          formData.append('bio', bio);
+        }
 
-      const response = await axios.put(`${API_ROOT}/profile`, payload, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : undefined,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        withCredentials: true,
-      });
+        response = await axios.put(`${API_ROOT}/profile`, formData, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+            'Accept': 'application/json',
+            // Don't set Content-Type for FormData - browser will set it with boundary
+          },
+          withCredentials: true,
+        });
+      } else {
+        // JSON request for bio and/or profile picture (color or URL)
+        const payload: any = {};
+        if (bio !== undefined && bio !== null) {
+          payload.bio = bio;
+        }
+        // Only include profile_picture if it's not undefined (undefined means don't update)
+        if (profilePicture !== undefined) {
+          payload.profile_picture = profilePicture; // Can be string (color hex or URL) or null (to remove)
+        }
+
+        response = await axios.put(`${API_ROOT}/profile`, payload, {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          withCredentials: true,
+        });
+      }
 
       // Reload user data from API
       const userResponse = await axios.get(`${API_ROOT}/profile`, {
@@ -518,15 +604,24 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               }}
             >
               {user?.avatar?.startsWith('#') ? (
+                // Color-based avatar
                 <div style={{ width: '100%', height: '100%', backgroundColor: user.avatar }} />
               ) : user?.avatar && defaultAvatarSvgs[user.avatar] ? (
+                // Default SVG avatar (legacy support)
                 <div 
                   style={{ width: '100%', height: '100%' }}
                   dangerouslySetInnerHTML={{ __html: defaultAvatarSvgs[user.avatar] }}
                 />
               ) : (
+                // Image-based avatar (URL or storage path)
                 <ImageWithFallback
-                  src={user?.avatar || ''}
+                  src={
+                    user?.avatar?.startsWith('http://') || user?.avatar?.startsWith('https://')
+                      ? user.avatar // Full URL
+                      : user?.avatar?.startsWith('storage/') || user?.avatar?.startsWith('/storage/')
+                      ? `${BACKEND_BASE_URL}/${user.avatar.replace(/^\//, '')}` // Storage path
+                      : user?.avatar || '' // Fallback
+                  }
                   alt={user?.name || ''}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
@@ -709,7 +804,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={() => setActiveTab('orders')}
+              onClick={() => setActiveTab('myitems')}
               style={{
                 fontFamily: 'Manrope, sans-serif',
                 fontSize: '15px',
@@ -718,12 +813,12 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                 borderRadius: '12px',
                 border: 'none',
                 cursor: 'pointer',
-                backgroundColor: activeTab === 'orders' ? '#0A4834' : 'transparent',
-                color: activeTab === 'orders' ? '#FFFFFF' : '#0A4834',
+                backgroundColor: activeTab === 'myitems' ? '#0A4834' : 'transparent',
+                color: activeTab === 'myitems' ? '#FFFFFF' : '#0A4834',
                 transition: 'all 0.3s ease',
               }}
             >
-              {t.profile.orders}
+              {t.profile.myItems}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -828,65 +923,70 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                       {t.profile.shoppingActivity}
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {/* Recent Orders Card */}
-                      <motion.div
-                        whileHover={{ y: -4 }}
-                        style={{
-                          backgroundColor: '#FFFFFF',
-                          borderRadius: '16px',
-                          padding: '24px',
-                          boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
-                          transition: 'all 0.3s ease',
-                        }}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          marginBottom: '16px',
-                        }}>
-                          <h3 style={{
-                            fontFamily: 'Cormorant Garamond, serif',
-                            fontSize: '20px',
-                            fontWeight: 600,
+                      {/* Most Recent Upload Card */}
+                      {mostRecentItem && (
+                        <motion.div
+                          whileHover={{ y: -4 }}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
+                            transition: 'all 0.3s ease',
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '16px',
+                          }}>
+                            <h3 style={{
+                              fontFamily: 'Cormorant Garamond, serif',
+                              fontSize: '20px',
+                              fontWeight: 600,
+                              color: '#0A4834',
+                              margin: 0,
+                            }}>
+                              Most Recent Upload
+                            </h3>
+                            <Package size={20} color="#9F8151" />
+                          </div>
+                          <div style={{
+                            width: '100%',
+                            aspectRatio: '1',
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                            marginBottom: '12px',
+                          }}>
+                            <ImageWithFallback
+                              src={getItemImageUrl(mostRecentItem)}
+                              alt={mostRecentItem.name || mostRecentItem.title || 'Item'}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          </div>
+                          <h4 style={{
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '16px',
+                            fontWeight: 500,
                             color: '#0A4834',
+                            margin: '0 0 4px 0',
+                          }}>
+                            {mostRecentItem.name || mostRecentItem.title || 'Item'}
+                          </h4>
+                          <p style={{
+                            fontFamily: 'Cormorant Garamond, serif',
+                            fontSize: '18px',
+                            fontWeight: 600,
+                            color: '#9F8151',
                             margin: 0,
                           }}>
-                            {t.profile.recentOrders}
-                          </h3>
-                          <ChevronRight size={20} color="#9F8151" />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                          {(Array.isArray(orders) ? orders : []).slice(0, 3).map((order) => (
-                            <div
-                              key={order.id}
-                              style={{
-                                width: '100%',
-                                aspectRatio: '1',
-                                borderRadius: '12px',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              <ImageWithFallback
-                                src={order.image}
-                                alt={order.name}
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                        <p style={{
-                          fontFamily: 'Manrope, sans-serif',
-                          fontSize: '13px',
-                          color: '#999',
-                          fontStyle: 'italic',
-                          margin: '12px 0 0 0',
-                        }}>
-                          {t.profile.yourPiecesReloved}
-                        </p>
-                      </motion.div>
+                            €{mostRecentItem.price}
+                          </p>
+                        </motion.div>
+                      )}
 
-                      {/* Wishlist Card */}
+                      {/* Favorites Card */}
                       <motion.div
                         whileHover={{ y: -4 }}
                         style={{
@@ -914,8 +1014,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           </h3>
                           <Heart size={20} color="#9F8151" fill="#9F8151" />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                          {(Array.isArray(favourites) ? favourites : []).slice(0, 4).map((item) => (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                          {(Array.isArray(favourites) ? favourites : []).slice(0, 3).map((item) => (
                             <div
                               key={item.id}
                               style={{
@@ -1203,64 +1303,68 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                 </>
               ) : (
                 <>
-                  {/* Recent Orders Card */}
-                  <motion.div
-                    whileHover={{ y: -4 }}
-                    style={{
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: '16px',
-                      padding: '32px',
-                      boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
-                      transition: 'all 0.3s ease',
-                    }}
-                  >
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '24px',
-                    }}>
-                      <h3 style={{
-                        fontFamily: 'Cormorant Garamond, serif',
-                        fontSize: '24px',
-                        fontWeight: 600,
+                  {/* Most Recent Upload Card */}
+                  {mostRecentItem && (
+                    <motion.div
+                      whileHover={{ y: -4 }}
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        borderRadius: '16px',
+                        padding: '32px',
+                        boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
+                        transition: 'all 0.3s ease',
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        marginBottom: '24px',
+                      }}>
+                        <h3 style={{
+                          fontFamily: 'Cormorant Garamond, serif',
+                          fontSize: '24px',
+                          fontWeight: 600,
+                          color: '#0A4834',
+                          margin: 0,
+                        }}>
+                          Most Recent Upload
+                        </h3>
+                        <Package size={24} color="#9F8151" />
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        aspectRatio: '1',
+                        borderRadius: '16px',
+                        overflow: 'hidden',
+                        marginBottom: '16px',
+                      }}>
+                        <ImageWithFallback
+                          src={getItemImageUrl(mostRecentItem)}
+                          alt={mostRecentItem.name || mostRecentItem.title || 'Item'}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                      </div>
+                      <h4 style={{
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '18px',
+                        fontWeight: 500,
                         color: '#0A4834',
+                        margin: '0 0 8px 0',
+                      }}>
+                        {mostRecentItem.name || mostRecentItem.title || 'Item'}
+                      </h4>
+                      <p style={{
+                        fontFamily: 'Cormorant Garamond, serif',
+                        fontSize: '22px',
+                        fontWeight: 600,
+                        color: '#9F8151',
                         margin: 0,
                       }}>
-                        {t.profile.recentOrders}
-                      </h3>
-                      <ChevronRight size={24} color="#9F8151" />
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                      {orders.slice(0, 3).map((order) => (
-                        <div
-                          key={order.id}
-                          style={{
-                            width: '100%',
-                            aspectRatio: '1',
-                            borderRadius: '16px',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <ImageWithFallback
-                            src={order.image}
-                            alt={order.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <p style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                      color: '#999',
-                      fontStyle: 'italic',
-                      textAlign: 'center',
-                      margin: 0,
-                    }}>
-                      {t.profile.yourPiecesReloved}
-                    </p>
-                  </motion.div>
+                        €{mostRecentItem.price}
+                      </p>
+                    </motion.div>
+                  )}
 
                   {/* Favourites Card */}
                   <motion.div
@@ -1271,7 +1375,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                       padding: '32px',
                       boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
                       transition: 'all 0.3s ease',
-                      gridColumn: 'span 2',
+                      gridColumn: mostRecentItem ? 'span 2' : 'span 3',
                     }}
                   >
                     <div style={{
@@ -1291,8 +1395,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                       </h3>
                       <Heart size={24} color="#9F8151" fill="#9F8151" />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                      {favourites.slice(0, 4).map((item) => (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                      {favourites.slice(0, 3).map((item) => (
                         <div
                           key={item.id}
                           style={{
@@ -1350,121 +1454,228 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             </div>
           </TabsContent>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders" style={{ marginTop: '48px' }}>
+          {/* My Items Tab */}
+          <TabsContent value="myitems" style={{ marginTop: '48px' }}>
+            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{
+                  fontFamily: 'Cormorant Garamond, serif',
+                  fontSize: '40px',
+                  fontWeight: 600,
+                  color: '#0A4834',
+                  margin: '0 0 8px 0',
+                }}>
+                  {t.profile.myItems}
+                </h2>
+                <p style={{
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '16px',
+                  color: '#9F8151',
+                  fontStyle: 'italic',
+                  margin: 0,
+                }}>
+                  {t.profile.yourPiecesListed}
+                </p>
+              </div>
+              <motion.button
+                whileHover={{ 
+                  scale: 1.05,
+                  boxShadow: '0px 8px 24px rgba(159,129,81,0.3)',
+                }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/profile/upload')}
+                style={{
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '15px',
+                  fontWeight: 600,
+                  color: '#FFFFFF',
+                  backgroundColor: '#9F8151',
+                  border: 'none',
+                  borderRadius: '12px',
+                  padding: '14px 28px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0px 4px 12px rgba(159,129,81,0.2)',
+                }}
+              >
+                <Plus size={20} />
+                {t.profile.uploadItem}
+              </motion.button>
+            </div>
+
             <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '24px',
             }}>
-              {(Array.isArray(orders) ? orders : []).map((order, index) => (
+              {/* User Items */}
+              {closet.map((item, index) => (
                 <motion.div
-                  key={order.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  key={item.id}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.1 }}
-                  whileHover={{ y: -4 }}
+                  whileHover={{ y: -8 }}
                   style={{
-                    backgroundColor: index % 2 === 0 ? '#FFFFFF' : '#F0ECE3',
-                    borderRadius: '16px',
-                    padding: '24px',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '20px',
+                    overflow: 'hidden',
                     boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
-                    display: 'flex',
-                    gap: '24px',
-                    alignItems: 'center',
                     transition: 'all 0.3s ease',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => navigate(`/product/${item.id}`)}
                 >
                   <div style={{
-                    width: '120px',
-                    height: '120px',
-                    borderRadius: '12px',
+                    position: 'relative',
+                    width: '100%',
+                    aspectRatio: '0.75',
                     overflow: 'hidden',
-                    flexShrink: 0,
                   }}>
                     <ImageWithFallback
-                      src={order.image}
-                      alt={order.name}
+                      src={getItemImageUrl(item)}
+                      alt={item.name || item.title || 'Item'}
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
+                    <div style={{
+                      position: 'absolute',
+                      top: '12px',
+                      right: '12px',
+                      display: 'flex',
+                      gap: '8px',
+                    }}>
+                      <motion.button
+                        whileHover={{ backgroundColor: '#9F8151', scale: 1.1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle edit action
+                        }}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
+                        <Edit size={16} color="#0A4834" />
+                      </motion.button>
+                      <motion.button
+                        whileHover={{ backgroundColor: '#B75C5C', scale: 1.1 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Handle delete action
+                        }}
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '50%',
+                          backgroundColor: 'rgba(255,255,255,0.9)',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.3s ease',
+                        }}
+                      >
+                        <Trash2 size={16} color="#0A4834" />
+                      </motion.button>
+                    </div>
                   </div>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{
-                      fontFamily: 'Cormorant Garamond, serif',
-                      fontSize: '22px',
-                      fontWeight: 600,
+                  <div style={{ padding: '16px' }}>
+                    <h4 style={{
+                      fontFamily: 'Manrope, sans-serif',
+                      fontSize: '16px',
+                      fontWeight: 500,
                       color: '#0A4834',
                       margin: '0 0 8px 0',
                     }}>
-                      {order.name}
-                    </h3>
-                    <p style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '14px',
-                      color: '#666',
-                      margin: '0 0 4px 0',
-                    }}>
-                      {t.profile.seller}: {order.seller}
-                    </p>
-                    <p style={{
-                      fontFamily: 'Manrope, sans-serif',
-                      fontSize: '13px',
-                      color: '#999',
-                      margin: 0,
-                    }}>
-                      {t.profile.ordered}: {order.date}
-                    </p>
-                  </div>
-                  <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'flex-end',
-                    gap: '12px',
-                  }}>
+                      {item.name || item.title || 'Item'}
+                    </h4>
                     <p style={{
                       fontFamily: 'Cormorant Garamond, serif',
-                      fontSize: '24px',
+                      fontSize: '22px',
                       fontWeight: 600,
                       color: '#9F8151',
-                      margin: 0,
+                      margin: '0 0 12px 0',
                     }}>
-                      €{order.price}
+                      €{item.price}
                     </p>
-                    <span style={{
-                      fontFamily: 'Manrope, sans-serif',
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
                       fontSize: '13px',
-                      fontWeight: 500,
-                      color: getStatusColor(order.status),
-                      backgroundColor: `${getStatusColor(order.status)}15`,
-                      padding: '6px 16px',
-                      borderRadius: '20px',
+                      color: '#999',
+                      fontFamily: 'Manrope, sans-serif',
                     }}>
-                      {order.status}
-                    </span>
-                    {order.status === 'Delivered' && (
-                      <motion.button
-                        whileHover={{ color: '#9F8151' }}
-                        style={{
-                          fontFamily: 'Manrope, sans-serif',
-                          fontSize: '13px',
-                          fontWeight: 500,
-                          color: '#0A4834',
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          transition: 'color 0.3s ease',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        {t.profile.rateThisItem} <ChevronRight size={16} />
-                      </motion.button>
-                    )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Eye size={14} />
+                        {item.views || 0}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Heart size={14} />
+                        {item.saves || 0}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MessageCircle size={14} />
+                        {item.messages || 0}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+
+            {/* Empty State */}
+            {closet.length === 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: '80px 24px',
+              }}>
+                <Package size={48} color="#DCD6C9" style={{ marginBottom: '24px' }} />
+                <p style={{
+                  fontFamily: 'Cormorant Garamond, serif',
+                  fontSize: '28px',
+                  color: '#9F8151',
+                  fontStyle: 'italic',
+                  margin: '0 0 24px 0',
+                }}>
+                  {t.profile.noListings}
+                </p>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/profile/upload')}
+                  style={{
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '15px',
+                    fontWeight: 600,
+                    color: '#FFFFFF',
+                    backgroundColor: '#9F8151',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '14px 28px',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <Plus size={20} />
+                  {t.profile.uploadItem}
+                </motion.button>
+              </div>
+            )}
           </TabsContent>
 
           {/* Favourites Tab */}
