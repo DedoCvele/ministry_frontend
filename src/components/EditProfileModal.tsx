@@ -374,7 +374,7 @@ export function EditProfileModal({
                     {/* Color Preview */}
                     <div className="flex items-center gap-4">
                       <div
-                        className="w-20 h-20 rounded-full border-4 border-white shadow-lg"
+                        className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
                         style={{ backgroundColor: rgbToHex(selectedColor.r, selectedColor.g, selectedColor.b) }}
                       />
                       <div className="flex-1">
