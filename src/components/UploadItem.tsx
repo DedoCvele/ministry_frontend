@@ -5,12 +5,12 @@ import { Upload, X, Image as ImageIcon, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface UploadItemProps {
   onClose?: () => void | string;
-  language?: Language;
 }
 
 interface LocalImage {
@@ -22,7 +22,8 @@ const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
 const API_BASE_URL = `${API_ROOT}/api`;
 const MAX_IMAGES = 6;
 
-export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
+export function UploadItem({ onClose }: UploadItemProps) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -345,7 +346,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
   const handlePublish = async () => {
     // Check if user is authenticated
     if (!user) {
-      setSubmitError('You must be logged in to upload items.');
+      setSubmitError(t.upload.errors.mustBeLoggedIn);
       navigate('/login', { replace: true, state: { from: '/upload' } });
       return;
     }
@@ -356,7 +357,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       : null;
     
     if (!token) {
-      setSubmitError('Authentication token not found. Please log in again.');
+      setSubmitError(t.upload.errors.tokenNotFound);
       navigate('/login', { replace: true, state: { from: '/upload' } });
       return;
     }
@@ -371,13 +372,13 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
     if (!formData.sellingPrice.trim()) missingFields.push('selling price');
 
     if (missingFields.length) {
-      setSubmitError(`Please provide ${missingFields.join(', ')} before publishing.`);
+      setSubmitError(t.upload.errors.missingFields.replace('{fields}', missingFields.join(', ')));
       return;
     }
 
     const priceValue = parseFloat(formData.sellingPrice);
     if (Number.isNaN(priceValue)) {
-      setSubmitError('Selling price must be a valid number.');
+      setSubmitError(t.upload.errors.invalidPrice);
       return;
     }
 
@@ -948,12 +949,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Handle network errors (no response)
       if (!error.response) {
         console.error('❌ Network error - no response received');
-        setSubmitError(
-          'Network error: Could not connect to the server. Please check:\n' +
-          '1. Is the backend server running at ' + API_ROOT + '?\n' +
-          '2. Are you connected to the internet?\n' +
-          '3. Check the browser console for more details.'
-        );
+        setSubmitError(t.upload.errors.networkError);
         return;
       }
 
@@ -963,7 +959,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Handle authentication errors specifically
       if (status === 401 || status === 403) {
         console.error('❌ Authentication error');
-        setSubmitError('Authentication failed. Please log in again.');
+        setSubmitError(t.upload.errors.authFailed);
         // Clear invalid token
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('auth_token');
@@ -990,11 +986,11 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
           const errorMessages = Object.entries(validationErrors)
             .map(([field, messages]: [string, any]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
             .join('\n');
-          setSubmitError(`Validation errors:\n${errorMessages}\n\nPlease check the browser console for more details.`);
+          setSubmitError(`${t.upload.errors.validationErrors}\n${errorMessages}\n\nPlease check the browser console for more details.`);
         } else {
           console.error('❌ No validation errors object found in response');
           console.error('❌ Response data:', error?.response?.data);
-          setSubmitError(error?.response?.data?.message || 'Please check your input and try again.');
+          setSubmitError(error?.response?.data?.message || t.upload.errors.failedToPublish);
         }
         return;
       }
@@ -1017,7 +1013,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
         }
         
         setSubmitError(
-          `Server error (${status}): The server encountered an error while processing your request.\n\n` +
+          `${t.upload.errors.serverError}\n\n` +
           `Error: ${errorMessage}\n\n` +
           (sqlError ? `SQL Error: ${sqlError.substring(0, 200)}...\n\n` : '') +
           'This is likely a backend database schema issue. Please check:\n' +
@@ -1031,10 +1027,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       // Handle 404 (endpoint not found)
       if (status === 404) {
         console.error('❌ Endpoint not found');
-        setSubmitError(
-          `Error: The upload endpoint was not found (404).\n` +
-          `Please verify the API URL is correct: ${API_BASE_URL}/items`
-        );
+        setSubmitError(t.upload.errors.endpointNotFound);
         return;
       }
 
@@ -1052,7 +1045,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
       });
 
       setSubmitError(
-        `Failed to publish item (Status: ${status}):\n${errorMessage}${errorDetails}\n\n` +
+        `${t.upload.errors.failedToPublish} (Status: ${status}):\n${errorMessage}${errorDetails}\n\n` +
         'Please check the browser console for more details.'
       );
     } finally {
@@ -1077,7 +1070,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Upload Your Item
+            {t.upload.title}
           </h1>
           <p
             style={{
@@ -1088,7 +1081,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Tell the story of your piece — one simple page.
+            {t.upload.subtitle}
           </p>
         </div>
 
@@ -1104,7 +1097,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Photos
+            {t.upload.photos}
           </h2>
 
           <div
@@ -1133,7 +1126,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 marginTop: 0,
               }}
             >
-              Drag and drop photos here, or click to browse
+              {t.upload.dragDrop}
             </p>
             <p
               style={{
@@ -1145,7 +1138,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 marginBottom: 0,
               }}
             >
-              Include front, back, tag, and detail shots • Up to 6 photos
+              {t.upload.dragDropHint}
             </p>
           </div>
 
@@ -1224,7 +1217,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Item Details
+            {t.upload.details}
           </h2>
           <div
             style={{
@@ -1248,13 +1241,13 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Title *
+                {t.upload.itemName} *
               </label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                placeholder="e.g., Vintage Chanel Tweed Jacket"
+                placeholder={t.upload.itemNamePlaceholder}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -1279,7 +1272,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Brand *
+                {t.upload.brand} *
               </label>
               <select
                 value={formData.brand}
@@ -1296,9 +1289,9 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">Select Brand</option>
+                <option value="">{t.upload.brandPlaceholder}</option>
                 {isLoadingOptions ? (
-                  <option value="">Loading brands...</option>
+                  <option value="">{t.upload.loadingBrands}</option>
                 ) : (
                   brands.map(brand => (
                     <option key={brand.id} value={brand.name}>{brand.name}</option>
@@ -1318,7 +1311,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Category *
+                {t.upload.category} *
               </label>
               <select
                 value={formData.category}
@@ -1335,9 +1328,9 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">Select Category</option>
+                <option value="">{t.upload.categoryPlaceholder}</option>
                 {isLoadingOptions ? (
-                  <option value="">Loading categories...</option>
+                  <option value="">{t.upload.loadingCategories}</option>
                 ) : (
                   categories.map(cat => (
                     <option key={cat.id} value={cat.name}>{cat.name}</option>
@@ -1357,7 +1350,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Size *
+                {t.upload.size} *
               </label>
               <select
                 value={formData.size}
@@ -1374,9 +1367,9 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">Select Size</option>
+                <option value="">{t.upload.sizePlaceholder}</option>
                 {isLoadingOptions ? (
-                  <option value="">Loading sizes...</option>
+                  <option value="">{t.upload.loadingSizes}</option>
                 ) : (
                   sizes.map(size => (
                     <option key={size.id} value={size.name}>{size.name}</option>
@@ -1396,7 +1389,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Condition *
+                {t.upload.condition} *
               </label>
               <select
                 value={formData.condition}
@@ -1413,15 +1406,15 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">Select Condition</option>
+                <option value="">{t.upload.conditionPlaceholder}</option>
                 {isLoadingOptions ? (
-                  <option value="">Loading conditions...</option>
+                  <option value="">{t.upload.loadingConditions}</option>
                 ) : conditions.length > 0 ? (
                   conditions.map(cond => (
                     <option key={cond.id} value={cond.name}>{cond.name}</option>
                   ))
                 ) : (
-                  <option value="" disabled>No conditions available</option>
+                  <option value="" disabled>{t.upload.noConditionsAvailable}</option>
                 )}
               </select>
             </div>
@@ -1437,13 +1430,13 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Material
+                {t.upload.material}
               </label>
               <input
                 type="text"
                 value={formData.material}
                 onChange={(e) => setFormData({ ...formData, material: e.target.value })}
-                placeholder="e.g., 100% Silk, Cotton Blend"
+                placeholder={t.upload.materialPlaceholder}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -1468,12 +1461,12 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Description
+                {t.upload.description}
               </label>
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Share the story of this piece..."
+                placeholder={t.upload.descriptionPlaceholder}
                 rows={4}
                 style={{
                   width: '100%',
@@ -1500,13 +1493,13 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Tags
+                {t.upload.tags}
               </label>
               <input
                 type="text"
                 value={formData.tags}
                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                placeholder="vintage, designer, evening wear (separate with commas)"
+                placeholder={t.upload.tagsPlaceholder}
                 style={{
                   width: '100%',
                   padding: '12px 16px',
@@ -1534,7 +1527,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Pricing
+            {t.upload.pricing}
           </h2>
 
           <div
@@ -1555,7 +1548,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   marginBottom: '8px',
                 }}
               >
-                Selling Price *
+                {t.upload.price} *
               </label>
               <div style={{ position: 'relative' }}>
                 <span
@@ -1576,7 +1569,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   type="number"
                   value={formData.sellingPrice}
                   onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
-                  placeholder="0.00"
+                  placeholder={t.upload.pricePlaceholder}
                   style={{
                     width: '100%',
                     padding: '12px 16px 12px 32px',
@@ -1625,7 +1618,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                   flex: 1,
                 }}
               >
-                Auto-expire listing after 30 days
+                {t.upload.autoExpire}
                 <span
                   style={{
                     display: 'block',
@@ -1634,7 +1627,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                     marginTop: '4px',
                   }}
                 >
-                  If unsold, you'll be notified to relist or extend
+                  {t.upload.autoExpireHint}
                 </span>
               </label>
             </div>
@@ -1653,7 +1646,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               marginTop: 0,
             }}
           >
-            Preview
+            {t.upload.preview}
           </h2>
 
           <div
@@ -1707,7 +1700,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 marginTop: 0,
               }}
             >
-              {formData.title || 'Item Title'}
+              {formData.title || t.upload.itemTitle}
             </h3>
 
             <p
@@ -1720,7 +1713,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 marginTop: 0,
               }}
             >
-              {formData.brand || 'Brand'} • {formData.condition || 'Condition'}
+              {formData.brand || t.upload.brand} • {formData.condition || t.upload.condition}
             </p>
             <p
               style={{
@@ -1732,7 +1725,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
                 marginBottom: '12px',
               }}
             >
-              {formData.material ? `Material: ${formData.material}` : 'Material: Add details'}
+              {formData.material ? `${t.upload.material}: ${formData.material}` : t.upload.materialAddDetails}
             </p>
 
             <p
@@ -1805,7 +1798,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
             }}
             aria-busy={isSubmitting}
           >
-            {isSubmitting ? 'Publishing…' : 'Publish Item'}
+            {isSubmitting ? t.upload.publishing : t.upload.publish}
           </button>
 
           <button
@@ -1829,7 +1822,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
           >
-            Save as Draft
+            {t.upload.saveDraft}
           </button>
         </div>
       </div>
@@ -1870,7 +1863,7 @@ export function UploadItem({ onClose, language = 'en' }: UploadItemProps) {
           `}</style>
           <Check size={20} />
           <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}>
-            Item saved successfully! It will appear in the shop after admin approval.
+            {t.upload.itemSavedSuccess}
           </span>
         </div>
       )}

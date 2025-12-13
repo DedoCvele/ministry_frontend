@@ -28,13 +28,13 @@ import { FooterAlt } from './FooterAlt';
 import { ChatWidget } from './ChatWidget';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { type Language, getTranslation } from '../translations';
+import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ProfilePageProps {
   isSeller?: boolean;
   onClose?: () => void;
-  language?: Language;
   onUploadClick?: () => void;
 }
 
@@ -101,7 +101,8 @@ interface Stats {
   followerGrowth: number;
 }
 
-export function ProfilePage({ isSeller = false, onClose, onUploadClick, language = 'en' }: ProfilePageProps) {
+export function ProfilePage({ isSeller = false, onClose, onUploadClick }: ProfilePageProps) {
+  const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
   const { user: authUser, logout } = useAuth();
@@ -329,7 +330,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
           fontSize: '18px',
           color: '#9F8151',
         }}>
-          Loading profile...
+          {t.profile.loading}
         </div>
       </div>
     );
@@ -441,7 +442,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               margin: '0 0 8px 0',
               lineHeight: '24px',
             }}>
-              {user?.bio || 'Welcome to your profile! Start building your style story.'}
+              {user?.bio || t.profile.welcomeBio}
             </p>
             <div style={{
               display: 'flex',
@@ -452,7 +453,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
               color: '#999',
             }}>
               <MapPin size={14} />
-              {user?.location || 'Location not set'}
+              {user?.location || t.profile.locationNotSet}
             </div>
           </div>
 
@@ -488,7 +489,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 }}
               >
                 <Plus size={20} />
-                List New Item
+                {t.profile.listNewItem}
               </motion.button>
             )}
             <motion.button
@@ -506,7 +507,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 transition: 'all 0.3s ease',
               }}
             >
-              Edit Profile
+              {t.profile.editProfile}
             </motion.button>
             <motion.button
               whileHover={{ backgroundColor: 'rgba(159,129,81,0.1)' }}
@@ -563,7 +564,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 transition: 'all 0.3s ease',
               }}
             >
-              Overview
+              {t.profile.overview}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -582,7 +583,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 transition: 'all 0.3s ease',
               }}
             >
-              Orders
+              {t.profile.orders}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -601,7 +602,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 transition: 'all 0.3s ease',
               }}
             >
-              Favourites
+              {t.profile.favorites}
             </motion.button>
             {isSeller && (
               <>
@@ -622,7 +623,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  My Closet
+                  {t.profile.myCloset}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -641,7 +642,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  Sales
+                  {t.profile.sales}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -660,7 +661,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     transition: 'all 0.3s ease',
                   }}
                 >
-                  Analytics
+                  {t.profile.analytics}
                 </motion.button>
               </>
             )}
@@ -684,7 +685,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 24px 0',
                     }}>
-                      Shopping Activity
+                      {t.profile.shoppingActivity}
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {/* Recent Orders Card */}
@@ -711,7 +712,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: 0,
                           }}>
-                            Recent Orders
+                            {t.profile.recentOrders}
                           </h3>
                           <ChevronRight size={20} color="#9F8151" />
                         </div>
@@ -741,7 +742,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           fontStyle: 'italic',
                           margin: '12px 0 0 0',
                         }}>
-                          Your pieces, re-loved and restyled.
+                          {t.profile.yourPiecesReloved}
                         </p>
                       </motion.div>
 
@@ -769,7 +770,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: 0,
                           }}>
-                            Favourites
+                            {t.profile.favorites}
                           </h3>
                           <Heart size={20} color="#9F8151" fill="#9F8151" />
                         </div>
@@ -828,7 +829,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 24px 0',
                     }}>
-                      Selling Activity
+                      {t.profile.sellingActivity}
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {/* Stats Cards */}
@@ -859,7 +860,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#999',
                             margin: 0,
                           }}>
-                            Total Sales
+                            {t.profile.totalSales}
                           </p>
                         </motion.div>
                         <motion.div
@@ -888,7 +889,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#999',
                             margin: 0,
                           }}>
-                            Items Sold
+                            {t.profile.itemsSold}
                           </p>
                         </motion.div>
                         <motion.div
@@ -917,7 +918,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#999',
                             margin: 0,
                           }}>
-                            Avg. Rating
+                            {t.profile.avgRating}
                           </p>
                         </motion.div>
                       </div>
@@ -946,7 +947,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                             color: '#0A4834',
                             margin: 0,
                           }}>
-                            Items Listed
+                            {t.profile.itemsListed}
                           </h3>
                           <Package size={20} color="#9F8151" />
                         </div>
@@ -976,7 +977,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           fontStyle: 'italic',
                           margin: '12px 0 0 0',
                         }}>
-                          Your pieces currently listed.
+                          {t.profile.yourPiecesListed}
                         </p>
                       </motion.div>
 
@@ -998,7 +999,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           color: '#0A4834',
                           margin: '0 0 16px 0',
                         }}>
-                          Recent Sales
+                          {t.profile.recentSales}
                         </h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {[].slice(0, 2).map((sale) => (
@@ -1086,7 +1087,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                         color: '#0A4834',
                         margin: 0,
                       }}>
-                        Recent Orders
+                        {t.profile.recentOrders}
                       </h3>
                       <ChevronRight size={24} color="#9F8151" />
                     </div>
@@ -1117,7 +1118,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       textAlign: 'center',
                       margin: 0,
                     }}>
-                      Your pieces, re-loved and restyled.
+                      {t.profile.yourPiecesReloved}
                     </p>
                   </motion.div>
 
@@ -1146,7 +1147,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                         color: '#0A4834',
                         margin: 0,
                       }}>
-                        Favourites
+                        {t.profile.favorites}
                       </h3>
                       <Heart size={24} color="#9F8151" fill="#9F8151" />
                     </div>
@@ -1201,7 +1202,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                         margin: '0 auto',
                       }}
                     >
-                      View All Favourites →
+                      {t.profile.viewAllFavourites}
                     </motion.button>
                   </motion.div>
                 </>
@@ -1263,7 +1264,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#666',
                       margin: '0 0 4px 0',
                     }}>
-                      Seller: {order.seller}
+                      {t.profile.seller}: {order.seller}
                     </p>
                     <p style={{
                       fontFamily: 'Manrope, sans-serif',
@@ -1271,7 +1272,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#999',
                       margin: 0,
                     }}>
-                      Ordered: {order.date}
+                      {t.profile.ordered}: {order.date}
                     </p>
                   </div>
                   <div style={{
@@ -1317,7 +1318,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           gap: '4px',
                         }}
                       >
-                        Rate this Item <ChevronRight size={16} />
+                        {t.profile.rateThisItem} <ChevronRight size={16} />
                       </motion.button>
                     )}
                   </div>
@@ -1407,7 +1408,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                           color: '#999',
                           margin: 0,
                         }}>
-                          by {item.seller}
+                          {t.profile.by} {item.seller}
                         </p>
                       </div>
                     </>
@@ -1500,7 +1501,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   fontStyle: 'italic',
                   margin: 0,
                 }}>
-                  Your favourites await discovery.
+                  {t.profile.favouritesAwait}
                 </p>
               </div>
             )}
@@ -1517,7 +1518,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   color: '#0A4834',
                   margin: '0 0 8px 0',
                 }}>
-                  My Closet
+                  {t.profile.myCloset}
                 </h2>
                 <p style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -1526,7 +1527,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   fontStyle: 'italic',
                   margin: 0,
                 }}>
-                  Your pieces currently listed.
+                  {t.profile.yourPiecesListed}
                 </p>
               </div>
 
@@ -1561,7 +1562,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     color: '#9F8151',
                     margin: 0,
                   }}>
-                    Add New Item
+                    {t.profile.addNewItem}
                   </p>
                 </motion.div>
 
@@ -1692,7 +1693,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   color: '#0A4834',
                   margin: '0 0 24px 0',
                 }}>
-                  Sales Overview
+                  {t.profile.salesOverview}
                 </h2>
 
                 {/* Summary Stats */}
@@ -1728,7 +1729,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#999',
                       margin: 0,
                     }}>
-                      Total Sales
+                      {t.profile.totalSales}
                     </p>
                   </motion.div>
                   <motion.div
@@ -1757,7 +1758,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#999',
                       margin: 0,
                     }}>
-                      Items Sold
+                      {t.profile.itemsSold}
                     </p>
                   </motion.div>
                   <motion.div
@@ -1789,7 +1790,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#999',
                       margin: 0,
                     }}>
-                      Avg. Rating
+                      {t.profile.avgRating}
                     </p>
                   </motion.div>
                 </div>
@@ -1809,7 +1810,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   color: '#0A4834',
                   margin: '0 0 24px 0',
                 }}>
-                  Sales History
+                  {t.profile.salesHistory}
                 </h3>
 
                 <div style={{
@@ -1829,11 +1830,11 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     letterSpacing: '0.5px',
                     borderBottom: '1px solid #F0ECE3',
                   }}>
-                    <div>Item</div>
-                    <div>Buyer</div>
-                    <div>Price</div>
-                    <div>Status</div>
-                    <div>Date</div>
+                    <div>{t.profile.item}</div>
+                    <div>{t.profile.buyer}</div>
+                    <div>{t.profile.price}</div>
+                    <div>{t.profile.status}</div>
+                    <div>{t.profile.date}</div>
                   </div>
 
                   {/* Table Rows */}
@@ -1913,7 +1914,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   color: '#0A4834',
                   margin: '0 0 8px 0',
                 }}>
-                  Analytics
+                  {t.profile.analytics}
                 </h2>
                 <p style={{
                   fontFamily: 'Manrope, sans-serif',
@@ -1922,7 +1923,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   fontStyle: 'italic',
                   margin: 0,
                 }}>
-                  See how your stories connect through style.
+                  {t.profile.seeHowYourStories}
                 </p>
               </div>
 
@@ -1949,7 +1950,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                     color: '#0A4834',
                     margin: '0 0 24px 0',
                   }}>
-                    Weekly Views
+                    {t.profile.weeklyViews}
                   </h3>
                   <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={[]}>
@@ -2007,7 +2008,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 16px 0',
                     }}>
-                      Most Viewed
+                      {t.profile.mostViewed}
                     </h4>
                     <div style={{
                       width: '100%',
@@ -2037,7 +2038,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#9F8151',
                       margin: 0,
                     }}>
-                      {closet[0]?.views || 0} views
+                      {closet[0]?.views || 0} {t.profile.views}
                     </p>
                   </motion.div>
 
@@ -2060,7 +2061,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#0A4834',
                       margin: '0 0 16px 0',
                     }}>
-                      Follower Growth
+                      {t.profile.followerGrowth}
                     </h4>
                     <div style={{
                       display: 'flex',
@@ -2099,7 +2100,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                       color: '#999',
                       margin: 0,
                     }}>
-                      Total followers this month
+                      {t.profile.totalFollowersThisMonth}
                     </p>
                   </motion.div>
                 </div>
@@ -2158,7 +2159,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   color: '#0A4834',
                   margin: 0,
                 }}>
-                  Settings
+                  {t.profile.settings}
                 </h3>
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -2180,10 +2181,10 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                 gap: '8px',
               }}>
                 {[
-                  { icon: Users, label: 'Profile Settings' },
-                  { icon: CreditCard, label: 'Payment Methods' },
-                  { icon: MapPin, label: 'Address Book' },
-                  { icon: Package, label: 'Notifications' },
+                  { icon: Users, label: t.profile.profileSettings },
+                  { icon: CreditCard, label: t.profile.paymentMethods },
+                  { icon: MapPin, label: t.profile.addressBook },
+                  { icon: Package, label: t.profile.notifications },
                 ].map((item, index) => (
                   <motion.button
                     key={index}
@@ -2239,7 +2240,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
                   }}
                 >
                   <LogOut size={20} />
-                  Log Out
+                  {t.profile.logOut}
                 </motion.button>
               </div>
             </motion.div>
@@ -2262,7 +2263,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
           margin: '0 0 24px 0',
           lineHeight: '36px',
         }}>
-          "Style is what you keep — and what you choose to let go."
+          {t.profile.styleQuote}
         </p>
         <motion.button
           whileHover={{ color: '#9F8151' }}
@@ -2279,7 +2280,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick, language
             transition: 'color 0.3s ease',
           }}
         >
-          Back to Home →
+          {t.profile.backToHome}
         </motion.button>
       </div>
 
