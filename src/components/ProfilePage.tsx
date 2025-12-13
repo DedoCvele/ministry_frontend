@@ -31,6 +31,41 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { EditProfileModal } from './EditProfileModal';
+
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_ROOT = `${API_BASE_URL}/api`;
+const BACKEND_BASE_URL = API_BASE_URL;
+
+// Default avatar SVGs (matching EditProfileModal)
+const defaultAvatarSvgs: Record<string, string> = {
+  'avatar1': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#F0ECE3"/>
+    <circle cx="50" cy="35" r="12" fill="#0A4834"/>
+    <path d="M 20 70 Q 50 50 80 70" stroke="#0A4834" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  'avatar2': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#DCD6C9"/>
+    <circle cx="50" cy="35" r="12" fill="#9F8151"/>
+    <ellipse cx="50" cy="70" rx="20" ry="15" fill="#0A4834"/>
+  </svg>`,
+  'avatar3': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#9F8151"/>
+    <circle cx="50" cy="35" r="12" fill="#FFFFFF"/>
+    <path d="M 25 75 Q 50 55 75 75" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+  'avatar4': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#0A4834"/>
+    <circle cx="50" cy="35" r="12" fill="#F0ECE3"/>
+    <ellipse cx="50" cy="70" rx="20" ry="15" fill="#9F8151"/>
+  </svg>`,
+  'avatar5': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="50" fill="#3B7059"/>
+    <circle cx="50" cy="35" r="12" fill="#DCD6C9"/>
+    <path d="M 20 70 Q 50 50 80 70" stroke="#DCD6C9" stroke-width="4" fill="none" stroke-linecap="round"/>
+  </svg>`,
+};
 
 interface ProfilePageProps {
   isSeller?: boolean;
@@ -108,6 +143,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   const { user: authUser, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editProfileModalOpen, setEditProfileModalOpen] = useState(false);
 
   const [userId, setUserId] = useState<number>(1); // Will be updated from API
   const [user, setUser] = useState<UserData | null>(null);
@@ -124,13 +160,20 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     // Try multiple endpoints to get user data
     const tryUserEndpoints = async () => {
       const endpoints = [
-        '/api/profile', // Authenticated user's profile
-        `/api/users/1`, // Fallback
+        `${API_ROOT}/profile`, // Authenticated user's profile
+        `${API_ROOT}/users/1`, // Fallback
       ];
 
       for (const endpoint of endpoints) {
         try {
-          const res = await axios.get(endpoint);
+          const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+          const res = await axios.get(endpoint, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : undefined,
+              'Accept': 'application/json',
+            },
+            withCredentials: true,
+          });
           const userData = res.data?.user || res.data?.data || res.data;
           
           if (userData) {
@@ -143,9 +186,9 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             setUser({
               name: userData.name || `${authUser?.firstName || ''} ${authUser?.lastName || ''}`.trim() || authUser?.username || 'User',
               username: userData.username || `@${userData.email?.split('@')[0] || authUser?.username || 'user'}`,
-              bio: userData.bio || 'Welcome to your profile! Start building your style story.',
-              location: userData.location || 'Location not set',
-              avatar: userData.avatar || userData.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
+              bio: userData.bio || t.profile.welcomeToMyProfile,
+              location: userData.city || '',
+              avatar: userData.profile_picture_url || userData.profile_picture || userData.avatar || userData.image || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
               memberSince: userData.created_at 
                 ? new Date(userData.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
                 : new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
@@ -169,8 +212,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               setUser({
                 name: `${authUser.firstName || ''} ${authUser.lastName || ''}`.trim() || authUser.username,
                 username: `@${authUser.username}`,
-                bio: 'Welcome to your profile! Start building your style story.',
-                location: 'Location not set',
+                bio: t.profile.welcomeToMyProfile,
+                location: '',
                 avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHdvbWFuJTIwZWxlZ2FudHxlbnwxfHx8fDE3NjE1ODE1MTl8MA&ixlib=rb-4.1.0&q=80&w=400',
                 memberSince: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
               });
@@ -188,10 +231,10 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   useEffect(() => {
     // Try multiple endpoint variations
     const endpoints = [
-      `/api/users/${userId}/orders`,
-      `/api/profile/orders`,
-      `/api/orders?user_id=${userId}`,
-      `/api/orders`,
+      `${API_ROOT}/users/${userId}/orders`,
+      `${API_ROOT}/profile/orders`,
+      `${API_ROOT}/orders?user_id=${userId}`,
+      `${API_ROOT}/orders`,
     ];
 
     const tryEndpoint = async (index = 0) => {
@@ -202,7 +245,14 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       }
 
       try {
-        const res = await axios.get(endpoints[index]);
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+        const res = await axios.get(endpoints[index], {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+            'Accept': 'application/json',
+          },
+          withCredentials: true,
+        });
         const data = res.data?.orders || res.data?.data || res.data || [];
         if (Array.isArray(data) && data.length > 0) {
           // Filter by user_id if needed
@@ -233,11 +283,11 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   useEffect(() => {
     // Try multiple endpoint variations
     const endpoints = [
-      `/api/users/${userId}/favourites`,
-      `/api/profile/favourites`,
-      `/api/favourites?user_id=${userId}`,
-      `/api/favourites`,
-      `/api/wishlist?user_id=${userId}`,
+      `${API_ROOT}/users/${userId}/favourites`,
+      `${API_ROOT}/profile/favourites`,
+      `${API_ROOT}/favourites?user_id=${userId}`,
+      `${API_ROOT}/favourites`,
+      `${API_ROOT}/wishlist?user_id=${userId}`,
     ];
 
     const tryEndpoint = async (index = 0) => {
@@ -248,7 +298,14 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       }
 
       try {
-        const res = await axios.get(endpoints[index]);
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+        const res = await axios.get(endpoints[index], {
+          headers: {
+            'Authorization': token ? `Bearer ${token}` : undefined,
+            'Accept': 'application/json',
+          },
+          withCredentials: true,
+        });
         const data = res.data?.favourites || res.data?.data || res.data || [];
         if (Array.isArray(data) && data.length > 0) {
           // Filter by user_id if needed
@@ -278,7 +335,14 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   // Load closet items - use /api/items and filter by user_id
   useEffect(() => {
     // Always load items for the user (for overview and closet tabs)
-    axios.get('/api/items')
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    axios.get(`${API_ROOT}/items`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : undefined,
+        'Accept': 'application/json',
+      },
+      withCredentials: true,
+    })
       .then(res => {
         const data = res.data?.data || res.data || [];
         if (Array.isArray(data)) {
@@ -310,6 +374,70 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
         return '#B75C5C';
       default:
         return '#9F8151';
+    }
+  };
+
+  const handleSaveProfile = async (bio: string, profilePicture: string | null | undefined) => {
+    try {
+      // Get auth token from localStorage
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      
+      if (!token) {
+        console.error('No authentication token found');
+        // Try to get CSRF cookie and use session-based auth
+        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+          withCredentials: true,
+        });
+      }
+
+      // JSON request for bio and/or profile picture (color only)
+      const payload: any = {};
+      if (bio !== undefined && bio !== null) {
+        payload.bio = bio;
+      }
+      // Only include profile_picture if it's not undefined (undefined means don't update)
+      if (profilePicture !== undefined) {
+        payload.profile_picture = profilePicture; // Can be string (color hex) or null (to remove)
+      }
+
+      const response = await axios.put(`${API_ROOT}/profile`, payload, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        withCredentials: true,
+      });
+
+      // Reload user data from API
+      const userResponse = await axios.get(`${API_ROOT}/profile`, {
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : undefined,
+          'Accept': 'application/json',
+        },
+        withCredentials: true,
+      });
+
+      const userData = userResponse.data?.user || userResponse.data?.data || userResponse.data;
+      if (userData) {
+        setUser({
+          name: userData.name || user?.name || '',
+          username: userData.username || `@${userData.email?.split('@')[0] || ''}` || user?.username || '',
+          bio: userData.bio || '',
+          location: userData.city || userData.location || user?.location || '',
+          avatar: userData.profile_picture_url || userData.profile_picture || user?.avatar || '',
+          memberSince: user?.memberSince || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        });
+      }
+
+      console.log('Profile updated successfully:', response.data);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      if (error.response?.data?.message) {
+        alert(`Error: ${error.response.data.message}`);
+      } else {
+        alert('Failed to update profile. Please try again.');
+      }
     }
   };
 
@@ -386,16 +514,27 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                 overflow: 'hidden',
                 boxShadow: '0px 8px 24px rgba(0,0,0,0.12)',
                 border: '3px solid #FFFFFF',
+                backgroundColor: user?.avatar?.startsWith('#') ? user.avatar : 'transparent',
               }}
             >
-              <ImageWithFallback
-                src={user?.avatar || ''}
-                alt={user?.name || ''}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
+              {user?.avatar?.startsWith('#') ? (
+                <div style={{ width: '100%', height: '100%', backgroundColor: user.avatar }} />
+              ) : user?.avatar && defaultAvatarSvgs[user.avatar] ? (
+                <div 
+                  style={{ width: '100%', height: '100%' }}
+                  dangerouslySetInnerHTML={{ __html: defaultAvatarSvgs[user.avatar] }}
+                />
+              ) : (
+                <ImageWithFallback
+                  src={user?.avatar || ''}
+                  alt={user?.name || ''}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              )}
             </motion.div>
             <motion.button
               whileHover={{ scale: 1.1, backgroundColor: '#9F8151' }}
+              onClick={() => setEditProfileModalOpen(true)}
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -442,7 +581,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               margin: '0 0 8px 0',
               lineHeight: '24px',
             }}>
-              {user?.bio || t.profile.welcomeBio}
+              {user?.bio || t.profile.welcomeToMyProfile}
             </p>
             <div style={{
               display: 'flex',
@@ -494,6 +633,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             )}
             <motion.button
               whileHover={{ borderColor: '#9F8151', color: '#9F8151' }}
+              onClick={() => setEditProfileModalOpen(true)}
               style={{
                 fontFamily: 'Manrope, sans-serif',
                 fontSize: '15px',
@@ -2289,6 +2429,15 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
       {/* Chat Widget */}
       <ChatWidget />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={editProfileModalOpen}
+        onClose={() => setEditProfileModalOpen(false)}
+        currentBio={user?.bio || ''}
+        currentAvatar={user?.avatar || ''}
+        onSave={handleSaveProfile}
+      />
     </div>
   );
 }

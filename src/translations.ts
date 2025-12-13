@@ -347,6 +347,7 @@ export const translations = {
       backToHome: 'Back to Home →',
       styleQuote: '"Style is what you keep — and what you choose to let go."',
       welcomeBio: 'Welcome to your profile! Start building your style story.',
+      welcomeToMyProfile: 'Welcome to my profile',
     },
     
     // Upload Item
@@ -1034,6 +1035,7 @@ export const translations = {
       backToHome: 'Назад кон дома →',
       styleQuote: '"Стилот е она што го задржуваш — и она што избираш да го пуштиш."',
       welcomeBio: 'Добредојде на твојот профил! Започни да градиш твојата стилска приказна.',
+      welcomeToMyProfile: 'Добредојде на мојот профил',
     },
     
     // Upload Item
