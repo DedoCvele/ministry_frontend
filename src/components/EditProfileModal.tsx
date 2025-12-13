@@ -4,6 +4,8 @@ import { X, Check, Palette } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Label } from './ui/label';
+import { useLanguage } from '../context/LanguageContext';
+import { getTranslation } from '../translations';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -69,6 +71,8 @@ export function EditProfileModal({
   currentAvatar = '',
   onSave,
 }: EditProfileModalProps) {
+  const { language } = useLanguage();
+  const t = getTranslation(language);
   const [bio, setBio] = useState(currentBio);
   const [selectedAvatarType, setSelectedAvatarType] = useState<'default' | 'color'>('default');
   const [selectedDefaultAvatar, setSelectedDefaultAvatar] = useState<string>('avatar1');
@@ -218,7 +222,7 @@ export function EditProfileModal({
                   className="text-2xl font-semibold text-[#0A4834]"
                   style={{ fontFamily: 'Cormorant Garamond, serif', margin: 0 }}
                 >
-                  Edit Profile
+                  {t.profile.editProfileModal.title}
                 </h2>
                 <button
                   onClick={onClose}
@@ -249,13 +253,13 @@ export function EditProfileModal({
               {/* Bio Section */}
               <div>
                 <Label htmlFor="bio" style={{ fontFamily: 'Manrope, sans-serif', color: '#0A4834', marginBottom: '8px', display: 'block', fontWeight: 500 }}>
-                  Bio
+                  {t.profile.editProfileModal.bio}
                 </Label>
                 <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell us about yourself..."
+                  placeholder={t.profile.editProfileModal.bioPlaceholder}
                   style={{ 
                     fontFamily: 'Manrope, sans-serif',
                     minHeight: '100px',
@@ -271,7 +275,7 @@ export function EditProfileModal({
               {/* Profile Picture Section */}
               <div>
                 <Label style={{ fontFamily: 'Manrope, sans-serif', color: '#0A4834', marginBottom: '12px', display: 'block', fontWeight: 500 }}>
-                  Profile Picture
+                  {t.profile.editProfileModal.profilePicture}
                 </Label>
 
                 {/* Avatar Type Selection */}
@@ -301,7 +305,7 @@ export function EditProfileModal({
                       }
                     }}
                   >
-                    Default Avatars
+                    {t.profile.editProfileModal.defaultAvatars}
                   </button>
                   <button
                     onClick={() => setSelectedAvatarType('color')}
@@ -333,7 +337,7 @@ export function EditProfileModal({
                     }}
                   >
                     <Palette size={16} />
-                    Choose Color
+                    {t.profile.editProfileModal.chooseColor}
                   </button>
                 </div>
 
@@ -389,7 +393,7 @@ export function EditProfileModal({
                       <div>
                         <div className="flex justify-between mb-1">
                           <Label className="text-sm text-[#0A4834]" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                            Red
+                            {t.profile.editProfileModal.red}
                           </Label>
                           <span className="text-sm text-[#666]" style={{ fontFamily: 'Manrope, sans-serif' }}>
                             {selectedColor.r}
@@ -412,7 +416,7 @@ export function EditProfileModal({
                       <div>
                         <div className="flex justify-between mb-1">
                           <Label className="text-sm text-[#0A4834]" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                            Green
+                            {t.profile.editProfileModal.green}
                           </Label>
                           <span className="text-sm text-[#666]" style={{ fontFamily: 'Manrope, sans-serif' }}>
                             {selectedColor.g}
@@ -435,7 +439,7 @@ export function EditProfileModal({
                       <div>
                         <div className="flex justify-between mb-1">
                           <Label className="text-sm text-[#0A4834]" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                            Blue
+                            {t.profile.editProfileModal.blue}
                           </Label>
                           <span className="text-sm text-[#666]" style={{ fontFamily: 'Manrope, sans-serif' }}>
                             {selectedColor.b}
@@ -458,7 +462,7 @@ export function EditProfileModal({
                     {/* Quick Color Presets */}
                     <div>
                       <Label className="text-sm text-[#0A4834] mb-2 block" style={{ fontFamily: 'Manrope, sans-serif' }}>
-                        Quick Colors
+                        {t.profile.editProfileModal.quickColors}
                       </Label>
                       <div className="flex gap-2 flex-wrap">
                         {[
@@ -501,14 +505,14 @@ export function EditProfileModal({
                   className="flex-1 rounded-xl border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5"
                   style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
-                  Cancel
+                  {t.profile.editProfileModal.cancel}
                 </Button>
                 <Button
                   onClick={handleSave}
                   className="flex-1 rounded-xl bg-[#0A4834] text-white hover:bg-[#0A4834]/90"
                   style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
-                  Save Changes
+                  {t.profile.editProfileModal.saveChanges}
                 </Button>
               </div>
             </div>

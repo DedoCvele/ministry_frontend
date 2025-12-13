@@ -266,57 +266,57 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     return '';
   };
 
-  // Load user orders
-  useEffect(() => {
-    // Try multiple endpoint variations
-    const endpoints = [
-      `${API_ROOT}/users/${userId}/orders`,
-      `${API_ROOT}/profile/orders`,
-      `${API_ROOT}/orders?user_id=${userId}`,
-      `${API_ROOT}/orders`,
-    ];
+  // Load user orders - DISABLED: Orders are not displayed in the UI, so no need to fetch them
+  // useEffect(() => {
+  //   // Try multiple endpoint variations
+  //   const endpoints = [
+  //     `${API_ROOT}/users/${userId}/orders`,
+  //     `${API_ROOT}/profile/orders`,
+  //     `${API_ROOT}/orders?user_id=${userId}`,
+  //     `${API_ROOT}/orders`,
+  //   ];
 
-    const tryEndpoint = async (index = 0) => {
-      if (index >= endpoints.length) {
-        console.warn('No orders endpoint found, using empty array');
-        setOrders([]);
-        return;
-      }
+  //   const tryEndpoint = async (index = 0) => {
+  //     if (index >= endpoints.length) {
+  //       console.warn('No orders endpoint found, using empty array');
+  //       setOrders([]);
+  //       return;
+  //     }
 
-      try {
-        const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
-        const res = await axios.get(endpoints[index], {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : undefined,
-            'Accept': 'application/json',
-          },
-          withCredentials: true,
-        });
-        const data = res.data?.orders || res.data?.data || res.data || [];
-        if (Array.isArray(data) && data.length > 0) {
-          // Filter by user_id if needed
-          const filtered = data.filter((order: any) => 
-            order.user_id === userId || order.userId === userId || !order.user_id
-          );
-          setOrders(filtered);
-          console.log('Orders loaded:', filtered);
-        } else if (Array.isArray(data)) {
-          setOrders(data);
-        } else {
-          tryEndpoint(index + 1);
-        }
-      } catch (err: any) {
-        if (err.response?.status === 404 || err.response?.status === 500) {
-          tryEndpoint(index + 1);
-        } else {
-          console.error(`Error loading orders from ${endpoints[index]}:`, err);
-          tryEndpoint(index + 1);
-        }
-      }
-    };
+  //     try {
+  //       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+  //       const res = await axios.get(endpoints[index], {
+  //         headers: {
+  //           'Authorization': token ? `Bearer ${token}` : undefined,
+  //           'Accept': 'application/json',
+  //         },
+  //         withCredentials: true,
+  //       });
+  //       const data = res.data?.orders || res.data?.data || res.data || [];
+  //       if (Array.isArray(data) && data.length > 0) {
+  //         // Filter by user_id if needed
+  //         const filtered = data.filter((order: any) => 
+  //           order.user_id === userId || order.userId === userId || !order.user_id
+  //         );
+  //         setOrders(filtered);
+  //         console.log('Orders loaded:', filtered);
+  //       } else if (Array.isArray(data)) {
+  //         setOrders(data);
+  //       } else {
+  //         tryEndpoint(index + 1);
+  //       }
+  //     } catch (err: any) {
+  //       if (err.response?.status === 404 || err.response?.status === 500) {
+  //         tryEndpoint(index + 1);
+  //       } else {
+  //         console.error(`Error loading orders from ${endpoints[index]}:`, err);
+  //         tryEndpoint(index + 1);
+  //       }
+  //     }
+  //   };
 
-    tryEndpoint();
-  }, [userId]);
+  //   tryEndpoint();
+  // }, [userId]);
 
   // Load favourites
   useEffect(() => {
@@ -948,7 +948,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                               color: '#0A4834',
                               margin: 0,
                             }}>
-                              Most Recent Upload
+                              {t.profile.mostRecentUpload}
                             </h3>
                             <Package size={20} color="#9F8151" />
                           </div>
@@ -1328,7 +1328,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           color: '#0A4834',
                           margin: 0,
                         }}>
-                          Most Recent Upload
+                          {t.profile.mostRecentUpload}
                         </h3>
                         <Package size={24} color="#9F8151" />
                       </div>

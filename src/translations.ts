@@ -349,6 +349,21 @@ export const translations = {
       styleQuote: '"Style is what you keep — and what you choose to let go."',
       welcomeBio: 'Welcome to your profile! Start building your style story.',
       welcomeToMyProfile: 'Welcome to my profile',
+      mostRecentUpload: 'Most Recent Upload',
+      editProfileModal: {
+        title: 'Edit Profile',
+        bio: 'Bio',
+        bioPlaceholder: 'Tell us about yourself...',
+        profilePicture: 'Profile Picture',
+        defaultAvatars: 'Default Avatars',
+        chooseColor: 'Choose Color',
+        red: 'Red',
+        green: 'Green',
+        blue: 'Blue',
+        quickColors: 'Quick Colors',
+        cancel: 'Cancel',
+        saveChanges: 'Save Changes',
+      },
     },
     
     // Upload Item
@@ -1038,6 +1053,21 @@ export const translations = {
       styleQuote: '"Стилот е она што го задржуваш — и она што избираш да го пуштиш."',
       welcomeBio: 'Добредојде на твојот профил! Започни да градиш твојата стилска приказна.',
       welcomeToMyProfile: 'Добредојде на мојот профил',
+      mostRecentUpload: 'Најново прикачено',
+      editProfileModal: {
+        title: 'Уреди профил',
+        bio: 'Биографија',
+        bioPlaceholder: 'Раскажи ни за себе...',
+        profilePicture: 'Слика на профил',
+        defaultAvatars: 'Стандардни аватари',
+        chooseColor: 'Избери боја',
+        red: 'Црвена',
+        green: 'Зелена',
+        blue: 'Сина',
+        quickColors: 'Брзи бои',
+        cancel: 'Откажи',
+        saveChanges: 'Зачувај промени',
+      },
     },
     
     // Upload Item
