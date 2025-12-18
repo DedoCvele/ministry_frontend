@@ -198,6 +198,7 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
   
   const [selectedImage, setSelectedImage] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isZoomed, setIsZoomed] = useState(false);
   const [isHoveringImage, setIsHoveringImage] = useState(false);
@@ -313,6 +314,23 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         }
         
         setProduct(productData);
+        
+        // Check favorite status if user is logged in
+        const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+        if (token && productId) {
+          try {
+            const favoriteResponse = await axios.get(`${API_BASE_URL}/items/${productId}/favorite-status`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Accept': 'application/json',
+              },
+            });
+            setIsWishlisted(favoriteResponse.data?.is_favorited || false);
+          } catch (favErr) {
+            // Silently fail - user just won't see their favorite status
+            console.warn('Could not fetch favorite status:', favErr);
+          }
+        }
       } catch (err: any) {
         console.error('Error fetching product:', err);
         console.error('Error response:', err.response);
@@ -477,6 +495,46 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
     );
   }
 
+  // Toggle favorite function
+  const toggleFavorite = async () => {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    console.log('🔄 Toggle favorite called, token:', token ? 'exists' : 'missing', 'productId:', productId);
+    
+    if (!token) {
+      toast.error('Please log in to save favorites');
+      return;
+    }
+    if (!productId) return;
+    
+    setFavoriteLoading(true);
+    try {
+      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+      const url = `${API_ROOT}/api/items/${productId}/favorite`;
+      console.log('📡 Posting to:', url);
+      
+      // Get CSRF cookie first (required for Sanctum)
+      await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, { withCredentials: true });
+      
+      const response = await axios.post(url, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        withCredentials: true,
+      });
+      console.log('✅ Favorite response:', response.data);
+      setIsWishlisted(response.data?.is_favorited || false);
+      toast.success(response.data?.message || (response.data?.is_favorited ? 'Added to favorites' : 'Removed from favorites'));
+    } catch (err: any) {
+      console.error('❌ Error toggling favorite:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      toast.error(err.response?.data?.message || 'Failed to update favorites');
+    } finally {
+      setFavoriteLoading(false);
+    }
+  };
+
   // Error state
   if (error || !product) {
     return (
@@ -610,7 +668,14 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
               )}
 
               {/* Wishlist Button */}
-              <motion.button onClick={() => setIsWishlisted(!isWishlisted)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
+              <motion.button 
+                onClick={toggleFavorite} 
+                whileHover={{ scale: 1.1 }} 
+                whileTap={{ scale: 0.95 }} 
+                className="wishlist-btn"
+                disabled={favoriteLoading}
+                style={{ opacity: favoriteLoading ? 0.6 : 1 }}
+              >
                 <Heart size={22} fill={isWishlisted ? '#9F8151' : 'none'} stroke={isWishlisted ? '#9F8151' : '#0A4834'} strokeWidth={2} />
               </motion.button>
             </div>

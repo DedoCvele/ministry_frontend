@@ -263,12 +263,12 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
           console.log('First item approved status:', items[0].approved);
         }
         
-        // Filter items for shop page: show items with approved = 1, 2, or 3
-        // 0 = Pending (not shown), 1 = Approved, 2 = Special, 3 = Premium
+        // Filter items for shop page: show items with approved = 2 or 3 only
+        // 0 = Pending (not shown), 1 = Admin approved but not for shop, 2 = Shop approved, 3 = Premium
         const approvedItems = Array.isArray(items) 
           ? items.filter((item: any) => {
               const status = getApprovalNumber(item);
-              return status !== null && (status === 1 || status === 2 || status === 3);
+              return status !== null && (status === 2 || status === 3);
             })
           : [];
         

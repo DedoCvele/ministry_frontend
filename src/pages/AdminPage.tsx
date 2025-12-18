@@ -13,8 +13,15 @@ import {
   Loader2,
   Upload,
   Image as ImageIcon,
+  Star,
+  ArrowUp,
+  ArrowDown,
+  Mail,
+  Users,
+  User,
 } from 'lucide-react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 import { HeaderAlt } from '../components/HeaderAlt';
 import { FooterAlt } from '../components/FooterAlt';
 import { ChatWidget } from '../components/ChatWidget';
@@ -26,42 +33,12 @@ interface ApprovalItem {
   id: string;
   title: string;
   seller: string;
+  sellerEmail?: string;
   category: string;
   price: number;
   submittedAt: string;
   image?: string;
 }
-
-const APPROVAL_QUEUE: ApprovalItem[] = [
-  {
-    id: 'item-1001',
-    title: 'Vintage Chanel Tweed Blazer',
-    seller: '@luxecloset',
-    category: 'Outerwear',
-    price: 1480,
-    submittedAt: '2 hours ago',
-    image:
-      'https://images.unsplash.com/photo-1744743128385-990e02da095f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-  },
-  {
-    id: 'item-1002',
-    title: 'Silk Evening Gown',
-    seller: '@noirearchive',
-    category: 'Dresses',
-    price: 620,
-    submittedAt: '4 hours ago',
-    image:
-      'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
-  },
-  {
-    id: 'item-1003',
-    title: 'Leather Saddle Bag',
-    seller: '@heritagefinds',
-    category: 'Accessories',
-    price: 380,
-    submittedAt: '9 hours ago',
-  },
-];
 
 const DEFAULT_BLOG_CATEGORIES = [
   'Market Insights',
@@ -84,6 +61,14 @@ interface Blog {
   status: string;
   created_at: string;
   updated_at: string;
+}
+
+interface UserData {
+  id: number;
+  name: string;
+  email: string;
+  username?: string;
+  created_at?: string;
 }
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -187,10 +172,16 @@ const getApprovalNumber = (item: any): number | null => {
 
 export function AdminPage() {
   const { user, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'approve' | 'approved-menu' | 'add-blog' | 'manage-blogs'>('approve');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<'approve' | 'add-blog' | 'manage-blogs' | 'users'>('approve');
+  const [approveSubTab, setApproveSubTab] = useState<'pending' | 'approved' | 'featured'>('pending');
   const [query, setQuery] = useState('');
-  const [items, setItems] = useState<ApprovalItem[]>([]);
-  const [approvedItems, setApprovedItems] = useState<ApprovalItem[]>([]);
+  
+  // Items for different approval levels
+  const [pendingItems, setPendingItems] = useState<ApprovalItem[]>([]); // approved = 1
+  const [approvedItems, setApprovedItems] = useState<ApprovalItem[]>([]); // approved = 2
+  const [featuredItems, setFeaturedItems] = useState<ApprovalItem[]>([]); // approved = 3
+  
   const [loadingItems, setLoadingItems] = useState(false);
   const [blogForm, setBlogForm] = useState({
     title: '',
@@ -220,6 +211,17 @@ export function AdminPage() {
   });
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategory, setNewCategory] = useState('');
+  
+  // Delete modal state
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [deleteItemEmail, setDeleteItemEmail] = useState<string>('');
+  const [deleteReason, setDeleteReason] = useState('');
+  
+  // Users state
+  const [users, setUsers] = useState<UserData[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userQuery, setUserQuery] = useState('');
 
   // Fetch blogs on component mount and when switching to manage-blogs tab
   useEffect(() => {
@@ -228,21 +230,27 @@ export function AdminPage() {
     }
   }, [activeTab]);
 
-  // Fetch pending items (approved = 1) for Approve Items tab
+  // Fetch users when switching to users tab
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab]);
+
+  // Fetch items based on sub-tab
   useEffect(() => {
     if (activeTab === 'approve') {
-      fetchPendingItems();
+      if (approveSubTab === 'pending') {
+        fetchItemsByApproval(1, setPendingItems);
+      } else if (approveSubTab === 'approved') {
+        fetchItemsByApproval(2, setApprovedItems);
+      } else if (approveSubTab === 'featured') {
+        fetchItemsByApproval(3, setFeaturedItems);
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, approveSubTab]);
 
-  // Fetch approved items (approved = 2) for Approved Menu tab
-  useEffect(() => {
-    if (activeTab === 'approved-menu') {
-      fetchApprovedItems();
-    }
-  }, [activeTab]);
-
-  const fetchPendingItems = async () => {
+  const fetchItemsByApproval = async (approvalLevel: number, setItems: React.Dispatch<React.SetStateAction<ApprovalItem[]>>) => {
     try {
       setLoadingItems(true);
       
@@ -252,6 +260,7 @@ export function AdminPage() {
       });
       
       const response = await axios.get(`${API_BASE_URL}/items`, {
+        params: { approved: approvalLevel },
         withCredentials: true,
         headers: {
           'Accept': 'application/json',
@@ -269,31 +278,16 @@ export function AdminPage() {
         items = [];
       }
       
-      // console.log('🔍 AdminPage - Pending Items Fetch:', {
-      //   total_items: Array.isArray(items) ? items.length : 0,
-      //   items_with_approved_2: Array.isArray(items) ? items.filter((item: any) => {
-      //     const status = getApprovalNumber(item);
-      //     return status === 2;
-      //   }).length : 0
-      // });
-      
-      // Filter items with approved = 2 (in approval queue)
-      // Items with approved = 2 are waiting for admin review
-      const pendingItems = Array.isArray(items) 
+      // Filter items with the specific approval level
+      const filteredItems = Array.isArray(items) 
         ? items.filter((item: any) => {
             const status = getApprovalNumber(item);
-            const matches = status === 2;
-            // if (matches) {
-            //   console.log(`✅ Found pending item: ${item.id} - ${item.title || item.name} (numericStatus=${status}, approved=${item.approved})`);
-            // }
-            return matches;
+            return status === approvalLevel;
           })
         : [];
       
-      // console.log('🔍 AdminPage - Filtered Pending Items:', pendingItems.length);
-      
       // Map to ApprovalItem format
-      const mappedItems: ApprovalItem[] = pendingItems.map((item: any) => {
+      const mappedItems: ApprovalItem[] = filteredItems.map((item: any) => {
         const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
         
         const getImageUrl = (item: any): string => {
@@ -331,6 +325,7 @@ export function AdminPage() {
           id: String(item.id),
           title: item.title || item.name || 'Untitled Item',
           seller: item.user?.name || item.user?.email || 'Unknown Seller',
+          sellerEmail: item.user?.email || '',
           category: item.category?.name || 'Uncategorized',
           price: parseFloat(item.price) || 0,
           submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
@@ -340,111 +335,8 @@ export function AdminPage() {
       
       setItems(mappedItems);
     } catch (error) {
-      console.error('Error fetching pending items:', error);
-      toast.error('Failed to load pending items', {
-        style: {
-          background: '#FFFFFF',
-          color: '#0A4834',
-          border: '1px solid #9F8151',
-          fontFamily: 'Manrope, sans-serif',
-        },
-      });
-    } finally {
-      setLoadingItems(false);
-    }
-  };
-
-  const fetchApprovedItems = async () => {
-    try {
-      setLoadingItems(true);
-      
-      // Get CSRF cookie first
-      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
-      
-      // Use API endpoint with approved=3 query parameter to filter items
-      // According to API docs: GET /api/items?approved=3 (or /api/admin/items?approved=3 for admin)
-      const response = await axios.get(`${API_BASE_URL}/items`, {
-        params: {
-          approved: 3
-        },
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-          ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
-        },
-      });
-      
-      // Handle different response structures
-      let items = response.data;
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        items = response.data.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        items = response.data;
-      } else {
-        items = [];
-      }
-      
-      // console.log('🔍 AdminPage - Approved Items Fetch (approved=3):', {
-      //   total_items: Array.isArray(items) ? items.length : 0
-      // });
-      
-      // All items from API are already filtered to approved=3, so use them directly
-      const approvedItems = Array.isArray(items) ? items : [];
-      
-      // console.log('🔍 AdminPage - Approved Items:', approvedItems.length);
-      
-      // Map to ApprovalItem format (all items are already approved=3 from API)
-      const mappedItems: ApprovalItem[] = approvedItems.map((item: any) => {
-        const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-        
-        const getImageUrl = (item: any): string => {
-          if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
-            const mainImage = item.images[0];
-            if (mainImage?.url) return mainImage.url;
-            if (mainImage?.path) {
-              const img = mainImage.path;
-              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                return img;
-              }
-              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-              if (cleanPath.startsWith('storage/')) {
-                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-              }
-              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-            }
-          }
-          if (item?.image_url) return item.image_url;
-          if (item?.image) {
-            const img = item.image;
-            if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-              return img;
-            }
-            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-            if (cleanPath.startsWith('storage/')) {
-              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-            }
-            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-          }
-          return '';
-        };
-        
-        return {
-          id: String(item.id),
-          title: item.title || item.name || 'Untitled Item',
-          seller: item.user?.name || item.user?.email || 'Unknown Seller',
-          category: item.category?.name || 'Uncategorized',
-          price: parseFloat(item.price) || 0,
-          submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
-          image: getImageUrl(item),
-        };
-      });
-      
-      setApprovedItems(mappedItems);
-    } catch (error) {
-      console.error('Error fetching approved items:', error);
-      toast.error('Failed to load approved items', {
+      console.error(`Error fetching items with approved=${approvalLevel}:`, error);
+      toast.error(`Failed to load items`, {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
@@ -509,7 +401,60 @@ export function AdminPage() {
     }
   };
 
-  const filteredItems = useMemo(() => {
+  const fetchUsers = async () => {
+    try {
+      setLoadingUsers(true);
+      
+      // Get CSRF cookie first
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      
+      // Note: There's no /api/users endpoint. We extract users from items as a workaround.
+      // Ask backend to create GET /api/users or GET /api/admin/users endpoint for proper implementation.
+      const response = await axios.get(`${API_BASE_URL}/items`, getAuthConfig());
+      
+      // Handle different response structures
+      let itemsData = response.data;
+      if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        itemsData = response.data.data;
+      } else if (response.data && Array.isArray(response.data)) {
+        itemsData = response.data;
+      } else {
+        itemsData = [];
+      }
+      
+      // Extract unique users from items
+      const userMap = new Map<number, UserData>();
+      itemsData.forEach((item: any) => {
+        if (item.user && item.user.id && !userMap.has(item.user.id)) {
+          userMap.set(item.user.id, {
+            id: item.user.id,
+            name: item.user.name || 'Unknown',
+            email: item.user.email || '',
+            username: item.user.username,
+            created_at: item.user.created_at,
+          });
+        }
+      });
+      
+      setUsers(Array.from(userMap.values()));
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const getFilteredItems = (items: ApprovalItem[]) => {
     if (!query.trim()) {
       return items;
     }
@@ -520,7 +465,7 @@ export function AdminPage() {
         item.seller.toLowerCase().includes(lowered) ||
         item.category.toLowerCase().includes(lowered),
     );
-  }, [items, query]);
+  };
 
   const filteredBlogs = useMemo(() => {
     if (!blogQuery.trim()) {
@@ -535,131 +480,70 @@ export function AdminPage() {
     );
   }, [blogs, blogQuery]);
 
-  const handleDecision = async (id: string, decision: 'approved' | 'rejected') => {
+  const filteredUsers = useMemo(() => {
+    if (!userQuery.trim()) {
+      return users;
+    }
+    const lowered = userQuery.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.name?.toLowerCase().includes(lowered) ||
+        u.email?.toLowerCase().includes(lowered) ||
+        u.username?.toLowerCase().includes(lowered),
+    );
+  }, [users, userQuery]);
+
+  const updateItemApproval = async (id: string, newApprovalLevel: number, successMessage: string) => {
     try {
       // Get CSRF cookie first
       await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
         withCredentials: true,
       });
       
-      // CRITICAL: Fetch current item data first to preserve images and other fields
+      // Fetch current item data first to preserve fields
       let currentItem: any = null;
       try {
         const itemResponse = await axios.get(`${API_BASE_URL}/items/${id}`, getAuthConfig());
         currentItem = itemResponse.data?.data || itemResponse.data;
-        // console.log('📥 Current item data fetched:', {
-        //   id: currentItem?.id,
-        //   images: currentItem?.images,
-        //   image: currentItem?.image,
-        //   image_url: currentItem?.image_url
-        // });
       } catch (fetchError) {
-        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
+        console.error('Could not fetch current item data:', fetchError);
       }
       
-      if (decision === 'approved') {
-        // Set approved = 3 (move to Approved Menu - tier 3)
-        // console.log(`🔄 Updating item ${id} to approved = 3`);
-        
-        // Build update payload - preserve existing image data
-        const updatePayload: any = { approved: 3 };
-        
-        // Preserve image data if it exists
-        if (currentItem) {
-          // Preserve images array if it exists
-          if (currentItem.images && Array.isArray(currentItem.images) && currentItem.images.length > 0) {
-            // Don't send images array in PUT - backend should preserve it
-            // But we'll preserve other image-related fields if they exist
-            // console.log('🖼️ Preserving images array (backend should maintain it)');
-          }
-          
-          // Preserve other critical fields that shouldn't be lost
-          if (currentItem.name) updatePayload.name = currentItem.name;
-          if (currentItem.title) updatePayload.title = currentItem.title;
-          if (currentItem.description) updatePayload.description = currentItem.description;
-          if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
-          if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
-          if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
-        }
-        
-        const updateResponse = await axios.put(
-          `${API_BASE_URL}/items/${id}`,
-          updatePayload,
-          getAuthConfig()
-        );
-        
-        // Verify the update worked by checking the response
-        const updatedItem = updateResponse.data?.data || updateResponse.data;
-        const updatedApprovedStatus = getApprovalNumber(updatedItem);
-        
-        // console.log('✅ Update response:', updateResponse.data);
-        // console.log('✅ Updated item approved status:', updatedApprovedStatus);
-        // console.log('🖼️ Images after update:', updatedItem?.images || updatedItem?.image || 'none');
-        
-        if (updatedApprovedStatus !== 3) {
-          console.error('❌ Update failed: Item approved status is not 3 after update:', updatedApprovedStatus);
-          toast.error(`Update may have failed. Item status is ${updatedApprovedStatus}, expected 3.`, {
-            style: {
-              background: '#FFFFFF',
-              color: '#0A4834',
-              border: '1px solid #9F8151',
-              fontFamily: 'Manrope, sans-serif',
-            },
-          });
-          return;
-        }
-        
-        // Remove from pending items
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        
-        // Refetch approved items to ensure we have the latest data
-        await fetchApprovedItems();
-        
-        toast.success('Item approved to tier 3 and moved to Approved Menu ✅', {
-          style: {
-            background: '#FFFFFF',
-            color: '#0A4834',
-            border: '1px solid #9F8151',
-            fontFamily: 'Manrope, sans-serif',
-          },
-        });
-      } else {
-        // Reject: set approved = 1 (back to approved status)
-        // Build update payload - preserve existing image data
-        const updatePayload: any = { approved: 1 };
-        
-        // Preserve image data if it exists
-        if (currentItem) {
-          // Preserve other critical fields that shouldn't be lost
-          if (currentItem.name) updatePayload.name = currentItem.name;
-          if (currentItem.title) updatePayload.title = currentItem.title;
-          if (currentItem.description) updatePayload.description = currentItem.description;
-          if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
-          if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
-          if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
-        }
-        
-        await axios.put(
-          `${API_BASE_URL}/items/${id}`,
-          updatePayload,
-          getAuthConfig()
-        );
-        
-        // Remove from the list
-        setItems((prev) => prev.filter((item) => item.id !== id));
-        
-        toast.success('Item rejected and set to approved = 1 ❌', {
-          style: {
-            background: '#FFFFFF',
-            color: '#0A4834',
-            border: '1px solid #9F8151',
-            fontFamily: 'Manrope, sans-serif',
-          },
-        });
+      // Build update payload
+      const updatePayload: any = { approved: newApprovalLevel };
+      
+      if (currentItem) {
+        if (currentItem.name) updatePayload.name = currentItem.name;
+        if (currentItem.title) updatePayload.title = currentItem.title;
+        if (currentItem.description) updatePayload.description = currentItem.description;
+        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
+        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
+        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
       }
+      
+      await axios.put(`${API_BASE_URL}/items/${id}`, updatePayload, getAuthConfig());
+      
+      toast.success(successMessage, {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      
+      // Refresh the current tab's items
+      if (approveSubTab === 'pending') {
+        fetchItemsByApproval(1, setPendingItems);
+      } else if (approveSubTab === 'approved') {
+        fetchItemsByApproval(2, setApprovedItems);
+      } else if (approveSubTab === 'featured') {
+        fetchItemsByApproval(3, setFeaturedItems);
+      }
+      
     } catch (error: any) {
       console.error('Error updating item approval:', error);
-      toast.error('Failed to update item approval status', {
+      toast.error('Failed to update item', {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
@@ -670,56 +554,36 @@ export function AdminPage() {
     }
   };
 
-  const handleRejectApproved = async (id: string) => {
+  const openDeleteModal = (item: ApprovalItem) => {
+    setDeleteItemId(item.id);
+    setDeleteItemEmail(item.sellerEmail || item.seller);
+    setDeleteReason('');
+    setDeleteModalOpen(true);
+  };
+
+  const handleDeleteItem = async () => {
+    if (!deleteItemId || !deleteReason.trim()) {
+      toast.error('Please provide a reason for deletion', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
     try {
       // Get CSRF cookie first
       await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
         withCredentials: true,
       });
       
-      // CRITICAL: Fetch current item data first to preserve images and other fields
-      let currentItem: any = null;
-      try {
-        const itemResponse = await axios.get(`${API_BASE_URL}/items/${id}`, getAuthConfig());
-        currentItem = itemResponse.data?.data || itemResponse.data;
-        // console.log('📥 Current item data fetched for rejection:', {
-        //   id: currentItem?.id,
-        //   images: currentItem?.images,
-        //   image: currentItem?.image,
-        //   image_url: currentItem?.image_url
-        // });
-      } catch (fetchError) {
-        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
-      }
+      // Delete the item
+      await axios.delete(`${API_BASE_URL}/items/${deleteItemId}`, getAuthConfig());
       
-      // Reset approved from 3 to 1 (back to approved status)
-      // Build update payload - preserve existing image data
-      const updatePayload: any = { approved: 1 };
-      
-      // Preserve image data if it exists
-      if (currentItem) {
-        // Preserve other critical fields that shouldn't be lost
-        if (currentItem.name) updatePayload.name = currentItem.name;
-        if (currentItem.title) updatePayload.title = currentItem.title;
-        if (currentItem.description) updatePayload.description = currentItem.description;
-        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
-        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
-        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
-      }
-      
-      const updateResponse = await axios.put(
-        `${API_BASE_URL}/items/${id}`,
-        updatePayload,
-        getAuthConfig()
-      );
-      
-      const updatedItem = updateResponse.data?.data || updateResponse.data;
-      // console.log('🖼️ Images after rejection update:', updatedItem?.images || updatedItem?.image || 'none');
-      
-      // Remove from approved items
-      setApprovedItems((prev) => prev.filter((item) => item.id !== id));
-      
-      toast.success('Item rejected and set to approved = 1', {
+      toast.success(`Item deleted. Reason sent to ${deleteItemEmail}`, {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
@@ -728,13 +592,24 @@ export function AdminPage() {
         },
       });
       
-      // Refresh pending items if on that tab
-      if (activeTab === 'approve') {
-        fetchPendingItems();
+      // Close modal and reset state
+      setDeleteModalOpen(false);
+      setDeleteItemId(null);
+      setDeleteItemEmail('');
+      setDeleteReason('');
+      
+      // Refresh items
+      if (approveSubTab === 'pending') {
+        fetchItemsByApproval(1, setPendingItems);
+      } else if (approveSubTab === 'approved') {
+        fetchItemsByApproval(2, setApprovedItems);
+      } else if (approveSubTab === 'featured') {
+        fetchItemsByApproval(3, setFeaturedItems);
       }
+      
     } catch (error: any) {
-      console.error('Error rejecting approved item:', error);
-      toast.error('Failed to reject item', {
+      console.error('Error deleting item:', error);
+      toast.error('Failed to delete item', {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
@@ -818,17 +693,6 @@ export function AdminPage() {
     setBlogForm(prev => ({ ...prev, heroImage: '' }));
   };
 
-  const convertImageToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-
   const handlePostBlog = async () => {
     if (!blogForm.title.trim() || !blogForm.content.trim()) {
       toast.error('Title and Full Story are required', {
@@ -844,8 +708,6 @@ export function AdminPage() {
 
     setLoading(true);
 
-    // Determine if we're using FormData (for file upload) or JSON (for URL)
-    // Declare outside try block so it's accessible in catch block
     const useFormData = heroImageFile && imageUploadMode === 'upload';
     
     let payload: FormData | {
@@ -860,12 +722,10 @@ export function AdminPage() {
 
     try {
       if (useFormData) {
-        // Use FormData for file upload
-        // API expects: title (required), content (required), image (optional file)
         const formData = new FormData();
         formData.append('title', blogForm.title);
         formData.append('content', blogForm.content);
-        formData.append('full_story', blogForm.content); // Include both for compatibility
+        formData.append('full_story', blogForm.content);
         
         if (blogForm.category) {
           formData.append('category', blogForm.category);
@@ -874,20 +734,16 @@ export function AdminPage() {
           formData.append('short_summary', blogForm.summary);
         }
         
-        // Append image file - backend expects 'image' field name
-        // Per api_routes.txt: "image (optional file)"
         if (heroImageFile) {
           formData.append('image', heroImageFile);
         }
         
         payload = formData;
       } else {
-        // Use JSON for URL or no image
-        // API expects: title (required), content (required), image_url (optional string)
         payload = {
           title: blogForm.title,
           content: blogForm.content,
-          full_story: blogForm.content, // Include both for compatibility
+          full_story: blogForm.content,
         };
 
         if (blogForm.category) {
@@ -902,13 +758,8 @@ export function AdminPage() {
       }
 
       if (editingBlogId) {
-        // Update existing blog
-        // Try multiple methods as backend may have different route configuration
         let updateSuccess = false;
-        let lastError: any = null;
         
-        // Helper to get axios config
-        // CRITICAL: Don't set Content-Type for FormData - browser must set it with boundary
         const getAxiosConfig = () => {
           const config: any = {
             withCredentials: true,
@@ -918,8 +769,6 @@ export function AdminPage() {
             },
           };
           
-          // For FormData, DO NOT set Content-Type - let browser set it automatically
-          // For JSON, set Content-Type
           if (!useFormData) {
             config.headers['Content-Type'] = 'application/json';
           }
@@ -927,71 +776,18 @@ export function AdminPage() {
           return config;
         };
 
-        // Try PATCH first (REST standard for updates)
         try {
-          const response = await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
+          await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
           updateSuccess = true;
         } catch (patchError: any) {
-          lastError = patchError;
-          // If PATCH is not supported (405), try POST with _method override (Laravel method spoofing)
           if (patchError.response?.status === 405) {
             try {
-              // Try POST with _method=PATCH (Laravel method spoofing)
-              const postPayload = useFormData 
-                ? (payload as FormData) 
-                : { ...(payload as any), _method: 'PATCH' };
-              if (!useFormData && postPayload instanceof FormData === false) {
-                (postPayload as any)._method = 'PATCH';
-              }
-              const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload, getAxiosConfig());
+              await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
               updateSuccess = true;
-            } catch (postError1: any) {
-              // Only continue if it's a 405 error (method not allowed)
-              if (postError1.response?.status === 405) {
-                try {
-                  // Try POST with _method=PUT
-                  const postPayload = useFormData 
-                    ? (payload as FormData) 
-                    : { ...(payload as any), _method: 'PUT' };
-                  if (!useFormData && postPayload instanceof FormData === false) {
-                    (postPayload as any)._method = 'PUT';
-                  }
-                  const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, postPayload, getAxiosConfig());
-                  updateSuccess = true;
-                } catch (postError2: any) {
-                  // Only continue if it's a 405 error
-                  if (postError2.response?.status === 405) {
-                    try {
-                      // Try plain POST
-                      const response = await axios.post(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
-                      updateSuccess = true;
-                    } catch (postError3: any) {
-                      // Only continue if it's a 405 error
-                      if (postError3.response?.status === 405) {
-                        // Try PUT as last resort
-                        try {
-                          const response = await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
-                          updateSuccess = true;
-                        } catch (putError: any) {
-                          lastError = putError;
-                        }
-                      } else {
-                        // Re-throw if it's a different error (validation, etc.)
-                        throw postError3;
-                      }
-                    }
-                  } else {
-                    // Re-throw if it's a different error (validation, etc.)
-                    throw postError2;
-                  }
-                }
-              } else {
-                // Re-throw if it's a different error (validation, etc.)
-                throw postError1;
-              }
+            } catch (putError: any) {
+              throw putError;
             }
           } else {
-            // Re-throw if it's a different error (validation, etc.)
             throw patchError;
           }
         }
@@ -1006,13 +802,8 @@ export function AdminPage() {
             },
           });
           setEditingBlogId(null);
-        } else if (lastError) {
-          // If all methods failed, throw the last error to be handled by outer catch
-          throw lastError;
         }
       } else {
-        // Create new blog
-        // CRITICAL: Don't set Content-Type for FormData - browser must set it with boundary
         const createConfig: any = {
           withCredentials: true,
           headers: {
@@ -1021,16 +812,11 @@ export function AdminPage() {
           },
         };
         
-        // Only set Content-Type for JSON payloads, NOT for FormData
         if (!useFormData) {
           createConfig.headers['Content-Type'] = 'application/json';
         }
         
-        const response = await axios.post(
-          `${API_BASE_URL}/blogs`, 
-          payload,
-          createConfig
-        );
+        await axios.post(`${API_BASE_URL}/blogs`, payload, createConfig);
         toast.success('Blog posted successfully ✨', {
           style: {
             background: '#FFFFFF',
@@ -1041,10 +827,8 @@ export function AdminPage() {
         });
       }
 
-      // Clear localStorage draft after successful post
       localStorage.removeItem('blog_draft');
 
-      // Reset form
       setBlogForm({
         title: '',
         category: categories[0] ?? '',
@@ -1055,104 +839,17 @@ export function AdminPage() {
       handleRemoveImage();
       setImageUploadMode('url');
 
-      // Refresh blogs list if on manage-blogs tab
       if (activeTab === 'manage-blogs') {
         fetchBlogs();
       }
     } catch (error: any) {
       console.error('Error posting blog:', error);
-      console.error('Full error response:', JSON.stringify(error.response?.data, null, 2));
-      // Note: payload might be FormData which can't be stringified, so log it differently
-      if (useFormData) {
-        console.error('Payload that was sent: FormData with image file');
-      } else {
-        console.error('Payload that was sent:', JSON.stringify(payload, null, 2));
-      }
-      
-      // Handle Laravel validation errors with detailed messages
       let errorMessage = 'Failed to post blog';
-      const missingFields: string[] = [];
       
-      // Handle 405 Method Not Allowed errors specially
-      if (error.response?.status === 405) {
-        const errorData = error.response.data;
-        const errorMsg = errorData?.message || error.message || 'Method not allowed';
-        // Extract supported methods if available in the error
-        const supportedMethods = error.response?.headers?.['allow'] || 
-                                errorMsg.match(/Supported methods: ([^.]+)/i)?.[1];
-        
-        let methodErrorMessage: string;
-        if (supportedMethods) {
-          methodErrorMessage = `Update method not supported. The backend only accepts: ${supportedMethods}. Please check the API route configuration.`;
-        } else {
-          methodErrorMessage = `The update method is not supported for this route. Only GET and HEAD methods are currently available. Please contact the backend developer to add PUT/PATCH support, or check if updates should use a different endpoint.`;
-        }
-        
-        toast.error(methodErrorMessage, {
-          style: {
-            background: '#FFFFFF',
-            color: '#0A4834',
-            border: '1px solid #9F8151',
-            fontFamily: 'Manrope, sans-serif',
-          },
-          duration: 7000, // Show longer for this type of error
-        });
-        return;
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
       }
       
-      if (error.response?.data) {
-        const errorData = error.response.data;
-        
-        // Check for Laravel validation errors format
-        if (errorData.errors && typeof errorData.errors === 'object') {
-          const errorMessages: string[] = [];
-          Object.keys(errorData.errors).forEach((field) => {
-            const fieldErrors = Array.isArray(errorData.errors[field])
-              ? errorData.errors[field]
-              : [String(errorData.errors[field])];
-            
-            // Extract field name and add to missing fields list
-            missingFields.push(field);
-            errorMessages.push(...fieldErrors);
-          });
-          
-          // Create a detailed error message
-          if (missingFields.length > 0) {
-            errorMessage = `Missing required fields: ${missingFields.join(', ')}. `;
-            errorMessage += errorMessages.join('. ');
-          } else {
-            errorMessage = errorMessages.join('. ') || errorData.message || errorMessage;
-          }
-        } else if (errorData.message) {
-          errorMessage = errorData.message;
-          // Try to extract field names from the message (handles various formats)
-          if (errorData.message.toLowerCase().includes('field is required') || 
-              errorData.message.toLowerCase().includes('is required')) {
-            // Match patterns like "content field is required", "The content field is required"
-            const fieldMatch = errorData.message.match(/(?:the\s+)?(\w+)\s+(?:field\s+)?is\s+required/i);
-            if (fieldMatch && fieldMatch[1]) {
-              const fieldName = fieldMatch[1];
-              errorMessage = `The "${fieldName}" field is required. `;
-              // Provide helpful context based on the field
-              if (fieldName === 'content') {
-                errorMessage += 'Please make sure the "Full Story" field is filled in.';
-              } else if (fieldName === 'context') {
-                errorMessage += 'Please make sure the "Full Story" field is filled in.';
-              } else if (fieldName === 'title') {
-                errorMessage += 'Please make sure the "Title" field is filled in.';
-              } else {
-                errorMessage += 'Please fill it in and try again.';
-              }
-            }
-          }
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show detailed error with actionable information
       toast.error(errorMessage, {
         style: {
           background: '#FFFFFF',
@@ -1160,7 +857,6 @@ export function AdminPage() {
           border: '1px solid #9F8151',
           fontFamily: 'Manrope, sans-serif',
         },
-        duration: 5000, // Show longer for validation errors
       });
     } finally {
       setLoading(false);
@@ -1170,12 +866,10 @@ export function AdminPage() {
   const handleEditBlog = (blog: Blog) => {
     setEditingBlogId(blog.id);
     
-    // If the blog has a category that's not in our list, add it
     if (blog.category && !categories.includes(blog.category)) {
       const updatedCategories = [...categories, blog.category];
       setCategories(updatedCategories);
       
-      // Save to localStorage if it's not a default category
       if (!DEFAULT_BLOG_CATEGORIES.includes(blog.category)) {
         const customCategories = updatedCategories.filter(
           cat => !DEFAULT_BLOG_CATEGORIES.includes(cat)
@@ -1191,11 +885,9 @@ export function AdminPage() {
       content: blog.full_story,
       heroImage: blog.image_url || '',
     });
-    // Reset image upload state when editing
     handleRemoveImage();
     setImageUploadMode('url');
     setActiveTab('add-blog');
-    // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1207,22 +899,15 @@ export function AdminPage() {
     try {
       setLoading(true);
       
-      // Get CSRF cookie first (required for Sanctum SPA authentication)
-      // This matches the pattern used in UploadItem.tsx
       try {
         await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
           withCredentials: true,
         });
       } catch (csrfError) {
-        // CSRF cookie fetch failed, but continue anyway (might not be needed for API routes)
         console.warn('CSRF cookie fetch failed, continuing anyway:', csrfError);
       }
       
-      // Use the API route (DELETE /api/blogs/{id}) - this is the correct route for React SPA
-      // Use getAuthConfig() to include Authorization header
-      const response = await axios.delete(`${API_BASE_URL}/blogs/${id}`, getAuthConfig());
-      
-      // console.log('Delete response:', response);
+      await axios.delete(`${API_BASE_URL}/blogs/${id}`, getAuthConfig());
       
       toast.success('Blog deleted successfully', {
         style: {
@@ -1233,32 +918,17 @@ export function AdminPage() {
         },
       });
       
-      // Refresh the blogs list
       await fetchBlogs();
     } catch (error: any) {
       console.error('Error deleting blog:', error);
-      console.error('Error response:', error.response);
-      console.error('Error status:', error.response?.status);
-      console.error('Error data:', error.response?.data);
-      
-      // Handle specific error cases
       let errorMessage = 'Failed to delete blog';
       
       if (error.response?.status === 403) {
         errorMessage = 'You do not have permission to delete this blog';
       } else if (error.response?.status === 404) {
         errorMessage = 'Blog not found';
-      } else if (error.response?.status === 401) {
-        errorMessage = 'Please log in to delete blogs';
-      } else if (error.response?.status === 419) {
-        errorMessage = 'Session expired. Please refresh the page and try again.';
-      } else if (error.response?.status === 0 || !error.response) {
-        // Network error (CORS, connection refused, etc.)
-        errorMessage = 'Network error. Please check your connection and ensure the backend server is running.';
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
       }
       
       toast.error(errorMessage, {
@@ -1268,7 +938,6 @@ export function AdminPage() {
           border: '1px solid #9F8151',
           fontFamily: 'Manrope, sans-serif',
         },
-        duration: 5000,
       });
     } finally {
       setLoading(false);
@@ -1301,7 +970,6 @@ export function AdminPage() {
 
     const trimmedCategory = newCategory.trim();
     
-    // Check if category already exists
     if (categories.some(cat => cat.toLowerCase() === trimmedCategory.toLowerCase())) {
       toast.error('This category already exists', {
         style: {
@@ -1314,20 +982,16 @@ export function AdminPage() {
       return;
     }
 
-    // Add to categories list
     const updatedCategories = [...categories, trimmedCategory];
     setCategories(updatedCategories);
 
-    // Save custom categories to localStorage (only the ones not in default list)
     const customCategories = updatedCategories.filter(
       cat => !DEFAULT_BLOG_CATEGORIES.includes(cat)
     );
     localStorage.setItem(STORAGE_KEY_CATEGORIES, JSON.stringify(customCategories));
 
-    // Set the new category as selected
     setBlogForm(prev => ({ ...prev, category: trimmedCategory }));
 
-    // Reset add category form
     setNewCategory('');
     setShowAddCategory(false);
 
@@ -1340,6 +1004,94 @@ export function AdminPage() {
       },
     });
   };
+
+  // Render item card with actions based on approval level
+  const renderItemCard = (item: ApprovalItem, approvalLevel: 1 | 2 | 3) => (
+    <div key={item.id} className="admin-queue-card">
+      {item.image ? (
+        <img
+          className="admin-queue-image"
+          src={item.image}
+          alt={item.title}
+        />
+      ) : (
+        <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ImageOff size={32} color="#9F8151" />
+        </div>
+      )}
+      <div className="admin-queue-details">
+        <h4>{item.title}</h4>
+        <div className="admin-queue-meta">
+          <span>@{item.seller.replace(/^@/, '')}</span>
+          <span>{item.category}</span>
+          <span>${item.price.toLocaleString()}</span>
+          <span>Submitted {item.submittedAt}</span>
+        </div>
+      </div>
+      <div className="admin-queue-actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
+        {approvalLevel === 1 && (
+          <>
+            <button
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 2, 'Item moved to Approved Items ✅')}
+              title="Move to Approved Items"
+            >
+              <ArrowUp size={18} />
+              Approve (2)
+            </button>
+            <button
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Featured Items ⭐')}
+              title="Move to Featured Items"
+              style={{ background: '#9F8151' }}
+            >
+              <Star size={18} />
+              Featured (3)
+            </button>
+            <button
+              className="reject"
+              onClick={() => openDeleteModal(item)}
+              title="Delete Item"
+            >
+              <Trash2 size={18} />
+              Delete
+            </button>
+          </>
+        )}
+        {approvalLevel === 2 && (
+          <>
+            <button
+              className="reject"
+              onClick={() => updateItemApproval(item.id, 1, 'Item moved back to Pending ↩')}
+              title="Move back to Pending"
+            >
+              <ArrowDown size={18} />
+              Demote (1)
+            </button>
+            <button
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Featured Items ⭐')}
+              title="Move to Featured Items"
+              style={{ background: '#9F8151' }}
+            >
+              <Star size={18} />
+              Featured (3)
+            </button>
+          </>
+        )}
+        {approvalLevel === 3 && (
+          <button
+            className="reject"
+            onClick={() => updateItemApproval(item.id, 2, 'Item moved back to Approved ↩')}
+            title="Move back to Approved"
+          >
+            <ArrowDown size={18} />
+            Demote (2)
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div className="admin-page">
@@ -1359,7 +1111,7 @@ export function AdminPage() {
                 alt="Admin avatar"
               />
               <h2>{user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : 'Administrator'}</h2>
-              <p>{user?.username ?? 'amin'}</p>
+              <p>{user?.username ?? 'admin'}</p>
               <div className="admin-meta">
                 <span>Role: Admin</span>
               </div>
@@ -1378,16 +1130,16 @@ export function AdminPage() {
               </p>
               <div className="admin-stats">
                 <div className="admin-stat-card">
-                  <span>Items Pending</span>
-                  <strong>{items.length}</strong>
+                  <span>Pending Review</span>
+                  <strong>{pendingItems.length}</strong>
                 </div>
                 <div className="admin-stat-card">
-                  <span>Published This Week</span>
-                  <strong>12</strong>
+                  <span>Approved Items</span>
+                  <strong>{approvedItems.length}</strong>
                 </div>
                 <div className="admin-stat-card">
-                  <span>Stories in Draft</span>
-                  <strong>5</strong>
+                  <span>Featured Items</span>
+                  <strong>{featuredItems.length}</strong>
                 </div>
               </div>
               <button
@@ -1419,15 +1171,6 @@ export function AdminPage() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setActiveTab('approved-menu')}
-                className={`admin-tab-button ${activeTab === 'approved-menu' ? 'is-active' : ''}`}
-              >
-                <Check />
-                Approved Menu
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => {
                   setActiveTab('add-blog');
                   handleCancelEdit();
@@ -1449,6 +1192,18 @@ export function AdminPage() {
                 <Edit3 />
                 Manage Blogs
               </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setActiveTab('users');
+                  handleCancelEdit();
+                }}
+                className={`admin-tab-button ${activeTab === 'users' ? 'is-active' : ''}`}
+              >
+                <Users />
+                Users
+              </motion.button>
             </div>
 
             <motion.div
@@ -1459,8 +1214,82 @@ export function AdminPage() {
             >
               {activeTab === 'approve' ? (
                 <>
+                  {/* Sub-tabs for Approve Items */}
+                  <div style={{ 
+                    display: 'flex', 
+                    gap: '8px', 
+                    marginBottom: '24px',
+                    borderBottom: '2px solid #F0ECE3',
+                    paddingBottom: '16px'
+                  }}>
+                    <button
+                      onClick={() => setApproveSubTab('pending')}
+                      style={{
+                        padding: '10px 20px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        background: approveSubTab === 'pending' ? '#0A4834' : '#F0ECE3',
+                        color: approveSubTab === 'pending' ? '#FFFFFF' : '#0A4834',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <ShieldCheck size={18} />
+                      Approve ({pendingItems.length})
+                    </button>
+                    <button
+                      onClick={() => setApproveSubTab('approved')}
+                      style={{
+                        padding: '10px 20px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        background: approveSubTab === 'approved' ? '#0A4834' : '#F0ECE3',
+                        color: approveSubTab === 'approved' ? '#FFFFFF' : '#0A4834',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <Check size={18} />
+                      Approved Items ({approvedItems.length})
+                    </button>
+                    <button
+                      onClick={() => setApproveSubTab('featured')}
+                      style={{
+                        padding: '10px 20px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        background: approveSubTab === 'featured' ? '#9F8151' : '#F0ECE3',
+                        color: approveSubTab === 'featured' ? '#FFFFFF' : '#0A4834',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <Star size={18} />
+                      Featured Items ({featuredItems.length})
+                    </button>
+                  </div>
+
                   <div className="admin-content-header">
-                    <h3>Submitters awaiting review</h3>
+                    <h3>
+                      {approveSubTab === 'pending' && 'Submitters awaiting review'}
+                      {approveSubTab === 'approved' && 'Approved Items'}
+                      {approveSubTab === 'featured' && 'Featured Items'}
+                    </h3>
                     <div className="admin-search">
                       <Search />
                       <input
@@ -1477,135 +1306,48 @@ export function AdminPage() {
                       <Loader2 size={40} className="animate-spin" />
                       <strong>Loading items...</strong>
                     </div>
-                  ) : filteredItems.length > 0 ? (
-                    <div className="admin-queue">
-                      {filteredItems.map((item) => (
-                        <div key={item.id} className="admin-queue-card">
-                          {item.image ? (
-                            <img
-                              className="admin-queue-image"
-                              src={item.image}
-                              alt={item.title}
-                            />
-                          ) : (
-                            <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <ImageOff size={32} color="#9F8151" />
-                            </div>
-                          )}
-                          <div className="admin-queue-details">
-                            <h4>{item.title}</h4>
-                            <div className="admin-queue-meta">
-                              <span>@{item.seller.replace(/^@/, '')}</span>
-                              <span>{item.category}</span>
-                              <span>${item.price.toLocaleString()}</span>
-                              <span>Submitted {item.submittedAt}</span>
-                            </div>
-                          </div>
-                          <div className="admin-queue-actions">
-                            <button
-                              className="approve"
-                              onClick={() => handleDecision(item.id, 'approved')}
-                            >
-                              <Check size={18} />
-                              Approve
-                            </button>
-                            <button
-                              className="reject"
-                              onClick={() => handleDecision(item.id, 'rejected')}
-                            >
-                              <X size={18} />
-                              Reject
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   ) : (
-                    <div className="admin-empty-state">
-                      <ShieldCheck size={40} />
-                      <strong>All caught up.</strong>
-                      <span>There are no pending items to review right now.</span>
-                    </div>
-                  )}
-                </>
-              ) : activeTab === 'approved-menu' ? (
-                <>
-                  <div className="admin-content-header">
-                    <h3>Approved Items</h3>
-                    <div className="admin-search">
-                      <Search />
-                      <input
-                        type="text"
-                        placeholder="Filter by name, seller, or category"
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                      />
-                    </div>
-                  </div>
-
-                  {loadingItems ? (
-                    <div className="admin-empty-state">
-                      <Loader2 size={40} className="animate-spin" />
-                      <strong>Loading items...</strong>
-                    </div>
-                  ) : approvedItems.filter((item) => {
-                    if (!query.trim()) return true;
-                    const lowered = query.toLowerCase();
-                    return (
-                      item.title.toLowerCase().includes(lowered) ||
-                      item.seller.toLowerCase().includes(lowered) ||
-                      item.category.toLowerCase().includes(lowered)
-                    );
-                  }).length > 0 ? (
-                    <div className="admin-queue">
-                      {approvedItems.filter((item) => {
-                        if (!query.trim()) return true;
-                        const lowered = query.toLowerCase();
-                        return (
-                          item.title.toLowerCase().includes(lowered) ||
-                          item.seller.toLowerCase().includes(lowered) ||
-                          item.category.toLowerCase().includes(lowered)
-                        );
-                      }).map((item) => (
-                        <div key={item.id} className="admin-queue-card">
-                          {item.image ? (
-                            <img
-                              className="admin-queue-image"
-                              src={item.image}
-                              alt={item.title}
-                            />
-                          ) : (
-                            <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <ImageOff size={32} color="#9F8151" />
-                            </div>
-                          )}
-                          <div className="admin-queue-details">
-                            <h4>{item.title}</h4>
-                            <div className="admin-queue-meta">
-                              <span>@{item.seller.replace(/^@/, '')}</span>
-                              <span>{item.category}</span>
-                              <span>${item.price.toLocaleString()}</span>
-                              <span>Approved {item.submittedAt}</span>
-                            </div>
+                    <>
+                      {approveSubTab === 'pending' && (
+                        getFilteredItems(pendingItems).length > 0 ? (
+                          <div className="admin-queue">
+                            {getFilteredItems(pendingItems).map((item) => renderItemCard(item, 1))}
                           </div>
-                          <div className="admin-queue-actions">
-                            <button
-                              className="reject"
-                              onClick={() => handleRejectApproved(item.id)}
-                            >
-                              <X size={18} />
-                              Reject
-                            </button>
+                        ) : (
+                          <div className="admin-empty-state">
+                            <ShieldCheck size={40} />
+                            <strong>All caught up.</strong>
+                            <span>There are no pending items to review right now.</span>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="admin-empty-state">
-                      <Check size={40} />
-                      <strong>No approved items.</strong>
-                      <span>There are no approved items in the menu right now.</span>
-                    </div>
+                        )
+                      )}
+                      {approveSubTab === 'approved' && (
+                        getFilteredItems(approvedItems).length > 0 ? (
+                          <div className="admin-queue">
+                            {getFilteredItems(approvedItems).map((item) => renderItemCard(item, 2))}
+                          </div>
+                        ) : (
+                          <div className="admin-empty-state">
+                            <Check size={40} />
+                            <strong>No approved items.</strong>
+                            <span>There are no items with approved = 2 right now.</span>
+                          </div>
+                        )
+                      )}
+                      {approveSubTab === 'featured' && (
+                        getFilteredItems(featuredItems).length > 0 ? (
+                          <div className="admin-queue">
+                            {getFilteredItems(featuredItems).map((item) => renderItemCard(item, 3))}
+                          </div>
+                        ) : (
+                          <div className="admin-empty-state">
+                            <Star size={40} />
+                            <strong>No featured items.</strong>
+                            <span>There are no items with approved = 3 right now.</span>
+                          </div>
+                        )
+                      )}
+                    </>
                   )}
                 </>
               ) : activeTab === 'add-blog' ? (
@@ -1710,7 +1452,7 @@ export function AdminPage() {
                       <label htmlFor="blog-summary">Short Summary</label>
                       <textarea
                         id="blog-summary"
-                        placeholder="In this week’s edit we spotlight rare maison pieces from the 70s, sourced by curators across Paris."
+                        placeholder="In this week's edit we spotlight rare maison pieces from the 70s, sourced by curators across Paris."
                         value={blogForm.summary}
                         onChange={(event) =>
                           setBlogForm((prev) => ({ ...prev, summary: event.target.value }))
@@ -1736,7 +1478,6 @@ export function AdminPage() {
                     <div className="admin-field">
                       <label htmlFor="blog-hero">Hero Image</label>
                       
-                      {/* Toggle between URL and Upload */}
                       <div style={{ 
                         display: 'flex', 
                         gap: '8px', 
@@ -1820,14 +1561,6 @@ export function AdminPage() {
                               transition: 'all 0.3s ease',
                               fontFamily: 'Manrope, sans-serif',
                               color: '#0A4834',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.borderColor = '#9F8151';
-                              e.currentTarget.style.background = 'rgba(159, 129, 81, 0.1)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.borderColor = 'rgba(159, 129, 81, 0.5)';
-                              e.currentTarget.style.background = 'rgba(159, 129, 81, 0.05)';
                             }}
                           >
                             <Upload size={20} style={{ display: 'block', margin: '0 auto 8px', color: '#9F8151' }} />
@@ -1923,7 +1656,7 @@ export function AdminPage() {
                     </div>
                   </form>
                 </>
-              ) : (
+              ) : activeTab === 'manage-blogs' ? (
                 <>
                   <div className="admin-content-header">
                     <h3>Manage Blog Posts</h3>
@@ -1954,14 +1687,9 @@ export function AdminPage() {
                               alt={blog.title}
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none';
-                                const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (fallback) {
-                                  fallback.style.display = 'flex';
-                                }
                               }}
                             />
-                          ) : null}
-                          {!blog.image_url && (
+                          ) : (
                             <div
                               className="admin-queue-image"
                               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -2029,7 +1757,124 @@ export function AdminPage() {
                     </div>
                   )}
                 </>
-              )}
+              ) : activeTab === 'users' ? (
+                <>
+                  <div className="admin-content-header">
+                    <h3>All Users</h3>
+                    <div className="admin-search">
+                      <Search />
+                      <input
+                        type="text"
+                        placeholder="Search users by name or email"
+                        value={userQuery}
+                        onChange={(event) => setUserQuery(event.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {loadingUsers ? (
+                    <div className="admin-empty-state">
+                      <Loader2 size={40} className="animate-spin" />
+                      <strong>Loading users...</strong>
+                    </div>
+                  ) : filteredUsers.length > 0 ? (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                      gap: '20px',
+                      padding: '8px 0',
+                    }}>
+                      {filteredUsers.map((u) => (
+                        <motion.div
+                          key={u.id}
+                          whileHover={{ scale: 1.02, y: -4 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => navigate(`/closet/${u.id}`)}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: '16px',
+                            padding: '24px',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                            cursor: 'pointer',
+                            transition: 'all 0.3s ease',
+                            border: '2px solid #F0ECE3',
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '16px',
+                          }}>
+                            <div style={{
+                              width: '56px',
+                              height: '56px',
+                              borderRadius: '50%',
+                              backgroundColor: '#0A4834',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              <User size={28} color="#FFFFFF" />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <h4 style={{
+                                fontFamily: 'Cormorant Garamond, serif',
+                                fontSize: '20px',
+                                fontWeight: 600,
+                                color: '#0A4834',
+                                margin: 0,
+                                marginBottom: '4px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                {u.name || 'Unknown User'}
+                              </h4>
+                              <p style={{
+                                fontFamily: 'Manrope, sans-serif',
+                                fontSize: '14px',
+                                color: '#666',
+                                margin: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}>
+                                <Mail size={14} />
+                                {u.email}
+                              </p>
+                              {u.username && (
+                                <p style={{
+                                  fontFamily: 'Manrope, sans-serif',
+                                  fontSize: '13px',
+                                  color: '#9F8151',
+                                  margin: 0,
+                                  marginTop: '4px',
+                                }}>
+                                  @{u.username}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="admin-empty-state">
+                      <Users size={40} />
+                      <strong>No users found.</strong>
+                      <span>
+                        {userQuery
+                          ? 'Try adjusting your search query.'
+                          : 'No users registered yet.'}
+                      </span>
+                    </div>
+                  )}
+                </>
+              ) : null}
             </motion.div>
           </div>
         </div>
@@ -2038,7 +1883,155 @@ export function AdminPage() {
 
       {/* Chat Widget */}
       <ChatWidget />
+
+      {/* Delete Item Modal */}
+      {deleteModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(10, 72, 52, 0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => setDeleteModalOpen(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px',
+              padding: '32px',
+              maxWidth: '500px',
+              width: '100%',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ 
+                fontFamily: 'Cormorant Garamond, serif', 
+                fontSize: '24px', 
+                color: '#0A4834',
+                margin: 0 
+              }}>
+                Delete Item
+              </h3>
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px',
+                }}
+              >
+                <X size={24} color="#0A4834" />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontFamily: 'Manrope, sans-serif',
+                fontWeight: 600,
+                color: '#0A4834',
+              }}>
+                <Mail size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
+                Creator's Email
+              </label>
+              <input
+                type="text"
+                value={deleteItemEmail}
+                readOnly
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #DCD6C9',
+                  borderRadius: '8px',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                  backgroundColor: '#F0ECE3',
+                  color: '#666',
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'block', 
+                marginBottom: '8px', 
+                fontFamily: 'Manrope, sans-serif',
+                fontWeight: 600,
+                color: '#0A4834',
+              }}>
+                Reason for Deletion *
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Please provide a reason why this item is being removed..."
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '2px solid #DCD6C9',
+                  borderRadius: '8px',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                  minHeight: '120px',
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                style={{
+                  padding: '12px 24px',
+                  border: '2px solid #9F8151',
+                  borderRadius: '8px',
+                  background: 'transparent',
+                  color: '#9F8151',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteItem}
+                style={{
+                  padding: '12px 24px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: '#dc3545',
+                  color: '#FFFFFF',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <Trash2 size={18} />
+                Delete Item
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
-

@@ -318,58 +318,83 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   //   tryEndpoint();
   // }, [userId]);
 
-  // Load favourites
-  useEffect(() => {
-    // Try multiple endpoint variations
-    const endpoints = [
-      `${API_ROOT}/users/${userId}/favourites`,
-      `${API_ROOT}/profile/favourites`,
-      `${API_ROOT}/favourites?user_id=${userId}`,
-      `${API_ROOT}/favourites`,
-      `${API_ROOT}/wishlist?user_id=${userId}`,
-    ];
+  // Load favourites from API
+  const loadFavorites = async () => {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    console.log('📥 Loading favorites, token:', token ? 'exists' : 'missing');
+    
+    if (!token) {
+      setFavourites([]);
+      return;
+    }
 
-    const tryEndpoint = async (index = 0) => {
-      if (index >= endpoints.length) {
-        console.warn('No favourites endpoint found, using empty array');
+    try {
+      const url = `${API_ROOT}/profile/favorites`;
+      console.log('📡 Fetching favorites from:', url);
+      
+      const res = await axios.get(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        withCredentials: true,
+      });
+      console.log('✅ Favorites API response:', res.data);
+      
+      const data = res.data?.favorites || res.data?.favourites || res.data?.data || [];
+      if (Array.isArray(data)) {
+        // Map API response to FavouriteItem format
+        const mappedFavorites: FavouriteItem[] = data.map((item: any) => ({
+          id: item.id,
+          type: 'item' as const,
+          name: item.title || item.name || 'Item',
+          price: item.price || 0,
+          seller: item.user?.name || item.seller || 'Unknown Seller',
+          image: getItemImageUrl(item),
+        }));
+        setFavourites(mappedFavorites);
+        console.log('✅ Favourites loaded:', mappedFavorites);
+      } else {
+        console.log('⚠️ No favorites array in response');
         setFavourites([]);
-        return;
       }
+    } catch (err: any) {
+      console.error('❌ Error loading favourites:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      setFavourites([]);
+    }
+  };
 
-      try {
-        const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
-        const res = await axios.get(endpoints[index], {
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : undefined,
-            'Accept': 'application/json',
-          },
-          withCredentials: true,
-        });
-        const data = res.data?.favourites || res.data?.data || res.data || [];
-        if (Array.isArray(data) && data.length > 0) {
-          // Filter by user_id if needed
-          const filtered = data.filter((fav: any) => 
-            fav.user_id === userId || fav.userId === userId || !fav.user_id
-          );
-          setFavourites(filtered);
-          console.log('Favourites loaded:', filtered);
-        } else if (Array.isArray(data)) {
-          setFavourites(data);
-        } else {
-          tryEndpoint(index + 1);
-        }
-      } catch (err: any) {
-        if (err.response?.status === 404 || err.response?.status === 500) {
-          tryEndpoint(index + 1);
-        } else {
-          console.error(`Error loading favourites from ${endpoints[index]}:`, err);
-          tryEndpoint(index + 1);
-        }
-      }
-    };
-
-    tryEndpoint();
+  useEffect(() => {
+    loadFavorites();
   }, [userId]);
+
+  // Remove item from favorites
+  const removeFavorite = async (itemId: number) => {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    console.log('🗑️ Removing favorite, itemId:', itemId);
+    if (!token) return;
+
+    try {
+      // Get CSRF cookie first
+      await axios.get(`${API_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+      
+      await axios.post(`${API_ROOT}/items/${itemId}/favorite`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+        },
+        withCredentials: true,
+      });
+      console.log('✅ Favorite removed');
+      // Reload favorites after removal
+      loadFavorites();
+    } catch (err: any) {
+      console.error('❌ Error removing favorite:', err);
+      console.error('Error response:', err.response?.data);
+    }
+  };
 
   // Load closet items - use /api/items and filter by user_id
   useEffect(() => {
@@ -396,7 +421,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             price: item.price || 0,
             image: getItemImageUrl(item),
             views: item.views || 0,
-            saves: item.saves || item.likes || 0,
+            saves: item.favorites_count || item.saves || item.likes || 0,
             messages: item.messages || 0,
           }));
           // Sort by created_at to get most recent first
@@ -1551,7 +1576,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                         whileHover={{ backgroundColor: '#9F8151', scale: 1.1 }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle edit action
+                          navigate(`/profile/upload?edit=${item.id}`);
                         }}
                         style={{
                           width: '36px',
@@ -1570,9 +1595,24 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                       </motion.button>
                       <motion.button
                         whileHover={{ backgroundColor: '#B75C5C', scale: 1.1 }}
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          // Handle delete action
+                          if (window.confirm('Are you sure you want to delete this item?')) {
+                            try {
+                              const token = localStorage.getItem('auth_token');
+                              await axios.delete(`${API_ROOT}/items/${item.id}`, {
+                                headers: {
+                                  'Authorization': token ? `Bearer ${token}` : undefined,
+                                  'Accept': 'application/json',
+                                },
+                                withCredentials: true,
+                              });
+                              setCloset(prev => prev.filter(i => i.id !== item.id));
+                            } catch (error) {
+                              console.error('Failed to delete item:', error);
+                              alert('Failed to delete item. Please try again.');
+                            }
+                          }
                         }}
                         style={{
                           width: '36px',
@@ -1714,8 +1754,13 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           alt={item.name}
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
-                        <motion.div
-                          whileHover={{ backgroundColor: 'rgba(159,129,81,0.2)' }}
+                        <motion.button
+                          whileHover={{ backgroundColor: 'rgba(159,129,81,0.2)', scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFavorite(item.id);
+                          }}
                           style={{
                             position: 'absolute',
                             top: '12px',
@@ -1724,6 +1769,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                             height: '36px',
                             borderRadius: '50%',
                             backgroundColor: 'rgba(255,255,255,0.9)',
+                            border: 'none',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -1732,7 +1778,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           }}
                         >
                           <Heart size={18} color="#9F8151" fill="#9F8151" />
-                        </motion.div>
+                        </motion.button>
                       </div>
                       <div style={{ padding: '16px' }}>
                         <h4 style={{

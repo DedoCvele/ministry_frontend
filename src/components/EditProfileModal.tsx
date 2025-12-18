@@ -100,45 +100,6 @@ export function EditProfileModal({
     }
   }, [isOpen, currentBio, currentAvatar]);
 
-  // Convert SVG to PNG blob/file
-  const svgToImageFile = async (svgString: string, filename: string): Promise<File | null> => {
-    return new Promise((resolve) => {
-      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(svgBlob);
-      const img = new Image();
-      
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 200; // Higher resolution for better quality
-        canvas.height = 200;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, 200, 200);
-          canvas.toBlob((blob) => {
-            URL.revokeObjectURL(url);
-            if (blob) {
-              const file = new File([blob], filename, { type: 'image/png' });
-              resolve(file);
-            } else {
-              resolve(null);
-            }
-          }, 'image/png');
-        } else {
-          URL.revokeObjectURL(url);
-          resolve(null);
-        }
-      };
-      
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(null);
-      };
-      
-      img.src = url;
-    });
-  };
-
   const handleSave = async () => {
     let profilePictureValue: string | File | null | undefined = undefined; // undefined = don't update, null = remove
     
@@ -147,20 +108,10 @@ export function EditProfileModal({
       const hex = `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`;
       profilePictureValue = hex;
     } else if (selectedAvatarType === 'default') {
-      // Convert selected avatar SVG to image file
+      // Send SVG string directly - backend supports storing SVG
       const selectedAvatar = defaultAvatars.find(a => a.id === selectedDefaultAvatar);
       if (selectedAvatar) {
-        // Create a proper SVG with proper namespace
-        const fullSvg = `<?xml version="1.0" encoding="UTF-8"?>${selectedAvatar.svg}`;
-        const imageFile = await svgToImageFile(fullSvg, `${selectedAvatar.id}.png`);
-        if (imageFile) {
-          profilePictureValue = imageFile;
-        } else {
-          // Fallback: use SVG data URL if conversion fails
-          const svgBlob = new Blob([fullSvg], { type: 'image/svg+xml' });
-          const dataUrl = URL.createObjectURL(svgBlob);
-          profilePictureValue = dataUrl;
-        }
+        profilePictureValue = selectedAvatar.svg;
       }
     }
     
