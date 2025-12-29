@@ -17,6 +17,7 @@ import { PaymentProcessing } from '../components/PaymentProcessing';
 import { NewOrderConfirmation } from '../components/NewOrderConfirmation';
 import { BecomeSellerOnboarding } from '../components/BecomeSellerOnboarding';
 import ClosetPage from '../components/ClosetPage';
+import { ComingSoonPage } from '../pages/ComingSoonPage';
 import { RequireAdmin } from './RequireAdmin';
 import { RequireAuth } from './RequireAuth';
 
@@ -143,6 +144,10 @@ export const router = createBrowserRouter([
       {
         path: 'become-seller',
         element: <BecomeSellerOnboarding language="en" onClose={() => '/'} onSuccess={() => '/profile'} />,
+      },
+      {
+        path: 'coming-soon',
+        element: <ComingSoonPage />,
       },
     ],
   },

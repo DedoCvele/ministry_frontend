@@ -5,9 +5,11 @@ import './styles/FooterAlt.css';
 interface FooterAltProps {
   onNewsletterClick?: () => void;
   onBecomeSellerClick?: () => void;
+  hideNewsletter?: boolean;
+  hideSellerSection?: boolean;
 }
 
-export function FooterAlt({ onNewsletterClick, onBecomeSellerClick }: FooterAltProps = {}) {
+export function FooterAlt({ onNewsletterClick, onBecomeSellerClick, hideNewsletter = false, hideSellerSection = false }: FooterAltProps = {}) {
   const { language, toggleLanguage } = useLanguage();
   const t = getTranslation(language);
   
@@ -15,49 +17,53 @@ export function FooterAlt({ onNewsletterClick, onBecomeSellerClick }: FooterAltP
     <footer className="py-24 px-8 footer-root">
       <div className="container mx-auto max-w-7xl">
         {/* Newsletter Section */}
-        <div className="footer-newsletter-box">
-          <h3 className="footer-newsletter-title">
-            {t.footer.newsletter.title}
-          </h3>
-          <p className="footer-newsletter-desc">
-            {t.footer.newsletter.description}
-          </p>
-          <button
-            onClick={onNewsletterClick}
-            className="footer-newsletter-btn"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#8A6F46';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#9F8151';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            {t.footer.newsletter.button}
-          </button>
-        </div>
+        {!hideNewsletter && (
+          <div className="footer-newsletter-box">
+            <h3 className="footer-newsletter-title">
+              {t.footer.newsletter.title}
+            </h3>
+            <p className="footer-newsletter-desc">
+              {t.footer.newsletter.description}
+            </p>
+            <button
+              onClick={onNewsletterClick}
+              className="footer-newsletter-btn"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#8A6F46';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#9F8151';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              {t.footer.newsletter.button}
+            </button>
+          </div>
+        )}
 
         {/* Seller CTA Section */}
-        <div className="footer-seller-box">
-          <p className="footer-seller-text">
-            {t.footer.seller.text}
-          </p>
-          <button
-            onClick={onBecomeSellerClick}
-            className="footer-seller-btn"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#9F8151';
-              e.currentTarget.style.color = '#0A4834';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#9F8151';
-            }}
-          >
-            {t.footer.seller.button}
-          </button>
-        </div>
+        {!hideSellerSection && (
+          <div className="footer-seller-box">
+            <p className="footer-seller-text">
+              {t.footer.seller.text}
+            </p>
+            <button
+              onClick={onBecomeSellerClick}
+              className="footer-seller-btn"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#9F8151';
+                e.currentTarget.style.color = '#0A4834';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = '#9F8151';
+              }}
+            >
+              {t.footer.seller.button}
+            </button>
+          </div>
+        )}
 
         {/* Top Section */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">

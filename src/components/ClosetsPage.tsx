@@ -22,6 +22,12 @@ interface Closet {
   followers: number;
   category: string;
   avatar: string;
+  user?: {
+    role?: string;
+    user_role?: string;
+  };
+  role?: string;
+  user_role?: string;
 }
 
 interface ClosetsPageProps {
@@ -61,7 +67,24 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
         const data = await response.json();
 
         if (data.closets) {
-          setClosets(data.closets);
+          // Filter out admin profiles - only show users with user profiles
+          const userClosets = data.closets.filter((closet: Closet) => {
+            // Check if username is 'admin' (exclude admin profile)
+            if (closet.username?.toLowerCase() === 'admin') {
+              return false;
+            }
+            
+            // Check if there's a role field indicating admin
+            const role = closet.user?.role || closet.user?.user_role || closet.role || closet.user_role;
+            if (role && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'administrator')) {
+              return false;
+            }
+            
+            // Include all other closets (user profiles)
+            return true;
+          });
+          
+          setClosets(userClosets);
         }
       } catch (error) {
         console.error("Failed to load closets:", error);
