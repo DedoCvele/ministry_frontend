@@ -65,6 +65,15 @@
   transition: all 0.3s ease;
 }
 
+/* Ensure language button is visible on desktop */
+@media (min-width: 769px) {
+  .header-language-btn.hidden.md\:block {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
 .header-language-btn:hover {
   background-color: rgba(159, 129, 81, 0.1);
   border-color: #9F8151;
@@ -116,6 +125,10 @@
   display: none;
 }
 
+.mobile-menu-backdrop {
+  display: none;
+}
+
 /* Desktop: Ensure navigation links are visible and properly positioned */
 @media (min-width: 769px) {
   /* Override any Tailwind hidden classes on desktop */
@@ -135,10 +148,22 @@
     margin-right: 40px;
   }
   
-  /* Show language button on desktop */
-  .header-root .container nav > div:last-of-type > button.header-language-btn,
-  .header-root .container nav > div:last-of-type > button.hidden.md\\:block {
+  /* Show language button on desktop - ensure it's visible */
+  .header-root .container nav > div:last-of-type button.header-language-btn,
+  .header-root button.header-language-btn,
+  button.header-language-btn.hidden {
     display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
+  }
+  
+  /* Override Tailwind hidden class on desktop - multiple selector approaches */
+  .header-root .container nav > div:last-of-type button[class*="header-language-btn"],
+  .header-root .container nav button[class*="header-language-btn"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
   }
   
   /* Hide mobile menu button on desktop */
@@ -240,39 +265,86 @@
     color: #0A4834;
     padding: 8px;
     margin-right: 8px;
+    z-index: 51;
+    position: relative;
   }
 
-  /* Mobile menu overlay */
+  /* Mobile menu backdrop */
+  .mobile-menu-backdrop {
+    display: block !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .mobile-menu-backdrop.show {
+    opacity: 1;
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  /* Mobile menu overlay - side drawer */
   .mobile-menu-overlay {
     display: block !important;
     position: fixed;
     top: 70px;
-    left: 0;
     right: 0;
     bottom: 0;
+    width: 80%;
+    max-width: 320px;
     background-color: #F0ECE3 !important;
+    background: #F0ECE3 !important;
+    opacity: 1 !important;
     z-index: 100;
     transform: translateX(100%);
     transition: transform 0.3s ease-in-out;
-    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.15);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    pointer-events: auto;
   }
 
   .mobile-menu-overlay.open {
     transform: translateX(0);
+    background-color: #F0ECE3 !important;
+    background: #F0ECE3 !important;
+    opacity: 1 !important;
   }
 
   .mobile-menu-content {
     padding: 32px 24px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 0;
+    background-color: transparent;
+    width: 100%;
+    min-height: 100%;
   }
 
   .mobile-menu-content .nav-link-alt,
   .mobile-menu-content .nav-link-alt-becomeseller {
     font-size: 16px;
-    padding: 12px 0;
+    font-weight: 500;
+    padding: 16px 0;
     border-bottom: 1px solid rgba(10, 72, 52, 0.1);
+    display: block;
+    width: 100%;
+    color: #0A4834;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .mobile-menu-content .nav-link-alt:hover,
+  .mobile-menu-content .nav-link-alt-becomeseller:hover {
+    color: #9F8151;
   }
 }
 
@@ -305,6 +377,10 @@
 
   .mobile-menu-overlay {
     top: 60px;
-    background-color: #F0ECE3;
+    width: 75%;
+    max-width: 280px;
+    background-color: #F0ECE3 !important;
+    background: #F0ECE3 !important;
+    opacity: 1 !important;
   }
 }

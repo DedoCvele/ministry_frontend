@@ -261,67 +261,73 @@ export function HeaderAlt({
               </div>
             </nav>
           </div>
-          
-          {/* Mobile Menu Overlay */}
-          <div className={`mobile-menu-overlay md:hidden ${mobileMenuOpen ? 'open' : ''}`}>
-            <div className="mobile-menu-content">
-              <Link
-                to="/shop"
-                className="nav-link-alt"
+        </header>
+        
+        {/* Mobile Menu Backdrop */}
+        <div 
+          className={`mobile-menu-backdrop md:hidden ${mobileMenuOpen ? 'show' : ''}`}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+        
+        {/* Mobile Menu Overlay - Outside header for proper z-index */}
+        <div className={`mobile-menu-overlay md:hidden ${mobileMenuOpen ? 'open' : ''}`}>
+          <div className="mobile-menu-content">
+            <Link
+              to="/shop"
+              className="nav-link-alt"
+              onClick={() => {
+                handleShopClick();
+                setMobileMenuOpen(false);
+              }}
+            >
+              {t.nav.shop}
+            </Link>
+            <Link
+              to="/closets"
+              className="nav-link-alt"
+              onClick={() => {
+                handleClosetsClick();
+                setMobileMenuOpen(false);
+              }}
+            >
+              {t.nav.closets}
+            </Link>
+            <Link
+              to="/blog"
+              className="nav-link-alt"
+              onClick={() => {
+                handleJournalClick();
+                setMobileMenuOpen(false);
+              }}
+            >
+              {t.nav.journal}
+            </Link>
+            <Link
+              to="/become-seller"
+              className="nav-link-alt-becomeseller"
+              onClick={() => {
+                handleBecomeSellerClick();
+                setMobileMenuOpen(false);
+              }}
+            >
+              {t.nav.becomeSeller}
+            </Link>
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(10, 72, 52, 0.1)' }}>
+              <button
                 onClick={() => {
-                  handleShopClick();
+                  handleLanguageToggle();
                   setMobileMenuOpen(false);
                 }}
+                className="header-language-btn"
+                aria-label="Switch language"
+                type="button"
+                style={{ width: '100%', textAlign: 'left' }}
               >
-                {t.nav.shop}
-              </Link>
-              <Link
-                to="/closets"
-                className="nav-link-alt"
-                onClick={() => {
-                  handleClosetsClick();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {t.nav.closets}
-              </Link>
-              <Link
-                to="/blog"
-                className="nav-link-alt"
-                onClick={() => {
-                  handleJournalClick();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {t.nav.journal}
-              </Link>
-              <Link
-                to="/become-seller"
-                className="nav-link-alt-becomeseller"
-                onClick={() => {
-                  handleBecomeSellerClick();
-                  setMobileMenuOpen(false);
-                }}
-              >
-                {t.nav.becomeSeller}
-              </Link>
-              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(10, 72, 52, 0.1)' }}>
-                <button
-                  onClick={() => {
-                    handleLanguageToggle();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="header-language-btn"
-                  aria-label="Switch language"
-                  type="button"
-                  style={{ width: '100%', textAlign: 'left' }}
-                >
-                  {contextLanguage === 'en' ? 'MKD' : 'ENG'}
-                </button>
-              </div>
+                {contextLanguage === 'en' ? 'MKD' : 'ENG'}
+              </button>
             </div>
           </div>
-        </header>
+        </div>
         {/* Spacer to prevent content overlap */}
         <div className="header-spacer" />
       </>
