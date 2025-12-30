@@ -32,6 +32,7 @@ import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { EditProfileModal } from './EditProfileModal';
+import './styles/ProfilePage.css';
 
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
@@ -576,22 +577,9 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   }
 
   return (
-    <div style={{
-      backgroundColor: '#F0ECE3',
-      minHeight: '100vh',
-      position: 'relative',
-    }}>
+    <div className="profile-page-container">
       {/* Grain Texture */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.02,
-        backgroundImage: 'url(\'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=\')',
-      }} />
+      <div className="profile-page-grain" />
 
       {/* Header */}
       <HeaderAlt />
@@ -600,22 +588,11 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        style={{
-          background: 'linear-gradient(to bottom, #F0ECE3, #FFFFFF)',
-          borderRadius: '0 0 32px 32px',
-          padding: '80px 64px 48px',
-          marginBottom: '48px',
-        }}
+        className="profile-summary-panel"
       >
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '48px',
-        }}>
+        <div className="profile-summary-content">
           {/* Profile Photo */}
-          <div style={{ position: 'relative' }}>
+          <div className="profile-avatar-container">
             <motion.div
               whileHover={{ scale: 1.05 }}
               style={{
@@ -676,7 +653,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           </div>
 
           {/* Profile Info */}
-          <div style={{ flex: 1 }}>
+          <div className="profile-info-section">
             <h1 style={{
               fontFamily: 'Cormorant Garamond, serif',
               fontSize: '32px',
@@ -717,11 +694,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           </div>
 
           {/* Action Buttons */}
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-          }}>
+          <div className="profile-actions">
             {isSeller && onUploadClick && (
               <motion.button
                 whileHover={{ 
@@ -792,20 +765,15 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       </motion.div>
 
       {/* Profile Navigation Tabs */}
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto 48px',
-        padding: '0 64px',
-      }}>
+      <div className="profile-tabs-container">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div style={{
+          <div className="profile-tabs-navigation" style={{
             backgroundColor: '#FFFFFF',
             borderRadius: '16px',
             padding: '12px',
             boxShadow: '0px 4px 16px rgba(0,0,0,0.06)',
-            display: 'grid',
-            gridTemplateColumns: isSeller ? 'repeat(6, 1fr)' : 'repeat(3, 1fr)',
-            gap: '12px',
+            display: 'flex',
+            gap: '8px',
           }}>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -928,12 +896,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           </div>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" style={{ marginTop: '48px' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isSeller ? '1fr 1px 1fr' : 'repeat(3, 1fr)',
-              gap: isSeller ? '48px' : '24px',
-            }}>
+          <TabsContent value="overview" className="profile-tab-content">
+            <div className={isSeller ? 'profile-overview-grid-seller' : 'profile-overview-grid'}>
               {isSeller ? (
                 <>
                   {/* Buying Summary */}
@@ -1039,7 +1003,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           </h3>
                           <Heart size={20} color="#9F8151" fill="#9F8151" />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        <div className="profile-favorites-grid">
                           {(Array.isArray(favourites) ? favourites : []).slice(0, 3).map((item) => (
                             <div
                               key={item.id}
@@ -1098,7 +1062,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                     </h2>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                       {/* Stats Cards */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                      <div className="profile-stats-grid">
                         <motion.div
                           whileHover={{ y: -4 }}
                           style={{
@@ -1216,7 +1180,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           </h3>
                           <Package size={20} color="#9F8151" />
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                        <div className="profile-closet-grid">
                           {(Array.isArray(closet) ? closet : []).map((item) => (
                             <div
                               key={item.id}
@@ -1420,7 +1384,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                       </h3>
                       <Heart size={24} color="#9F8151" fill="#9F8151" />
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                    <div className="profile-favorites-grid" style={{ marginBottom: '16px' }}>
                       {favourites.slice(0, 3).map((item) => (
                         <div
                           key={item.id}
@@ -1480,8 +1444,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           </TabsContent>
 
           {/* My Items Tab */}
-          <TabsContent value="myitems" style={{ marginTop: '48px' }}>
-            <div style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <TabsContent value="myitems" className="profile-tab-content">
+            <div className="profile-items-header">
               <div>
                 <h2 style={{
                   fontFamily: 'Cormorant Garamond, serif',
@@ -1531,11 +1495,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               </motion.button>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(3, 1fr)',
-              gap: '24px',
-            }}>
+            <div className="profile-items-grid">
               {/* User Items */}
               {closet.map((item, index) => (
                 <motion.div
@@ -1719,12 +1679,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           </TabsContent>
 
           {/* Favourites Tab */}
-          <TabsContent value="favourites" style={{ marginTop: '48px' }}>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '24px',
-            }}>
+          <TabsContent value="favourites" className="profile-tab-content">
+            <div className="profile-favourites-grid">
               {(Array.isArray(favourites) ? favourites : []).map((item, index) => (
                 <motion.div
                   key={item.id}
@@ -2081,7 +2037,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
           {/* Sales Tab (Seller Only) */}
           {isSeller && (
-            <TabsContent value="sales" style={{ marginTop: '48px' }}>
+            <TabsContent value="sales" className="profile-tab-content">
               <div style={{ marginBottom: '32px' }}>
                 <h2 style={{
                   fontFamily: 'Cormorant Garamond, serif',
@@ -2094,12 +2050,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                 </h2>
 
                 {/* Summary Stats */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '24px',
-                  marginBottom: '48px',
-                }}>
+                <div className="profile-sales-stats-grid">
                   <motion.div
                     whileHover={{ y: -4 }}
                     style={{
@@ -2239,16 +2190,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                     <motion.div
                       key={sale.id}
                       whileHover={{ backgroundColor: '#F0ECE3' }}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr',
-                        gap: '16px',
-                        padding: '16px',
-                        alignItems: 'center',
-                        borderBottom: '1px solid #F0ECE3',
-                        transition: 'background-color 0.2s ease',
-                        cursor: 'pointer',
-                      }}
+                      className="profile-sales-table-row"
                     >
                       <div style={{
                         fontFamily: 'Manrope, sans-serif',
@@ -2324,11 +2266,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                 </p>
               </div>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 1fr',
-                gap: '24px',
-              }}>
+              <div className="profile-analytics-grid">
                 {/* Views Chart */}
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -2516,32 +2454,14 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSettingsOpen(false)}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0,0,0,0.3)',
-                backdropFilter: 'blur(4px)',
-                zIndex: 999,
-              }}
+              className="profile-settings-overlay"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              style={{
-                position: 'fixed',
-                top: 0,
-                right: 0,
-                bottom: 0,
-                width: '400px',
-                backgroundColor: 'rgba(240,236,227,0.95)',
-                backdropFilter: 'blur(12px)',
-                borderRadius: '24px 0 0 24px',
-                padding: '48px 32px',
-                zIndex: 1000,
-                boxShadow: '-4px 0 24px rgba(0,0,0,0.1)',
-              }}
+              className="profile-settings-drawer"
             >
               <div style={{
                 display: 'flex',
@@ -2646,12 +2566,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       </AnimatePresence>
 
       {/* Footer Quote */}
-      <div style={{
-        maxWidth: '1200px',
-        margin: '80px auto 0',
-        padding: '0 64px 48px',
-        textAlign: 'center',
-      }}>
+      <div className="profile-footer-quote">
         <p style={{
           fontFamily: 'Cormorant Garamond, serif',
           fontSize: '24px',

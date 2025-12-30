@@ -1215,28 +1215,13 @@ export function AdminPage() {
               {activeTab === 'approve' ? (
                 <>
                   {/* Sub-tabs for Approve Items */}
-                  <div style={{ 
-                    display: 'flex', 
-                    gap: '8px', 
-                    marginBottom: '24px',
-                    borderBottom: '2px solid #F0ECE3',
-                    paddingBottom: '16px'
-                  }}>
+                  <div className="admin-sub-tabs">
                     <button
                       onClick={() => setApproveSubTab('pending')}
+                      className="admin-sub-tab-button"
                       style={{
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '8px',
                         background: approveSubTab === 'pending' ? '#0A4834' : '#F0ECE3',
                         color: approveSubTab === 'pending' ? '#FFFFFF' : '#0A4834',
-                        fontFamily: 'Manrope, sans-serif',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
                       }}
                     >
                       <ShieldCheck size={18} />
@@ -1244,19 +1229,10 @@ export function AdminPage() {
                     </button>
                     <button
                       onClick={() => setApproveSubTab('approved')}
+                      className="admin-sub-tab-button"
                       style={{
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '8px',
                         background: approveSubTab === 'approved' ? '#0A4834' : '#F0ECE3',
                         color: approveSubTab === 'approved' ? '#FFFFFF' : '#0A4834',
-                        fontFamily: 'Manrope, sans-serif',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
                       }}
                     >
                       <Check size={18} />
@@ -1264,19 +1240,10 @@ export function AdminPage() {
                     </button>
                     <button
                       onClick={() => setApproveSubTab('featured')}
+                      className="admin-sub-tab-button"
                       style={{
-                        padding: '10px 20px',
-                        border: 'none',
-                        borderRadius: '8px',
                         background: approveSubTab === 'featured' ? '#9F8151' : '#F0ECE3',
                         color: approveSubTab === 'featured' ? '#FFFFFF' : '#0A4834',
-                        fontFamily: 'Manrope, sans-serif',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.3s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
                       }}
                     >
                       <Star size={18} />
@@ -1376,14 +1343,14 @@ export function AdminPage() {
                       </div>
                       <div className="admin-field">
                         <label htmlFor="blog-category">Category</label>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
+                        <div className="admin-category-wrapper">
                           <select
                             id="blog-category"
                             value={blogForm.category}
                             onChange={(event) =>
                               setBlogForm((prev) => ({ ...prev, category: event.target.value }))
                             }
-                            style={{ flex: 1 }}
+                            className="admin-category-select"
                           >
                             {categories.map((category) => (
                               <option key={category} value={category}>
@@ -1409,7 +1376,7 @@ export function AdminPage() {
                           </button>
                         </div>
                         {showAddCategory && (
-                          <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
+                          <div className="admin-add-category-wrapper">
                             <input
                               type="text"
                               placeholder="Enter new category name"
@@ -1421,15 +1388,7 @@ export function AdminPage() {
                                   handleAddCategory();
                                 }
                               }}
-                              style={{
-                                flex: 1,
-                                padding: '8px 12px',
-                                border: '1px solid #9F8151',
-                                borderRadius: '6px',
-                                background: '#FFFFFF',
-                                color: '#0A4834',
-                                fontFamily: 'Manrope, sans-serif',
-                              }}
+                              className="admin-add-category-input"
                             />
                             <button
                               type="button"
@@ -1478,32 +1437,20 @@ export function AdminPage() {
                     <div className="admin-field">
                       <label htmlFor="blog-hero">Hero Image</label>
                       
-                      <div style={{ 
-                        display: 'flex', 
-                        gap: '8px', 
-                        marginBottom: '12px',
-                        borderBottom: '1px solid rgba(159, 129, 81, 0.2)',
-                        paddingBottom: '12px'
-                      }}>
+                      <div className="admin-image-mode-buttons">
                         <button
                           type="button"
                           onClick={() => {
                             setImageUploadMode('url');
                             handleRemoveImage();
                           }}
+                          className="admin-image-mode-button"
                           style={{
-                            padding: '8px 16px',
-                            border: '1px solid rgba(159, 129, 81, 0.3)',
-                            borderRadius: '8px',
                             background: imageUploadMode === 'url' ? '#9F8151' : 'transparent',
                             color: imageUploadMode === 'url' ? '#FFFFFF' : '#0A4834',
-                            cursor: 'pointer',
-                            fontFamily: 'Manrope, sans-serif',
-                            fontSize: '14px',
-                            transition: 'all 0.3s ease',
                           }}
                         >
-                          <ImageIcon size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                          <ImageIcon size={16} />
                           Use URL
                         </button>
                         <button
@@ -1512,19 +1459,13 @@ export function AdminPage() {
                             setImageUploadMode('upload');
                             setBlogForm(prev => ({ ...prev, heroImage: '' }));
                           }}
+                          className="admin-image-mode-button"
                           style={{
-                            padding: '8px 16px',
-                            border: '1px solid rgba(159, 129, 81, 0.3)',
-                            borderRadius: '8px',
                             background: imageUploadMode === 'upload' ? '#9F8151' : 'transparent',
                             color: imageUploadMode === 'upload' ? '#FFFFFF' : '#0A4834',
-                            cursor: 'pointer',
-                            fontFamily: 'Manrope, sans-serif',
-                            fontSize: '14px',
-                            transition: 'all 0.3s ease',
                           }}
                         >
-                          <Upload size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'middle' }} />
+                          <Upload size={16} />
                           Upload Image
                         </button>
                       </div>
@@ -1618,7 +1559,7 @@ export function AdminPage() {
                           ? 'Save draft locally or post to database.'
                           : 'Save draft locally or post to database.'}
                       </span>
-                      <div style={{ display: 'flex', gap: '12px' }}>
+                      <div className="admin-form-actions-buttons">
                         {editingBlogId && (
                           <button
                             type="button"
@@ -1778,12 +1719,7 @@ export function AdminPage() {
                       <strong>Loading users...</strong>
                     </div>
                   ) : filteredUsers.length > 0 ? (
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-                      gap: '20px',
-                      padding: '8px 0',
-                    }}>
+                    <div className="admin-users-grid">
                       {filteredUsers.map((u) => (
                         <motion.div
                           key={u.id}
@@ -1887,34 +1823,14 @@ export function AdminPage() {
       {/* Delete Item Modal */}
       {deleteModalOpen && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(10, 72, 52, 0.5)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
+          className="admin-delete-modal-overlay"
           onClick={() => setDeleteModalOpen(false)}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              padding: '32px',
-              maxWidth: '500px',
-              width: '100%',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            }}
+            className="admin-delete-modal-content"
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ 
@@ -1993,37 +1909,16 @@ export function AdminPage() {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+            <div className="admin-delete-modal-buttons">
               <button
                 onClick={() => setDeleteModalOpen(false)}
-                style={{
-                  padding: '12px 24px',
-                  border: '2px solid #9F8151',
-                  borderRadius: '8px',
-                  background: 'transparent',
-                  color: '#9F8151',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="admin-delete-modal-button admin-delete-modal-button-cancel"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDeleteItem}
-                style={{
-                  padding: '12px 24px',
-                  border: 'none',
-                  borderRadius: '8px',
-                  background: '#dc3545',
-                  color: '#FFFFFF',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                }}
+                className="admin-delete-modal-button admin-delete-modal-button-delete"
               >
                 <Trash2 size={18} />
                 Delete Item

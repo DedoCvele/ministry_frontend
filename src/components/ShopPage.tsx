@@ -10,6 +10,15 @@ import { NewsletterPopup } from './NewsletterPopup';
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from './ui/pagination';
 import './styles/ShopPage.css';
 
 interface Product {
@@ -107,6 +116,8 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
   const [loading, setLoading] = useState(true);
   const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [selectedProductDetails, setSelectedProductDetails] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   // Mock products as fallback
   const mockProducts: Product[] = [
@@ -478,6 +489,17 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
   // Use filtered and sorted products
   const products = filteredAndSortedProducts;
 
+  // Pagination calculations
+  const totalPages = Math.ceil(products.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = products.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeFilters, sortBy]);
+
   const toggleWishlist = (productId: number) => {
     setWishlist(prev => 
       prev.includes(productId) 
@@ -604,60 +626,177 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
         {loading ? (
           <div className="loading-placeholder">{t.shop.loading}</div>
         ) : (
-          <div className="products-grid">
-            {products.map((product, index) => (
-            <motion.div
-              key={product.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="product-motion-wrapper"
-            >
-              {/* Product Card */}
-              <div onClick={() => handleProductClick(product.id)} className="product-card">
-                {/* Image Container */}
-                <div className="product-image-container">
-                  <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.5 }} className="image-hover-wrap">
-                    <ImageWithFallback src={product.image} alt={product.title} className="product-image" />
-                  </motion.div>
+          <>
+            <div className="products-grid">
+              {paginatedProducts.map((product, index) => (
+              <motion.div
+                key={product.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+                className="product-motion-wrapper"
+              >
+                {/* Product Card */}
+                <div onClick={() => handleProductClick(product.id)} className="product-card">
+                  {/* Image Container */}
+                  <div className="product-image-container">
+                    <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.5 }} className="image-hover-wrap">
+                      <ImageWithFallback src={product.image} alt={product.title} className="product-image" />
+                    </motion.div>
 
-                  {/* Gold overlay on hover */}
-                  <div className="product-overlay">
-                    <span className="view-details-text">{t.shop.viewDetails}</span>
+                    {/* Gold overlay on hover */}
+                    <div className="product-overlay">
+                      <span className="view-details-text">{t.shop.viewDetails}</span>
+                    </div>
+
+                    {/* Wishlist Button */}
+                    <motion.button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
+                      <Heart size={18} color="#9F8151" fill={wishlist.includes(product.id) ? '#9F8151' : 'none'} />
+                    </motion.button>
                   </div>
 
-                  {/* Wishlist Button */}
-                  <motion.button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
-                    <Heart size={18} color="#9F8151" fill={wishlist.includes(product.id) ? '#9F8151' : 'none'} />
-                  </motion.button>
+                  {/* Product Info */}
+                  <div>
+                    <h3 className="product-title">{product.title}</h3>
+
+                    <p className="product-price">€{product.price}</p>
+
+                    {/* Seller Info */}
+                    <div className="seller-row">
+                      <div className="seller-avatar">{product.sellerAvatar}</div>
+                      <span className="seller-name">@{product.seller}</span>
+                    </div>
+
+                    {/* Divider */}
+                    <div className="divider" />
+
+                    {/* Tags */}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {product.tags.map((tag) => (
+                        <span key={tag} className="tag">#{tag}</span>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+              </motion.div>
+            ))}
+            </div>
 
-                {/* Product Info */}
-                <div>
-                  <h3 className="product-title">{product.title}</h3>
-
-                  <p className="product-price">€{product.price}</p>
-
-                  {/* Seller Info */}
-                  <div className="seller-row">
-                    <div className="seller-avatar">{product.sellerAvatar}</div>
-                    <span className="seller-name">@{product.seller}</span>
-                  </div>
-
-                  {/* Divider */}
-                  <div className="divider" />
-
-                  {/* Tags */}
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {product.tags.map((tag) => (
-                      <span key={tag} className="tag">#{tag}</span>
-                    ))}
-                  </div>
-                </div>
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div style={{ marginTop: '3rem', marginBottom: '2rem', display: 'flex', justifyContent: 'center' }}>
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage > 1) {
+                            setCurrentPage(currentPage - 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                    
+                    {(() => {
+                      const pages: (number | 'ellipsis')[] = [];
+                      
+                      // Determine which pages to show
+                      if (totalPages <= 7) {
+                        // Show all pages if 7 or fewer
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        // Always show first page
+                        pages.push(1);
+                        
+                        // Show ellipsis and selected pages
+                        if (currentPage <= 3) {
+                          // Near the start: 1 2 3 4 ... last
+                          for (let i = 2; i <= 4; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('ellipsis');
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 2) {
+                          // Near the end: 1 ... (last-3) (last-2) (last-1) last
+                          pages.push('ellipsis');
+                          for (let i = totalPages - 3; i <= totalPages; i++) {
+                            pages.push(i);
+                          }
+                        } else {
+                          // In the middle: 1 ... (current-1) current (current+1) ... last
+                          pages.push('ellipsis');
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('ellipsis');
+                          pages.push(totalPages);
+                        }
+                      }
+                      
+                      // Remove duplicates and render
+                      const renderedPages: JSX.Element[] = [];
+                      let lastItem: number | 'ellipsis' | null = null;
+                      
+                      pages.forEach((item, index) => {
+                        // Skip duplicate ellipsis
+                        if (item === 'ellipsis' && lastItem === 'ellipsis') {
+                          return;
+                        }
+                        
+                        if (item === 'ellipsis') {
+                          renderedPages.push(
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          );
+                        } else {
+                          renderedPages.push(
+                            <PaginationItem key={item}>
+                              <PaginationLink
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setCurrentPage(item);
+                                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                                }}
+                                isActive={currentPage === item}
+                              >
+                                {item}
+                              </PaginationLink>
+                            </PaginationItem>
+                          );
+                        }
+                        
+                        lastItem = item;
+                      });
+                      
+                      return renderedPages;
+                    })()}
+                    
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage < totalPages) {
+                            setCurrentPage(currentPage + 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
-            </motion.div>
-          ))}
-          </div>
+            )}
+          </>
         )}
 
         {/* Load More / Show Additional Info Button */}

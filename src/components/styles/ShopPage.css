@@ -265,3 +265,259 @@
 .bottom-cta-texture{ position:absolute; top:0; left:0; right:0; bottom:0; opacity:0.03; background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+'); }
 
 .bottom-cta-quote{ font-family:'Cormorant Garamond', serif; font-size:32px; font-style:italic; color:var(--brand-green); margin:0; position:relative; z-index:1; }
+
+/* Mobile Responsive Styles */
+@media (max-width: 1024px) {
+  .shop-header-inner{
+    padding: 24px 32px 20px;
+  }
+
+  .shop-filters-container{
+    padding: 0 32px 20px;
+  }
+
+  .shop-filters-card{
+    padding: 24px;
+  }
+
+  .filter-grid{
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .products-container{
+    padding: 32px 32px 80px;
+  }
+
+  .products-grid{
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+
+  .additional-info-grid{
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+
+  .bottom-cta{
+    padding: 60px 32px;
+    margin-top: 80px;
+  }
+
+  .bottom-cta-quote{
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 768px) {
+  .shop-header-inner{
+    padding: 20px 16px 16px;
+  }
+
+  .shop-title{
+    font-size: 32px;
+  }
+
+  .shop-subtitle{
+    font-size: 16px;
+  }
+
+  .shop-filters-container{
+    padding: 0 16px 16px;
+  }
+
+  .shop-filters-card{
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .search-container{
+    margin-bottom: 20px;
+  }
+
+  .search-input{
+    font-size: 14px;
+    padding: 12px 14px 12px 44px;
+  }
+
+  .search-icon{
+    left: 14px;
+  }
+
+  .filter-grid{
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .filter-button{
+    font-size: 13px;
+    padding: 10px 14px;
+  }
+
+  .filter-dropdown{
+    width: 100%;
+    left: 0;
+    right: 0;
+  }
+
+  .sort-row{
+    padding-top: 12px;
+  }
+
+  .sort-button{
+    width: 100%;
+    min-width: unset;
+    font-size: 13px;
+    padding: 10px 16px;
+  }
+
+  .active-filters{
+    margin-top: 12px;
+    gap: 6px;
+  }
+
+  .filter-pill{
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .products-container{
+    padding: 24px 16px 60px;
+  }
+
+  .products-grid{
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .product-image-container{
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+
+  .wishlist-btn{
+    width: 36px;
+    height: 36px;
+    top: 12px;
+    right: 12px;
+  }
+
+  .wishlist-btn svg{
+    width: 16px;
+    height: 16px;
+  }
+
+  .product-title{
+    font-size: 16px;
+  }
+
+  .product-price{
+    font-size: 15px;
+  }
+
+  .seller-avatar{
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+  }
+
+  .seller-name{
+    font-size: 12px;
+  }
+
+  .tag{
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .load-more-wrap{
+    margin-top: 40px;
+    gap: 20px;
+  }
+
+  .toggle-info-btn{
+    font-size: 14px;
+    padding: 12px 24px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .additional-info-wrap{
+    margin-top: 24px;
+    padding: 0 16px;
+  }
+
+  .additional-info-title{
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+
+  .additional-info-grid{
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .info-card{
+    padding: 20px;
+    border-radius: 12px;
+  }
+
+  .bottom-cta{
+    margin-top: 60px;
+    padding: 40px 20px;
+    border-radius: 16px;
+  }
+
+  .bottom-cta-quote{
+    font-size: 22px;
+    line-height: 1.4;
+  }
+
+  .loading-placeholder{
+    padding: 60px 16px;
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .shop-title{
+    font-size: 28px;
+  }
+
+  .shop-subtitle{
+    font-size: 14px;
+  }
+
+  .shop-filters-card{
+    padding: 16px;
+  }
+
+  .filter-button{
+    font-size: 12px;
+    padding: 9px 12px;
+  }
+
+  .sort-button{
+    font-size: 12px;
+    padding: 9px 14px;
+  }
+
+  .products-grid{
+    gap: 20px;
+  }
+
+  .product-title{
+    font-size: 15px;
+  }
+
+  .product-price{
+    font-size: 14px;
+  }
+
+  .bottom-cta-quote{
+    font-size: 20px;
+  }
+
+  .additional-info-title{
+    font-size: 22px;
+  }
+}

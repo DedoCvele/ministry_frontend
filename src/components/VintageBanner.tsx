@@ -102,6 +102,7 @@ export function VintageBanner({}: VintageBannerProps = {}) {
 
           {/* Main Message */}
           <h2
+            className="vintage-banner-title"
             style={{
               fontFamily: 'Cormorant Garamond, serif',
               fontSize: '56px',
@@ -119,6 +120,7 @@ export function VintageBanner({}: VintageBannerProps = {}) {
 
           {/* Sub-message */}
           <p
+            className="vintage-banner-subtitle"
             style={{
               fontFamily: 'Manrope, sans-serif',
               fontSize: '16px',
@@ -169,6 +171,46 @@ export function VintageBanner({}: VintageBannerProps = {}) {
         section > div:nth-child(3) > div:nth-child(3) {
           animation: floatSlow 7s ease-in-out infinite;
           animation-delay: 0.5s;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+          .vintage-banner-title {
+            font-size: 36px !important;
+            line-height: 44px !important;
+            margin-bottom: 20px !important;
+          }
+
+          .vintage-banner-subtitle {
+            font-size: 14px !important;
+            line-height: 24px !important;
+            padding: 0 16px;
+          }
+
+          section[style*="height: 400px"] {
+            height: 350px !important;
+          }
+
+          section > div:nth-child(3) > div {
+            display: none;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .vintage-banner-title {
+            font-size: 28px !important;
+            line-height: 36px !important;
+            margin-bottom: 16px !important;
+          }
+
+          .vintage-banner-subtitle {
+            font-size: 13px !important;
+            line-height: 22px !important;
+          }
+
+          section[style*="height: 400px"] {
+            height: 300px !important;
+          }
         }
       `}</style>
     </section>

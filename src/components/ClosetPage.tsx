@@ -160,7 +160,7 @@ export default function ClosetPage({
         >
           {/* Collapsed */}
           {headerCollapsed && (
-            <div className="h-16 px-6 flex items-center justify-between">
+            <div className="h-16 px-6 flex items-center justify-between closet-header-collapsed-wrapper">
               <div className="flex items-center height-240px gap-3">
                 <ImageWithFallback
                   src={userProfile.avatar || fallbackImage}
@@ -183,7 +183,7 @@ export default function ClosetPage({
 
           {/* EXPANDED */}
           {!headerCollapsed && (
-            <div className="px-6 pt-8 pb-6">
+            <div className="px-6 pt-8 pb-6 closet-header-expanded-wrapper">
               <button
                 onClick={handleBack}
                 className="mb-6 p-2 hover:bg-[#0A4834]/5 rounded-full inline-flex items-center gap-2"
@@ -191,13 +191,13 @@ export default function ClosetPage({
                 <ArrowLeft className="w-5 h-5" /> {t.closet.back}
               </button>
 
-              <div className="flex gap-6 items-start">
+              <div className="flex gap-6 items-start closet-header-content">
                 <button onClick={onAvatarClick} className="relative group">
                   <ImageWithFallback
                     src={userProfile.avatar || fallbackImage}
                     fallback={fallbackImage}
                     alt={userProfile.name}
-                    className="w-[100px] h-[100px] rounded-full object-cover"
+                    className="w-[100px] h-[100px] rounded-full object-cover closet-avatar-image"
                   />
                 </button>
 
@@ -240,7 +240,7 @@ export default function ClosetPage({
                     {userProfile.bio}
                   </p>
 
-                  <div className="flex gap-3 mt-4">
+                  <div className="flex gap-3 mt-4 closet-action-buttons">
                     <Button
                       onClick={handleFollowToggle}
                       className={`rounded-xl px-6 ${
@@ -276,12 +276,12 @@ export default function ClosetPage({
         </header>
 
         {/* FILTERS */}
-        <div className="px-6 py-4 flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="px-6 py-4 flex gap-2 overflow-x-auto scrollbar-hide closet-filters">
           {filterCategories.map((c) => (
             <button
               key={c}
               onClick={() => setSelectedFilter(c)}
-              className={`px-4 py-2 rounded-xl ${
+              className={`px-4 py-2 rounded-xl whitespace-nowrap closet-filter-btn ${
                 selectedFilter === c
                   ? 'bg-[#9F8151] text-white'
                   : 'bg-white text-[#9F8151] border border-[#9F8151]'
@@ -293,13 +293,13 @@ export default function ClosetPage({
         </div>
 
         {/* ITEMS GRID */}
-        <div className="px-6 pb-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="px-6 pb-12 closet-items-wrapper">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 closet-items-grid">
             {filteredItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item.id)}
-                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer"
+                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer closet-item-card"
               >
                 <div className="aspect-square overflow-hidden relative">
                   <ImageWithFallback
@@ -310,7 +310,7 @@ export default function ClosetPage({
                   />
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 closet-item-content">
                   <h3 className="item-title">{item.name}</h3>
                   <p className="item-price">€{item.price}</p>
                 </div>

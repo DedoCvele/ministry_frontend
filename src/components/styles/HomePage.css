@@ -1,3 +1,25 @@
 .home-page-root {
   background-color: #FFFFFF;
+  overflow-x: hidden;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .home-page-root {
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  /* Ensure containers don't overflow */
+  .home-page-root .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-page-root .container {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 }

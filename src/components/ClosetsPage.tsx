@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Heart, ArrowRight, Users, Package } from 'lucide-react';
+import { Heart, ArrowRight, Users, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { FooterAlt } from './FooterAlt';
@@ -51,11 +51,25 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedCloset, setSelectedCloset] = useState<Closet | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   // Update activeFilter when language changes
   useEffect(() => {
     setActiveFilter(t.closets.filters.allClosets);
   }, [language, t.closets.filters.allClosets]);
+
+  // Detect screen size for pagination
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+      // Reset to page 1 when screen size changes
+      setCurrentPage(1);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ----------------------------
   // FETCH closets from backend
@@ -119,6 +133,23 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
       ? closets
       : closets.filter(closet => closet.category === activeFilter);
 
+  // Pagination logic
+  const itemsPerPage = isMobile ? 6 : 12;
+  const totalPages = Math.ceil(filteredClosets.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedClosets = filteredClosets.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeFilter]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const toggleFollow = (closetId: number) => {
     setFollowing(prev =>
       prev.includes(closetId)
@@ -169,7 +200,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '48px 24px 120px' }}>
+      <div className="closets-content-wrapper" style={{ maxWidth: '1200px', margin: '0 auto' }}>
 
         {/* Filters */}
         <motion.div
@@ -190,17 +221,9 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
           ))}
         </motion.div>
 
-        {/* CLOSET GRID (fixed version) */}
-        <div
-          className="closets-grid-container"
-          style={{
-            marginBottom: '48px',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '32px',
-          }}
-        >
-          {filteredClosets.map((closet, index) => (
+        {/* CLOSET GRID */}
+        <div className="closets-grid-container">
+          {paginatedClosets.map((closet, index) => (
             <motion.div
               key={closet.id}
               initial={{ opacity: 0, y: 20 }}
@@ -261,23 +284,78 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
           ))}
         </div>
 
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="closets-pagination">
+            <motion.button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="closets-pagination-btn closets-pagination-prev"
+              whileHover={{ scale: currentPage === 1 ? 1 : 1.05 }}
+              whileTap={{ scale: currentPage === 1 ? 1 : 0.95 }}
+            >
+              <ChevronLeft size={18} />
+              <span>Previous</span>
+            </motion.button>
+
+            <div className="closets-pagination-pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                // Show first page, last page, current page, and pages around current
+                const showPage =
+                  page === 1 ||
+                  page === totalPages ||
+                  (page >= currentPage - 1 && page <= currentPage + 1);
+
+                if (!showPage) {
+                  // Show ellipsis
+                  if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span key={page} className="closets-pagination-ellipsis">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                }
+
+                return (
+                  <motion.button
+                    key={page}
+                    onClick={() => handlePageChange(page)}
+                    className={`closets-pagination-page ${currentPage === page ? 'active' : ''}`}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {page}
+                  </motion.button>
+                );
+              })}
+            </div>
+
+            <motion.button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="closets-pagination-btn closets-pagination-next"
+              whileHover={{ scale: currentPage === totalPages ? 1 : 1.05 }}
+              whileTap={{ scale: currentPage === totalPages ? 1 : 0.95 }}
+            >
+              <span>Next</span>
+              <ChevronRight size={18} />
+            </motion.button>
+          </div>
+        )}
+
         {/* Community CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{
-            marginTop: '80px',
-            padding: '64px 40px',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '20px',
-            textAlign: 'center',
-          }}
+          className="closets-cta"
         >
-          <h2 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: '40px', color: '#0A4834' }}>
+          <h2 className="closets-cta-title">
             {t.closets.cta.title}
           </h2>
 
-          <p style={{ maxWidth: '600px', margin: '0 auto 32px', color: 'rgba(0,0,0,0.7)' }}>
+          <p className="closets-cta-description">
             {t.closets.cta.description}
           </p>
 
@@ -285,7 +363,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
             onClick={() => navigate('/become-seller')}
             whileHover={{ backgroundColor: '#0A4834' }}
             whileTap={{ scale: 0.98 }}
-            style={{ backgroundColor: '#9F8151', color: '#FFF', padding: '16px 48px', borderRadius: '16px', cursor: 'pointer' }}
+            className="closets-cta-btn"
           >
             {t.closets.cta.button}
           </motion.button>

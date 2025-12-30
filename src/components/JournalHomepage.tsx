@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Heart, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,16 @@ import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
 import { type Language, getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
+import { useIsMobile } from './ui/use-mobile';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis,
+} from './ui/pagination';
 import './styles/JournalHomepage.css';
 
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -118,6 +128,7 @@ const mapBlogToArticle = (blog: Blog): Article => {
 export function JournalHomepage({ onArticleClick, onClose, language: languageProp }: JournalHomepageProps) {
   const navigate = useNavigate();
   const { language: contextLanguage } = useLanguage();
+  const isMobile = useIsMobile();
   
   // Use language from context if available, otherwise use prop, otherwise default to 'en'
   const language = contextLanguage || languageProp || 'en';
@@ -133,14 +144,24 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
   
   const [email, setEmail] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>(t.journal.homepage.all);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Update selectedCategory when language changes
   useEffect(() => {
     setSelectedCategory(t.journal.homepage.all);
   }, [language, t.journal.homepage.all]);
+  
+  // Reset to page 1 when category changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory]);
+  
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Items per page: 6 for desktop, 4 for mobile
+  const itemsPerPage = isMobile ? 4 : 6;
 
   // Fetch blogs from API
   useEffect(() => {
@@ -172,11 +193,33 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
   // Extract unique categories from articles
   const categories = [t.journal.homepage.all, ...Array.from(new Set(articles.map(article => article.category).filter(Boolean)))];
 
-  const filteredArticles = selectedCategory === t.journal.homepage.all
-    ? articles 
-    : articles.filter(article => article.category === selectedCategory);
+  const filteredArticles = useMemo(() => {
+    const filtered = selectedCategory === t.journal.homepage.all
+      ? articles 
+      : articles.filter(article => article.category === selectedCategory);
+    return filtered;
+  }, [articles, selectedCategory, t.journal.homepage.all]);
 
-  const featuredArticle = articles.length > 0 ? articles[0] : null;
+  const featuredArticle = filteredArticles.length > 0 ? filteredArticles[0] : null;
+  
+  // Pagination logic
+  const articlesToDisplay = useMemo(() => {
+    // Skip featured article if it exists
+    const articlesWithoutFeatured = featuredArticle 
+      ? filteredArticles.slice(1)
+      : filteredArticles;
+    
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return articlesWithoutFeatured.slice(startIndex, endIndex);
+  }, [filteredArticles, featuredArticle, currentPage, itemsPerPage]);
+  
+  const totalPages = useMemo(() => {
+    const articlesWithoutFeatured = featuredArticle 
+      ? filteredArticles.slice(1)
+      : filteredArticles;
+    return Math.ceil(articlesWithoutFeatured.length / itemsPerPage);
+  }, [filteredArticles, featuredArticle, itemsPerPage]);
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -297,7 +340,7 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
 
             {/* Article Grid */}
             <div className="journal-article-grid">
-              {filteredArticles.slice(featuredArticle ? 1 : 0).map((article, index) => (
+              {articlesToDisplay.map((article, index) => (
             <motion.div
               key={article.id}
               initial={{ opacity: 0, y: 20 }}
@@ -361,6 +404,107 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
               </motion.div>
             ))}
             </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="journal-pagination-wrapper">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        className={currentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage > 1) {
+                            setCurrentPage(prev => prev - 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                      />
+                    </PaginationItem>
+                    
+                    {(() => {
+                      const pages: (number | 'ellipsis')[] = [];
+                      const showEllipsis = totalPages > 7;
+                      
+                      if (!showEllipsis) {
+                        // Show all pages if 7 or fewer
+                        for (let i = 1; i <= totalPages; i++) {
+                          pages.push(i);
+                        }
+                      } else {
+                        // Always show first page
+                        pages.push(1);
+                        
+                        if (currentPage <= 4) {
+                          // Near the start: show 1, 2, 3, 4, 5, ..., last
+                          for (let i = 2; i <= 5; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('ellipsis');
+                          pages.push(totalPages);
+                        } else if (currentPage >= totalPages - 3) {
+                          // Near the end: show 1, ..., last-4, last-3, last-2, last-1, last
+                          pages.push('ellipsis');
+                          for (let i = totalPages - 4; i <= totalPages; i++) {
+                            pages.push(i);
+                          }
+                        } else {
+                          // In the middle: show 1, ..., current-1, current, current+1, ..., last
+                          pages.push('ellipsis');
+                          for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+                            pages.push(i);
+                          }
+                          pages.push('ellipsis');
+                          pages.push(totalPages);
+                        }
+                      }
+                      
+                      return pages.map((item, index) => {
+                        if (item === 'ellipsis') {
+                          return (
+                            <PaginationItem key={`ellipsis-${index}`}>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          );
+                        }
+                        return (
+                          <PaginationItem key={item}>
+                            <PaginationLink
+                              isActive={currentPage === item}
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setCurrentPage(item);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="cursor-pointer"
+                            >
+                              {item}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      });
+                    })()}
+                    
+                    <PaginationItem>
+                      <PaginationNext
+                        className={currentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (currentPage < totalPages) {
+                            setCurrentPage(prev => prev + 1);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </>
         )}
 

@@ -8,6 +8,7 @@ import { FooterAlt } from './FooterAlt';
 import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import './styles/UploadItem.css';
 
 interface UploadItemProps {
   onClose?: () => void | string;
@@ -1054,49 +1055,23 @@ export function UploadItem({ onClose }: UploadItemProps) {
   };
 
   return (
-    <div style={{ backgroundColor: '#F0ECE3', minHeight: '100vh' }}>
+    <div className="upload-item-container">
       <HeaderAlt />
 
-      <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '120px 40px 80px' }}>
+      <div className="upload-item-content">
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-          <h1
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '48px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '16px',
-              marginTop: 0,
-            }}
-          >
+        <div className="upload-item-header">
+          <h1 className="upload-item-title">
             {t.upload.title}
           </h1>
-          <p
-            style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '16px',
-              color: '#000000',
-              opacity: 0.7,
-              marginTop: 0,
-            }}
-          >
+          <p className="upload-item-subtitle">
             {t.upload.subtitle}
           </p>
         </div>
 
         {/* Photo Upload Section */}
-        <section style={{ marginBottom: '48px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '28px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '20px',
-              marginTop: 0,
-            }}
-          >
+        <section className="upload-section">
+          <h2 className="upload-section-title">
             {t.upload.photos}
           </h2>
 
@@ -1105,39 +1080,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${isDragging ? '#9F8151' : '#00000020'}`,
-              borderRadius: '16px',
-              padding: '60px 40px',
-              backgroundColor: isDragging ? '#9F815110' : '#FFFFFF',
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              marginBottom: '24px',
-            }}
+            className={`upload-dropzone ${isDragging ? 'dragging' : ''}`}
           >
-            <Upload size={48} color="#0A4834" style={{ margin: '0 auto 16px' }} />
-            <p
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '16px',
-                color: '#0A4834',
-                marginBottom: '8px',
-                marginTop: 0,
-              }}
-            >
+            <Upload size={48} color="#0A4834" className="upload-icon" />
+            <p className="upload-dropzone-text">
               {t.upload.dragDrop}
             </p>
-            <p
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#000000',
-                opacity: 0.5,
-                marginTop: 0,
-                marginBottom: 0,
-              }}
-            >
+            <p className="upload-dropzone-hint">
               {t.upload.dragDropHint}
             </p>
           </div>
@@ -1148,29 +1097,14 @@ export function UploadItem({ onClose }: UploadItemProps) {
             accept="image/*"
             multiple
             onChange={handleFileSelect}
-            style={{ display: 'none' }}
+            className="upload-file-input"
           />
 
           {/* Image Thumbnails */}
           {uploadedImages.length > 0 && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-                gap: '16px',
-              }}
-            >
+            <div className="upload-images-grid">
               {uploadedImages.map((img, index) => (
-                <div
-                  key={index}
-                  style={{
-                    position: 'relative',
-                    aspectRatio: '1',
-                    borderRadius: '12px',
-                    overflow: 'hidden',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                >
+                <div key={index} className="upload-image-thumbnail">
                   <ImageWithFallback
                     src={img.previewUrl}
                     alt={`Upload ${index + 1}`}
@@ -1181,21 +1115,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
                       e.stopPropagation();
                       removeImage(index);
                     }}
-                    style={{
-                      position: 'absolute',
-                      top: '8px',
-                      right: '8px',
-                      backgroundColor: '#FFFFFF',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '28px',
-                      height: '28px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    }}
+                    className="upload-image-remove-btn"
                   >
                     <X size={16} color="#000000" />
                   </button>
@@ -1206,41 +1126,14 @@ export function UploadItem({ onClose }: UploadItemProps) {
         </section>
 
         {/* Item Details Section */}
-        <section style={{ marginBottom: '48px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '28px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '20px',
-              marginTop: 0,
-            }}
-          >
+        <section className="upload-section">
+          <h2 className="upload-section-title">
             {t.upload.details}
           </h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '20px',
-              backgroundColor: '#FFFFFF',
-              padding: '40px',
-              borderRadius: '16px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-            }}
-          >
+          <div className="upload-form-container">
             {/* Title */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+            <div className="upload-form-field-full">
+              <label className="upload-form-label">
                 {t.upload.itemName} *
               </label>
               <input
@@ -1248,46 +1141,19 @@ export function UploadItem({ onClose }: UploadItemProps) {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder={t.upload.itemNamePlaceholder}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                }}
+                className="upload-form-input"
               />
             </div>
 
             {/* Brand */}
             <div>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+              <label className="upload-form-label">
                 {t.upload.brand} *
               </label>
               <select
                 value={formData.brand}
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                  cursor: 'pointer',
-                }}
+                className="upload-form-select"
               >
                 <option value="">{t.upload.brandPlaceholder}</option>
                 {isLoadingOptions ? (
@@ -1302,31 +1168,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
             {/* Category */}
             <div>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+              <label className="upload-form-label">
                 {t.upload.category} *
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                  cursor: 'pointer',
-                }}
+                className="upload-form-select"
               >
                 <option value="">{t.upload.categoryPlaceholder}</option>
                 {isLoadingOptions ? (
@@ -1341,31 +1189,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
             {/* Size */}
             <div>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+              <label className="upload-form-label">
                 {t.upload.size} *
               </label>
               <select
                 value={formData.size}
                 onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                  cursor: 'pointer',
-                }}
+                className="upload-form-select"
               >
                 <option value="">{t.upload.sizePlaceholder}</option>
                 {isLoadingOptions ? (
@@ -1380,31 +1210,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
             {/* Condition */}
             <div>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+              <label className="upload-form-label">
                 {t.upload.condition} *
               </label>
               <select
                 value={formData.condition}
                 onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                  cursor: 'pointer',
-                }}
+                className="upload-form-select"
               >
                 <option value="">{t.upload.conditionPlaceholder}</option>
                 {isLoadingOptions ? (
@@ -1421,15 +1233,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
             {/* Material */}
             <div>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+              <label className="upload-form-label">
                 {t.upload.material}
               </label>
               <input
@@ -1437,30 +1241,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
                 value={formData.material}
                 onChange={(e) => setFormData({ ...formData, material: e.target.value })}
                 placeholder={t.upload.materialPlaceholder}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                }}
+                className="upload-form-input"
               />
             </div>
 
             {/* Description */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+            <div className="upload-form-field-full">
+              <label className="upload-form-label">
                 {t.upload.description}
               </label>
               <textarea
@@ -1468,31 +1255,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder={t.upload.descriptionPlaceholder}
                 rows={4}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                  resize: 'vertical',
-                }}
+                className="upload-form-textarea"
               />
             </div>
 
             {/* Tags */}
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+            <div className="upload-form-field-full">
+              <label className="upload-form-label">
                 {t.upload.tags}
               </label>
               <input
@@ -1500,69 +1269,25 @@ export function UploadItem({ onClose }: UploadItemProps) {
                 value={formData.tags}
                 onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
                 placeholder={t.upload.tagsPlaceholder}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  border: '1px solid #00000020',
-                  borderRadius: '12px',
-                  outline: 'none',
-                  backgroundColor: '#F0ECE3',
-                }}
+                className="upload-form-input"
               />
             </div>
           </div>
         </section>
 
         {/* Pricing Section */}
-        <section style={{ marginBottom: '48px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '28px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '20px',
-              marginTop: 0,
-            }}
-          >
+        <section className="upload-section">
+          <h2 className="upload-section-title">
             {t.upload.pricing}
           </h2>
 
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              padding: '40px',
-              borderRadius: '16px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-            }}
-          >
-            <div style={{ maxWidth: '400px' }}>
-              <label
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#0A4834',
-                  display: 'block',
-                  marginBottom: '8px',
-                }}
-              >
+          <div className="upload-pricing-container">
+            <div className="upload-price-wrapper">
+              <label className="upload-form-label">
                 {t.upload.price} *
               </label>
-              <div style={{ position: 'relative' }}>
-                <span
-                  style={{
-                    position: 'absolute',
-                    left: '16px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '14px',
-                    color: '#000000',
-                    opacity: 0.5,
-                  }}
-                >
+              <div className="upload-price-input-wrapper">
+                <span className="upload-price-symbol">
                   €
                 </span>
                 <input
@@ -1570,63 +1295,23 @@ export function UploadItem({ onClose }: UploadItemProps) {
                   value={formData.sellingPrice}
                   onChange={(e) => setFormData({ ...formData, sellingPrice: e.target.value })}
                   placeholder={t.upload.pricePlaceholder}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px 12px 32px',
-                    fontFamily: 'Manrope, sans-serif',
-                    fontSize: '14px',
-                    border: '1px solid #00000020',
-                    borderRadius: '12px',
-                    outline: 'none',
-                    backgroundColor: '#F0ECE3',
-                  }}
+                  className="upload-price-input"
                 />
               </div>
             </div>
 
             {/* Auto-expire toggle */}
-            <div
-              style={{
-                marginTop: '24px',
-                padding: '20px',
-                backgroundColor: '#F0ECE3',
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-              }}
-            >
+            <div className="upload-auto-expire">
               <input
                 type="checkbox"
                 id="autoExpire"
                 checked={formData.autoExpire}
                 onChange={(e) => setFormData({ ...formData, autoExpire: e.target.checked })}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  cursor: 'pointer',
-                  accentColor: '#0A4834',
-                }}
+                className="upload-auto-expire-checkbox"
               />
-              <label
-                htmlFor="autoExpire"
-                style={{
-                  fontFamily: 'Manrope, sans-serif',
-                  fontSize: '14px',
-                  color: '#000000',
-                  cursor: 'pointer',
-                  flex: 1,
-                }}
-              >
+              <label htmlFor="autoExpire" className="upload-auto-expire-label">
                 {t.upload.autoExpire}
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: '12px',
-                    opacity: 0.6,
-                    marginTop: '4px',
-                  }}
-                >
+                <span className="upload-auto-expire-hint">
                   {t.upload.autoExpireHint}
                 </span>
               </label>
@@ -1635,39 +1320,14 @@ export function UploadItem({ onClose }: UploadItemProps) {
         </section>
 
         {/* Inline Preview */}
-        <section style={{ marginBottom: '48px' }}>
-          <h2
-            style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '28px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '20px',
-              marginTop: 0,
-            }}
-          >
+        <section className="upload-section">
+          <h2 className="upload-section-title">
             {t.upload.preview}
           </h2>
 
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              padding: '24px',
-              borderRadius: '16px',
-              boxShadow: '0 6px 24px rgba(0,0,0,0.06)',
-              maxWidth: '320px',
-            }}
-          >
+          <div className="upload-preview-container">
             {uploadedImages.length > 0 ? (
-              <div
-                style={{
-                  aspectRatio: '3/4',
-                  borderRadius: '12px',
-                  overflow: 'hidden',
-                  marginBottom: '16px',
-                  backgroundColor: '#F0ECE3',
-                }}
-              >
+              <div className="upload-preview-image">
                 <ImageWithFallback
                   src={uploadedImages[0].previewUrl}
                   alt="Preview"
@@ -1675,153 +1335,47 @@ export function UploadItem({ onClose }: UploadItemProps) {
                 />
               </div>
             ) : (
-              <div
-                style={{
-                  aspectRatio: '3/4',
-                  borderRadius: '12px',
-                  backgroundColor: '#F0ECE3',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="upload-preview-placeholder">
                 <ImageIcon size={48} color="#00000020" />
               </div>
             )}
 
-            <h3
-              style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                fontSize: '20px',
-                fontWeight: 600,
-                color: '#0A4834',
-                marginBottom: '8px',
-                marginTop: 0,
-              }}
-            >
+            <h3 className="upload-preview-title">
               {formData.title || t.upload.itemTitle}
             </h3>
 
-            <p
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#000000',
-                opacity: 0.7,
-                marginBottom: '12px',
-                marginTop: 0,
-              }}
-            >
+            <p className="upload-preview-text">
               {formData.brand || t.upload.brand} • {formData.condition || t.upload.condition}
             </p>
-            <p
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '12px',
-                color: '#000000',
-                opacity: 0.6,
-                marginTop: 0,
-                marginBottom: '12px',
-              }}
-            >
+            <p className="upload-preview-text-small">
               {formData.material ? `${t.upload.material}: ${formData.material}` : t.upload.materialAddDetails}
             </p>
 
-            <p
-              style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '18px',
-                color: '#9F8151',
-                marginTop: 0,
-                marginBottom: 0,
-              }}
-            >
+            <p className="upload-preview-price">
               {formData.sellingPrice ? `€${formData.sellingPrice}` : '€0.00'}
             </p>
           </div>
         </section>
 
         {/* Action Buttons */}
-        <div style={{ maxWidth: '640px', margin: '0 auto 24px' }}>
+        <div className="upload-actions-container">
           {submitError && (
-            <div
-              style={{
-                marginBottom: '16px',
-                padding: '12px 16px',
-                borderRadius: '12px',
-                backgroundColor: 'rgba(193, 64, 64, 0.1)',
-                border: '1px solid rgba(193, 64, 64, 0.35)',
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#7a1f1f',
-              }}
-            >
+            <div className="upload-error-message">
               {submitError}
             </div>
           )}
         </div>
-        <div
-          style={{
-            display: 'flex',
-            gap: '16px',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="upload-buttons">
           <button
             onClick={handlePublish}
             disabled={isSubmitting}
-            style={{
-              padding: '16px 48px',
-              backgroundColor: '#0A4834',
-              color: '#FFFFFF',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '16px',
-              fontWeight: 500,
-              transition: 'all 0.3s ease',
-              minWidth: '200px',
-              opacity: isSubmitting ? 0.7 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!isSubmitting) {
-                e.currentTarget.style.backgroundColor = '#083d2c';
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = '#0A4834';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
+            className="upload-button-primary"
             aria-busy={isSubmitting}
           >
             {isSubmitting ? t.upload.publishing : t.upload.publish}
           </button>
 
-          <button
-            style={{
-              padding: '16px 48px',
-              backgroundColor: 'transparent',
-              color: '#9F8151',
-              border: '2px solid #9F8151',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '16px',
-              fontWeight: 500,
-              transition: 'all 0.3s ease',
-              minWidth: '200px',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = '#9F815110';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
+          <button className="upload-button-secondary">
             {t.upload.saveDraft}
           </button>
         </div>
@@ -1831,38 +1385,9 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
       {/* Toast Notification */}
       {showToast && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '40px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#0A4834',
-            color: '#FFFFFF',
-            padding: '16px 32px',
-            borderRadius: '12px',
-            boxShadow: '0 6px 24px rgba(0,0,0,0.2)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            zIndex: 10000,
-            animation: 'slideUpFade 0.3s ease-in-out',
-          }}
-        >
-          <style>{`
-            @keyframes slideUpFade {
-              from {
-                opacity: 0;
-                transform: translate(-50%, 20px);
-              }
-              to {
-                opacity: 1;
-                transform: translate(-50%, 0);
-              }
-            }
-          `}</style>
+        <div className="upload-toast">
           <Check size={20} />
-          <span style={{ fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}>
+          <span className="upload-toast-text">
             {t.upload.itemSavedSuccess}
           </span>
         </div>

@@ -1,0 +1,499 @@
+/* ProfilePage Responsive Styles */
+
+.profile-page-container {
+  background-color: #F0ECE3;
+  min-height: 100vh;
+  position: relative;
+}
+
+.profile-page-grain {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=');
+}
+
+/* Profile Summary Panel */
+.profile-summary-panel {
+  background: linear-gradient(to bottom, #F0ECE3, #FFFFFF);
+  border-radius: 0 0 32px 32px;
+  padding: 80px 64px 48px;
+  margin-bottom: 48px;
+}
+
+.profile-summary-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 48px;
+}
+
+.profile-avatar-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.profile-info-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Profile Navigation Tabs */
+.profile-tabs-container {
+  max-width: 1200px;
+  margin: 0 auto 48px;
+  padding: 0 64px;
+}
+
+.profile-tabs-navigation {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding-bottom: 8px;
+}
+
+.profile-tabs-navigation::-webkit-scrollbar {
+  display: none;
+}
+
+/* Overview Tab */
+.profile-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.profile-overview-grid-seller {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  gap: 32px;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.profile-favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.profile-closet-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+/* My Items Tab */
+.profile-items-header {
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile-items-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* Favourites Tab */
+.profile-favourites-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
+
+/* Sales Tab */
+.profile-sales-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.profile-sales-table-header {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #F0ECE3;
+}
+
+.profile-sales-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  align-items: center;
+  border-bottom: 1px solid #F0ECE3;
+}
+
+/* Analytics Tab */
+.profile-analytics-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 32px;
+}
+
+.profile-analytics-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+/* Settings Drawer */
+.profile-settings-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(4px);
+  z-index: 999;
+}
+
+.profile-settings-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  background-color: rgba(240, 236, 227, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 24px 0 0 24px;
+  padding: 48px 32px;
+  z-index: 1000;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+}
+
+/* Footer Quote */
+.profile-footer-quote {
+  max-width: 1200px;
+  margin: 80px auto 0;
+  padding: 0 64px 48px;
+  text-align: center;
+}
+
+/* Card Styles */
+.profile-card {
+  background-color: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.profile-card-large {
+  padding: 32px;
+}
+
+.profile-card-stats {
+  padding: 20px;
+  text-align: center;
+}
+
+/* Tab Content */
+.profile-tab-content {
+  margin-top: 48px;
+}
+
+/* Tab Navigation Buttons */
+.profile-tabs-navigation {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding-bottom: 8px;
+}
+
+.profile-tabs-navigation button {
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Responsive Design - Mobile (max-width: 768px) */
+@media (max-width: 768px) {
+  /* Profile Summary Panel */
+  .profile-summary-panel {
+    padding: 40px 20px 32px;
+    border-radius: 0 0 24px 24px;
+  }
+
+  .profile-summary-content {
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+    text-align: center;
+  }
+
+  .profile-avatar-container {
+    order: 1;
+  }
+
+  .profile-info-section {
+    order: 2;
+    width: 100%;
+  }
+
+  .profile-actions {
+    order: 3;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .profile-actions button {
+    width: 100%;
+  }
+
+  /* Profile Navigation Tabs */
+  .profile-tabs-container {
+    padding: 0 20px;
+    margin-bottom: 32px;
+  }
+
+  .profile-tabs-navigation {
+    padding: 8px;
+    justify-content: flex-start;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .profile-tabs-navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .profile-tabs-navigation button {
+    padding: 12px 16px;
+    font-size: 14px;
+    flex: 0 0 auto;
+    min-width: auto;
+  }
+
+  /* Overview Tab */
+  .profile-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .profile-overview-grid-seller {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .profile-overview-grid-seller .separator {
+    display: none;
+  }
+
+  .profile-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .profile-favorites-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .profile-closet-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* My Items Tab */
+  .profile-items-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .profile-items-header h2 {
+    font-size: 28px !important;
+  }
+
+  .profile-items-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Favourites Tab */
+  .profile-favourites-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  /* Sales Tab */
+  .profile-sales-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .profile-sales-table-header,
+  .profile-sales-table-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .profile-sales-table-header > div:not(:first-child),
+  .profile-sales-table-row > div:not(:first-child) {
+    font-size: 12px;
+  }
+
+  .profile-sales-table-header > div:first-child,
+  .profile-sales-table-row > div:first-child {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  /* Analytics Tab */
+  .profile-analytics-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .profile-analytics-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Settings Drawer */
+  .profile-settings-drawer {
+    width: 100%;
+    border-radius: 24px 24px 0 0;
+    padding: 32px 20px;
+  }
+
+  /* Footer Quote */
+  .profile-footer-quote {
+    padding: 0 20px 32px;
+    margin-top: 48px;
+  }
+
+  .profile-footer-quote p {
+    font-size: 18px !important;
+    line-height: 28px !important;
+  }
+
+  /* Card Adjustments */
+  .profile-card {
+    padding: 20px;
+  }
+
+  .profile-card-large {
+    padding: 24px;
+  }
+
+  .profile-card-stats {
+    padding: 16px;
+  }
+
+  /* Tab Content */
+  .profile-tab-content {
+    margin-top: 32px;
+  }
+
+  /* Typography adjustments */
+  h1 {
+    font-size: 24px !important;
+  }
+
+  h2 {
+    font-size: 28px !important;
+  }
+
+  h3 {
+    font-size: 20px !important;
+  }
+}
+
+/* Responsive Design - Tablet (max-width: 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .profile-summary-panel {
+    padding: 60px 40px 40px;
+  }
+
+  .profile-summary-content {
+    gap: 32px;
+  }
+
+  .profile-tabs-container {
+    padding: 0 40px;
+  }
+
+  .profile-overview-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profile-items-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .profile-favourites-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .profile-footer-quote {
+    padding: 0 40px 40px;
+  }
+}
+
+/* Small mobile devices (max-width: 480px) */
+@media (max-width: 480px) {
+  .profile-summary-panel {
+    padding: 32px 16px 24px;
+  }
+
+  .profile-tabs-container {
+    padding: 0 16px;
+  }
+
+  .profile-favorites-grid,
+  .profile-closet-grid,
+  .profile-favourites-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-footer-quote {
+    padding: 0 16px 24px;
+  }
+}
+
+/* Utility classes for responsive text */
+@media (max-width: 768px) {
+  .profile-text-responsive {
+    font-size: 14px !important;
+  }
+
+  .profile-heading-responsive {
+    font-size: 20px !important;
+  }
+}
+

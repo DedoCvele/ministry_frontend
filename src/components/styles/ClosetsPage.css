@@ -44,12 +44,38 @@
 .closets-hr{ width:80px; height:2px; background-color: rgba(159,129,81,0.3); margin:0 auto; }
 
 /* Filters */
-.closets-filters{ display:flex; justify-content:center; gap:12px; margin-bottom:64px; flex-wrap:wrap; }
-.closets-filter-btn{ font-family: 'Manrope', sans-serif; font-size:14px; font-weight:500; border-radius:24px; padding:10px 24px; border:1px solid #DCD6C9; transition:all .3s; }
-.closets-filter-btn.active{ background-color: var(--brand-gold); color:#fff; box-shadow: 0px 4px 12px rgba(159,129,81,0.2); }
+.closets-filters{ 
+  display:flex; 
+  justify-content:center; 
+  gap:12px; 
+  margin-bottom:64px; 
+  flex-wrap:wrap; 
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.closets-filters::-webkit-scrollbar {
+  display: none;
+}
+.closets-filter-btn{ 
+  font-family: 'Manrope', sans-serif; 
+  font-size:14px; 
+  font-weight:500; 
+  border-radius:24px; 
+  padding:10px 24px; 
+  border:1px solid #DCD6C9; 
+  transition:all .3s; 
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.closets-filter-btn.active{ 
+  background-color: var(--brand-gold); 
+  color:#fff; 
+  box-shadow: 0px 4px 12px rgba(159,129,81,0.2); 
+}
 
 /* Closet card */
-<<<<<<< HEAD
 .closet-card{ 
   position:relative; 
   border-radius:20px; 
@@ -85,21 +111,6 @@
   transform: translateZ(0);
   will-change: transform;
 }
-=======
-.closet-card{ position:relative; padding:20px; border-radius:20px; width: max-content; height:max-content; overflow:hidden; cursor:pointer; background:#fff; box-shadow:0px 8px 24px rgba(0,0,0,0.06); transition:all .3s; }
-.closet-card:hover{ transform: translateY(-4px); box-shadow:0px 12px 32px rgba(0,0,0,0.12); }
-.closet-cover {
-    width: 330px;
-    height: 330px;
-    position: relative;
-    overflow: hidden;
-    border-radius: 18px;
-    background:#f5f5f5;
-
-}
-
-.closet-cover-img{ width:100%; height:100%; object-fit:cover; }
->>>>>>> gjoko-branch
 .closet-profile-bubble{ width:64px; height:64px; border-radius:50%; background-color:var(--brand-gold); display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Cormorant Garamond', serif; font-size:24px; font-weight:600; box-shadow:0 4px 12px rgba(0,0,0,0.2); }
 .closet-cover-overlay{ position:absolute; bottom:24px; left:24px; right:24px; display:flex; align-items:center; gap:12px; }
 
@@ -122,26 +133,420 @@
 .closet-featured-quote{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:24px; color:var(--brand-gold); margin:0 0 16px 0; }
 .closet-featured-cta{ font-family:'Manrope',sans-serif; font-weight:500; border-radius:12px; padding:12px 24px; border:1px solid var(--brand-gold); }
 
+/* Content wrapper */
+.closets-content-wrapper {
+  padding: 48px 24px 120px;
+}
+
+/* Actions */
+.closet-actions {
+  display: flex;
+  gap: 12px;
+}
+
 /* CTA */
-.closets-cta{ margin-top:80px; padding:64px 40px; background:#fff; border-radius:20px; text-align:center; box-shadow:0px 8px 24px rgba(0,0,0,0.06); }
-.closets-cta h2{ font-family:'Cormorant Garamond', serif; font-size:40px; color:var(--brand-green); margin:0 0 16px 0; }
-.closets-cta p{ font-family:'Manrope',sans-serif; font-size:18px; color:rgba(0,0,0,0.7); max-width:600px; margin:0 auto 32px; }
-.closets-cta .btn{ font-family:'Manrope',sans-serif; font-size:16px; padding:16px 48px; border-radius:16px; background:var(--brand-gold); color:#fff; }
+.closets-cta{ 
+  margin-top:80px; 
+  padding:64px 40px; 
+  background:#fff; 
+  border-radius:20px; 
+  text-align:center; 
+  box-shadow:0px 8px 24px rgba(0,0,0,0.06); 
+}
+.closets-cta-title{ 
+  font-family:'Cormorant Garamond', serif; 
+  font-size:40px; 
+  color:var(--brand-green); 
+  margin:0 0 16px 0; 
+}
+.closets-cta-description{ 
+  font-family:'Manrope', sans-serif; 
+  font-size:18px; 
+  color:rgba(0,0,0,0.7); 
+  max-width:600px; 
+  margin:0 auto 32px; 
+}
+.closets-cta-btn{ 
+  font-family:'Manrope', sans-serif; 
+  font-size:16px; 
+  padding:16px 48px; 
+  border-radius:16px; 
+  background:var(--brand-gold); 
+  color:#fff; 
+  border:none;
+  cursor:pointer;
+}
 
 /* Footer tagline */
 .closets-footer-quote{ text-align:center; padding:64px 0 0; }
 .closets-footer-quote p{ font-family:'Cormorant Garamond', serif; font-style:italic; font-size:28px; color:var(--brand-gold); margin:0; }
 
-/* Responsive grid for closets */
+/* Grid container */
+.closets-grid-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+  margin-bottom: 48px;
+}
+
+/* Pagination */
+.closets-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 48px 0;
+  flex-wrap: wrap;
+}
+
+.closets-pagination-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: 1px solid #DCD6C9;
+  background: #fff;
+  color: var(--brand-gold);
+  border-radius: 12px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.closets-pagination-btn:hover:not(:disabled) {
+  background: var(--brand-gold);
+  color: #fff;
+  border-color: var(--brand-gold);
+}
+
+.closets-pagination-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.closets-pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.closets-pagination-page {
+  min-width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #DCD6C9;
+  background: #fff;
+  color: var(--brand-gold);
+  border-radius: 8px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.closets-pagination-page:hover {
+  background: rgba(159, 129, 81, 0.1);
+  border-color: var(--brand-gold);
+}
+
+.closets-pagination-page.active {
+  background: var(--brand-gold);
+  color: #fff;
+  border-color: var(--brand-gold);
+}
+
+.closets-pagination-ellipsis {
+  padding: 0 8px;
+  color: var(--brand-gold);
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+  .closets-page-header {
+    padding: 40px 20px 28px;
+  }
+  
+  .closets-header-inner {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 1024px) {
   .closets-grid-container {
     grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px;
+  }
+  
+  .closets-page-header {
+    padding: 36px 20px 24px;
+  }
+  
+  .closets-h1 {
+    font-size: 40px;
+  }
+  
+  .closets-sub {
+    font-size: 16px;
   }
 }
 
 @media (max-width: 768px) {
   .closets-grid-container {
     grid-template-columns: 1fr !important;
+    gap: 24px;
+  }
+  
+  .closets-page-header {
+    padding: 32px 16px 20px;
+  }
+  
+  .closets-h1 {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  
+  .closets-sub {
+    font-size: 15px;
+    margin-bottom: 20px;
+  }
+  
+  .closets-filters {
+    gap: 8px;
+    margin-bottom: 40px;
+    padding: 0 8px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  
+  .closets-pagination {
+    gap: 8px;
+    margin: 32px 0;
+  }
+  
+  .closets-pagination-btn {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .closets-pagination-btn span {
+    display: none;
+  }
+  
+  .closets-pagination-page {
+    min-width: 36px;
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .closets-pagination-pages {
+    gap: 4px;
+  }
+  
+  .closets-filter-btn {
+    font-size: 13px;
+    padding: 8px 16px;
+    border-radius: 20px;
+  }
+  
+  .closet-card-content {
+    padding: 20px;
+  }
+  
+  .closet-tagline {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  
+  .closet-stats-row {
+    gap: 16px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+  }
+  
+  .closet-stat {
+    font-size: 13px;
+  }
+  
+  .closet-stat span {
+    font-size: 13px;
+  }
+  
+  .closet-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .closet-action-primary,
+  .closet-action-follow {
+    width: 100%;
+    padding: 12px 20px;
+  }
+  
+  .closet-cover-overlay {
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    gap: 10px;
+  }
+  
+  .closet-profile-bubble {
+    width: 56px;
+    height: 56px;
+    font-size: 20px;
+  }
+  
+  .closet-featured-quote {
+    font-size: 20px;
+  }
+  
+  .closets-cta {
+    margin-top: 48px;
+    padding: 40px 24px;
+  }
+  
+  .closets-cta-title {
+    font-size: 32px;
+  }
+  
+  .closets-cta-description {
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .closets-cta-btn {
+    padding: 14px 32px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .closets-page-header {
+    padding: 24px 12px 16px;
+  }
+  
+  .closets-h1 {
+    font-size: 32px;
+  }
+  
+  .closets-sub {
+    font-size: 14px;
+  }
+  
+  .closets-filters {
+    gap: 6px;
+    margin-bottom: 32px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  
+  .closets-pagination {
+    gap: 6px;
+    margin: 24px 0;
+  }
+  
+  .closets-pagination-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .closets-pagination-page {
+    min-width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .closets-filter-btn {
+    font-size: 12px;
+    padding: 6px 12px;
+  }
+  
+  .closet-card-content {
+    padding: 16px;
+  }
+  
+  .closet-tagline {
+    font-size: 12px;
+    margin-bottom: 12px;
+  }
+  
+  .closet-stats-row {
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .closet-stat {
+    font-size: 12px;
+  }
+  
+  .closet-stat span {
+    font-size: 12px;
+  }
+  
+  .closet-actions button {
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+  
+  .closet-cover-overlay {
+    bottom: 12px;
+    left: 12px;
+    right: 12px;
+    gap: 8px;
+  }
+  
+  .closet-profile-bubble {
+    width: 48px;
+    height: 48px;
+    font-size: 18px;
+  }
+  
+  .closet-featured-quote {
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+  
+  /* CTA section responsive */
+  .closets-cta {
+    margin-top: 48px;
+    padding: 40px 24px;
+  }
+  
+  .closets-cta-title {
+    font-size: 28px;
+  }
+  
+  .closets-cta-description {
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .closets-cta-btn {
+    padding: 14px 32px;
+    font-size: 14px;
+  }
+}
+
+/* Responsive content wrapper */
+@media (max-width: 768px) {
+  .closets-content-wrapper {
+    padding: 32px 16px 80px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .closets-content-wrapper {
+    padding: 24px 12px 60px !important;
   }
 }
 

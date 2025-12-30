@@ -728,25 +728,12 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
             transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
           >
             {/* Title */}
-            <h1 style={{
-              fontFamily: 'Cormorant Garamond, serif',
-              fontSize: '32px',
-              fontWeight: 600,
-              color: '#0A4834',
-              marginBottom: '16px',
-              lineHeight: '40px',
-            }}>
+            <h1 className="product-title-large">
               {productTitle}
             </h1>
 
             {/* Price */}
-            <div style={{
-              fontFamily: 'Manrope, sans-serif',
-              fontSize: '20px',
-              fontWeight: 500,
-              color: '#9F8151',
-              marginBottom: '24px',
-            }}>
+            <div className="product-price">
               {productPrice}
             </div>
 
@@ -967,142 +954,42 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
             marginTop: '80px',
           }}
         >
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '32px',
-          }}>
+          <div className="info-grid">
             {/* Delivery */}
-            <div style={{
-              backgroundColor: '#F0ECE3',
-              borderRadius: '12px',
-              padding: '32px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-            }}>
-              <div style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(10, 72, 52, 0.06)',
-                border: '1px solid rgba(10, 72, 52, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '20px',
-              }}>
+            <div className="info-card">
+              <div className="info-icon">
                 <Package size={36} strokeWidth={1.5} stroke="#9F8151" />
               </div>
-              <div style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                fontSize: '20px',
-                fontWeight: 600,
-                color: '#0A4834',
-                marginBottom: '8px',
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="info-title">
                 {t.product.standardDelivery}
               </div>
-              <div style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#000000',
-                opacity: 0.65,
-                lineHeight: '22px',
-              }}>
+              <div className="info-desc">
                 {t.product.standardDeliveryDesc}
               </div>
             </div>
 
             {/* Returns */}
-            <div style={{
-              backgroundColor: '#F0ECE3',
-              borderRadius: '12px',
-              padding: '32px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-            }}>
-              <div style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(10, 72, 52, 0.06)',
-                border: '1px solid rgba(10, 72, 52, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '20px',
-              }}>
+            <div className="info-card">
+              <div className="info-icon">
                 <RotateCcw size={36} strokeWidth={1.5} stroke="#9F8151" />
               </div>
-              <div style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                fontSize: '20px',
-                fontWeight: 600,
-                color: '#0A4834',
-                marginBottom: '8px',
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="info-title">
                 {t.product.easyReturns}
               </div>
-              <div style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#000000',
-                opacity: 0.65,
-                lineHeight: '22px',
-              }}>
+              <div className="info-desc">
                 {t.product.easyReturnsDesc}
               </div>
             </div>
 
             {/* Sustainability */}
-            <div style={{
-              backgroundColor: '#F0ECE3',
-              borderRadius: '12px',
-              padding: '32px 24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              transition: 'all 0.3s ease',
-            }}>
-              <div style={{
-                width: '72px',
-                height: '72px',
-                borderRadius: '50%',
-                backgroundColor: 'rgba(10, 72, 52, 0.06)',
-                border: '1px solid rgba(10, 72, 52, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '20px',
-              }}>
+            <div className="info-card">
+              <div className="info-icon">
                 <Leaf size={36} strokeWidth={1.5} stroke="#9F8151" />
               </div>
-              <div style={{
-                fontFamily: 'Cormorant Garamond, serif',
-                fontSize: '20px',
-                fontWeight: 600,
-                color: '#0A4834',
-                marginBottom: '8px',
-                letterSpacing: '-0.3px',
-              }}>
+              <div className="info-title">
                 {t.product.circularFashion}
               </div>
-              <div style={{
-                fontFamily: 'Manrope, sans-serif',
-                fontSize: '14px',
-                color: '#000000',
-                opacity: 0.65,
-                lineHeight: '22px',
-              }}>
+              <div className="info-desc">
                 {t.product.circularFashionDesc}
               </div>
             </div>
@@ -1116,28 +1003,14 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
         viewport={{ once: true, margin: '-100px' }}
-        style={{
-          backgroundColor: '#F0ECE3',
-          padding: '120px 64px',
-        }}
+        className="similar-section"
       >
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          <h2 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '32px',
-            fontWeight: 600,
-            color: '#0A4834',
-            marginBottom: '48px',
-            textAlign: 'center',
-          }}>
+        <div className="similar-inner">
+          <h2 className="similar-section-title">
             {t.product.youMayAlsoLike}
           </h2>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '32px',
-          }}>
+          <div className="similar-grid">
             {similarItems.map((item) => (
               <motion.div
                 key={item.id}
@@ -1234,37 +1107,18 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
         viewport={{ once: true, margin: '-100px' }}
-        style={{
-          backgroundColor: '#FFFFFF',
-          padding: '120px 64px',
-        }}
+        className="same-closet-section"
       >
-        <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
-          <h2 style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '32px',
-            fontWeight: 600,
-            color: '#0A4834',
-            marginBottom: '16px',
-          }}>
+        <div className="same-closet-inner">
+          <h2 className="same-closet-title">
             {t.product.fromSameCloset}
           </h2>
 
-          <p style={{
-            fontFamily: 'Manrope, sans-serif',
-            fontSize: '16px',
-            color: '#666',
-            marginBottom: '48px',
-          }}>
+          <p className="same-closet-subtitle">
             {t.product.moreFromSeller.replace('{seller}', sellerName.split(' ')[0])}
           </p>
 
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '24px',
-            marginBottom: '48px',
-          }}>
+          <div className="same-closet-grid">
             {sameClosetItems.map((item) => (
               <motion.div
                 key={item.id}
@@ -1343,24 +1197,10 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
         viewport={{ once: true, margin: '-100px' }}
-        style={{
-          backgroundColor: '#F0ECE3',
-          padding: '120px 64px',
-        }}
+        className="engagement-cta"
       >
-        <div style={{
-          maxWidth: '800px',
-          margin: '0 auto',
-          textAlign: 'center',
-        }}>
-          <div style={{
-            fontFamily: 'Cormorant Garamond, serif',
-            fontSize: '32px',
-            fontStyle: 'italic',
-            color: '#9F8151',
-            marginBottom: '48px',
-            lineHeight: '44px',
-          }}>
+        <div className="cta-inner">
+          <div className="engagement-cta-quote">
             "Fashion has memory."
           </div>
 

@@ -118,43 +118,6 @@ export const translations = {
       pleaseAcceptTerms: 'Please accept the terms and confirm your age.',
     },
     
-    // Seller Onboarding
-    onboarding: {
-      step1: {
-        title: 'Welcome to Ministry',
-        subtitle: 'Become Part of Ministry Sellers',
-        description: 'Join the circle of curated closets and sell with style.',
-        startButton: 'Start Application',
-      },
-      step2: {
-        title: 'Personal Information',
-        fullName: 'Full Name',
-        email: 'Email Address',
-        phone: 'Phone Number',
-        city: 'City / Country',
-        bio: 'Short Bio',
-        bioPlaceholder: 'Describe your style...',
-        socialLink: 'Instagram / TikTok Link',
-        socialPlaceholder: '@yourhandle',
-        terms: 'I agree to Ministry\'s terms and privacy policy',
-        ageConfirm: 'I confirm I am over 18 years old',
-        continueButton: 'Continue → Subscription',
-        backButton: 'Back',
-      },
-      step3: {
-        title: 'Activate Your Seller Profile',
-        description: 'To complete your application, a one-time subscription of €2 is required. This covers listing verification and community maintenance.',
-        payButton: 'Pay and Activate',
-        backButton: 'Back',
-      },
-      success: {
-        title: 'Welcome to Ministry Sellers Circle ✨',
-        message: 'Your subscription is confirmed. You can now publish pieces to your closet.',
-        goToCloset: 'Go to My Closet →',
-        backHome: 'Back to Home',
-      },
-    },
-    
     // Journal
     journal: {
       title: 'The Journal',

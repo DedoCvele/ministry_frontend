@@ -248,6 +248,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
             {t.shopFinds.label}
           </p>
           <h2
+            className="shop-finds-title"
             style={{
               fontFamily: 'Cormorant Garamond, serif',
               fontSize: '64px',
@@ -261,6 +262,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
             {t.shopFinds.title}
           </h2>
           <p
+            className="shop-finds-subtitle"
             style={{
               fontFamily: 'Manrope, sans-serif',
               fontSize: '16px',
@@ -277,6 +279,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
 
         {/* Products Grid */}
         <div
+          className="shop-finds-grid"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -329,6 +332,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
                   <ImageWithFallback
                     src={product.image}
                     alt={product.title}
+                    className="shop-finds-product-image"
                     style={{
                       width: '100%',
                       height: '380px',
@@ -471,6 +475,67 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
           </motion.button>
         </div>
       </div>
+      
+      <style>{`
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+          .shop-finds-title {
+            font-size: 42px !important;
+            line-height: 50px !important;
+            margin-bottom: 12px !important;
+          }
+
+          .shop-finds-subtitle {
+            font-size: 14px !important;
+            line-height: 24px !important;
+          }
+
+          .shop-finds-grid {
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+            gap: 24px !important;
+            margin-bottom: 48px !important;
+          }
+
+          .shop-finds-product-image {
+            height: 300px !important;
+          }
+
+          section[class*="py-32"] {
+            padding-top: 48px !important;
+            padding-bottom: 48px !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .shop-finds-title {
+            font-size: 32px !important;
+            line-height: 40px !important;
+          }
+
+          .shop-finds-subtitle {
+            font-size: 13px !important;
+            line-height: 22px !important;
+          }
+
+          .shop-finds-grid {
+            grid-template-columns: 1fr !important;
+            gap: 20px !important;
+          }
+
+          .shop-finds-product-image {
+            height: 280px !important;
+          }
+
+          section[class*="py-32"] {
+            padding-top: 32px !important;
+            padding-bottom: 32px !important;
+            padding-left: 12px !important;
+            padding-right: 12px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

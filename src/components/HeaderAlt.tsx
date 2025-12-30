@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User } from "lucide-react";
+import { User, Menu, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +25,7 @@ export function HeaderAlt({
 }: HeaderAltProps = {}) {
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const { language: contextLanguage, toggleLanguage } = useLanguage();
@@ -104,6 +105,33 @@ export function HeaderAlt({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
+  // Prevent body scroll when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (mobileMenuOpen && !target.closest('.header-root') && !target.closest('.mobile-menu-overlay')) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    if (mobileMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [mobileMenuOpen]);
+
   return (
     <>
       <style>{`
@@ -145,25 +173,27 @@ export function HeaderAlt({
         <header 
           className={`header-root header-blur-alt collapsible-header ${!isVisible ? 'hidden' : ''}`}
         >
-          <div className="container mx-auto px-8" style={{ height: '80px' }}>
+          <div className="container mx-auto px-8 header-container">
             <nav className="flex items-center justify-between h-full relative z-10">
               {/* Logo - Far Left */}
               <div className="flex items-center">
                 <Link 
                   to="/"
                   className="header-logo"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   MINISTRY
                 </Link>
               </div>
 
-              {/* Navigation Links - Right Side with 40px margin */}
-              <div className="flex items-center gap-12" style={{ marginRight: '40px' }}>
+              {/* Navigation Links - Desktop Only */}
+              <div className="hidden md:flex items-center gap-12" style={{ marginRight: '40px' }}>
                 <ul className="flex items-center gap-8">
                   <li>
                     <Link
                       to="/shop"
                       className="nav-link-alt"
+                      onClick={handleShopClick}
                     >
                       {t.nav.shop}
                     </Link>
@@ -172,6 +202,7 @@ export function HeaderAlt({
                     <Link
                       to="/closets"
                       className="nav-link-alt"
+                      onClick={handleClosetsClick}
                     >
                       {t.nav.closets}
                     </Link>
@@ -180,6 +211,7 @@ export function HeaderAlt({
                     <Link
                       to="/blog"
                       className="nav-link-alt"
+                      onClick={handleJournalClick}
                     >
                       {t.nav.journal}
                     </Link>
@@ -188,6 +220,7 @@ export function HeaderAlt({
                     <Link
                       to="/become-seller"
                       className="nav-link-alt-becomeseller"
+                      onClick={handleBecomeSellerClick}
                     >
                       {t.nav.becomeSeller}
                     </Link>
@@ -195,12 +228,12 @@ export function HeaderAlt({
                 </ul>
               </div>
 
-              {/* Account Icon - Far Right */}
+              {/* Account Icon & Mobile Menu Button - Far Right */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                {/* Language Switcher */}
+                {/* Language Switcher - Desktop Only */}
                 <button
                   onClick={handleLanguageToggle}
-                  className="header-language-btn"
+                  className="header-language-btn hidden md:block"
                   aria-label="Switch language"
                   type="button"
                 >
@@ -215,8 +248,78 @@ export function HeaderAlt({
                 >
                   <User size={22} strokeWidth={1.5} />
                 </button>
+
+                {/* Mobile Menu Button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="mobile-menu-button md:hidden"
+                  aria-label="Toggle menu"
+                  type="button"
+                >
+                  {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+                </button>
               </div>
             </nav>
+          </div>
+          
+          {/* Mobile Menu Overlay */}
+          <div className={`mobile-menu-overlay md:hidden ${mobileMenuOpen ? 'open' : ''}`}>
+            <div className="mobile-menu-content">
+              <Link
+                to="/shop"
+                className="nav-link-alt"
+                onClick={() => {
+                  handleShopClick();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.shop}
+              </Link>
+              <Link
+                to="/closets"
+                className="nav-link-alt"
+                onClick={() => {
+                  handleClosetsClick();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.closets}
+              </Link>
+              <Link
+                to="/blog"
+                className="nav-link-alt"
+                onClick={() => {
+                  handleJournalClick();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.journal}
+              </Link>
+              <Link
+                to="/become-seller"
+                className="nav-link-alt-becomeseller"
+                onClick={() => {
+                  handleBecomeSellerClick();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.becomeSeller}
+              </Link>
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(10, 72, 52, 0.1)' }}>
+                <button
+                  onClick={() => {
+                    handleLanguageToggle();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="header-language-btn"
+                  aria-label="Switch language"
+                  type="button"
+                  style={{ width: '100%', textAlign: 'left' }}
+                >
+                  {contextLanguage === 'en' ? 'MKD' : 'ENG'}
+                </button>
+              </div>
+            </div>
           </div>
         </header>
         {/* Spacer to prevent content overlap */}

@@ -176,3 +176,149 @@
   opacity: 1 !important;
   transform: translateX(2px);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .footer-root {
+    padding: 48px 16px 32px !important;
+  }
+
+  .footer-newsletter-box {
+    padding: 32px 24px !important;
+    margin-bottom: 32px !important;
+  }
+
+  .footer-newsletter-title {
+    font-size: 24px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .footer-newsletter-desc {
+    font-size: 14px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .footer-newsletter-btn {
+    font-size: 14px !important;
+    padding: 12px 28px !important;
+    width: 100%;
+    max-width: 300px;
+  }
+
+  .footer-seller-box {
+    padding: 24px 20px !important;
+    margin-bottom: 32px !important;
+  }
+
+  .footer-seller-text {
+    font-size: 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .footer-seller-btn {
+    font-size: 14px !important;
+    padding: 8px 24px !important;
+  }
+
+  .footer-brand-title {
+    font-size: 24px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .footer-brand-desc {
+    font-size: 13px !important;
+    line-height: 20px !important;
+  }
+
+  .footer-section-header {
+    font-size: 11px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .footer-link {
+    font-size: 13px !important;
+  }
+
+  .footer-email {
+    font-size: 12px !important;
+  }
+
+  .footer-copyright {
+    font-size: 11px !important;
+  }
+
+  .footer-bottom-link {
+    font-size: 11px !important;
+  }
+
+  /* Grid layout on mobile: Brand full width, Explore and Connect side by side */
+  .footer-root .grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 24px 16px !important;
+    margin-bottom: 32px !important;
+  }
+
+  /* Brand takes full width (spans both columns) */
+  .footer-root .grid > div:first-child {
+    grid-column: 1 / -1;
+    margin-bottom: 8px;
+  }
+
+  /* Explore and Connect each take one column */
+  .footer-root .grid > div:nth-child(2),
+  .footer-root .grid > div:nth-child(3) {
+    width: 100%;
+  }
+
+  .footer-root .flex.flex-col.md\\:flex-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 16px !important;
+  }
+
+  .footer-root .flex.items-center.gap-6 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-root {
+    padding: 32px 12px 24px !important;
+  }
+
+  .footer-newsletter-box {
+    padding: 24px 16px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .footer-newsletter-title {
+    font-size: 20px !important;
+  }
+
+  .footer-newsletter-desc {
+    font-size: 13px !important;
+  }
+
+  .footer-seller-box {
+    padding: 20px 16px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .footer-brand-title {
+    font-size: 20px !important;
+  }
+
+  .footer-brand-desc {
+    font-size: 12px !important;
+  }
+
+  /* Keep Explore and Connect side by side on small mobile too */
+  .footer-root .grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px 12px !important;
+  }
+}

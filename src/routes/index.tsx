@@ -143,7 +143,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'become-seller',
-        element: <BecomeSellerOnboarding language="en" onClose={() => '/'} onSuccess={() => '/profile'} />,
+        element: <BecomeSellerOnboarding />,
       },
       {
         path: 'coming-soon',
