@@ -144,6 +144,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     writeToStorage(STORAGE_KEYS.users, users);
   }, [users]);
 
+  // Refresh user profile on app load if user is logged in
+  useEffect(() => {
+    const refreshUserProfile = async () => {
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      const storedUser = readFromStorage<AuthUser | null>(STORAGE_KEYS.currentUser, null);
+      
+      // If we have a token and a stored user, refresh the profile to get accurate role
+      if (token && storedUser) {
+        try {
+          // Get CSRF cookie first
+          await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
+            withCredentials: true,
+          });
+
+          const profileResponse = await axios.get(`${API_BASE_URL}/profile`, {
+            withCredentials: true,
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+          });
+          
+          const profileUser = profileResponse.data?.user || profileResponse.data?.data?.user || profileResponse.data;
+          // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
+          const userRole = profileUser?.role;
+          const isAdmin = userRole === 1 || userRole === '1';
+          
+          // Update user with correct role from backend
+          const updatedUser: AuthUser = {
+            username: profileUser?.email || storedUser.username,
+            role: isAdmin ? 'admin' : 'user',
+            firstName: profileUser?.name?.split(' ')[0] || profileUser?.first_name || profileUser?.firstName || storedUser.firstName,
+            lastName: profileUser?.name?.split(' ').slice(1).join(' ') || profileUser?.last_name || profileUser?.lastName || storedUser.lastName,
+          };
+          
+          // Always update to ensure we have the latest role from backend
+          setCurrentUser(updatedUser);
+          writeToStorage(STORAGE_KEYS.currentUser, updatedUser);
+        } catch (error) {
+          console.warn('Could not refresh user profile on app load:', error);
+          // If profile fetch fails (e.g., token expired), clear user
+          if (error && typeof error === 'object' && 'response' in error && (error as any).response?.status === 401) {
+            console.log('Token expired, clearing user');
+            setCurrentUser(null);
+            writeToStorage(STORAGE_KEYS.currentUser, null);
+            if (typeof window !== 'undefined') {
+              window.localStorage.removeItem('auth_token');
+            }
+          }
+        }
+      }
+    };
+
+    refreshUserProfile();
+  }, []); // Run once on mount
+
   const persistCurrent = useCallback((user: AuthUser | null) => {
     setCurrentUser(user);
     writeToStorage(STORAGE_KEYS.currentUser, user);
@@ -191,14 +247,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           window.localStorage.setItem('auth_token', token);
         }
 
+        // Fetch user profile to get accurate role information
+        // The profile endpoint returns the most up-to-date user data including role
+        let profileUser = apiUser;
+        try {
+          const profileResponse = await axios.get(`${API_BASE_URL}/profile`, {
+            withCredentials: true,
+            headers: {
+              'Accept': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            },
+          });
+          
+          // Profile endpoint returns { status: 'success', user: {...} } or just user object
+          profileUser = profileResponse.data?.user || profileResponse.data?.data?.user || profileResponse.data || apiUser;
+        } catch (profileError) {
+          console.warn('Could not fetch user profile, using login response data:', profileError);
+          // Continue with apiUser from login response
+        }
+
         // Create AuthUser from API response (use backend data as source of truth)
-        // Handle different possible field names for role
-        const userRole = apiUser?.role || apiUser?.user_role || 'user';
+        // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
+        const userRole = profileUser?.role || apiUser?.role;
+        // Convert integer role to frontend role string
+        // role === 1 means admin, anything else is 'user'
+        const isAdmin = userRole === 1 || userRole === '1';
         const authUser: AuthUser = {
-          username: apiUser?.email || apiUser?.username || trimmedUser,
-          role: (userRole === 'admin' || userRole === 'Admin' || userRole === 'ADMIN') ? 'admin' : 'user',
-          firstName: apiUser?.name?.split(' ')[0] || apiUser?.first_name || apiUser?.firstName || undefined,
-          lastName: apiUser?.name?.split(' ').slice(1).join(' ') || apiUser?.last_name || apiUser?.lastName || undefined,
+          username: profileUser?.email || apiUser?.email || profileUser?.username || apiUser?.username || trimmedUser,
+          role: isAdmin ? 'admin' : 'user',
+          firstName: profileUser?.name?.split(' ')[0] || apiUser?.name?.split(' ')[0] || profileUser?.first_name || apiUser?.first_name || profileUser?.firstName || apiUser?.firstName || undefined,
+          lastName: profileUser?.name?.split(' ').slice(1).join(' ') || apiUser?.name?.split(' ').slice(1).join(' ') || profileUser?.last_name || apiUser?.last_name || profileUser?.lastName || apiUser?.lastName || undefined,
         };
 
         // Update local storage with the correct user data
@@ -324,9 +402,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Create AuthUser from API response
+        // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
+        const userRole = apiUser?.role;
+        const isAdmin = userRole === 1 || userRole === '1';
         const newAuthUser: AuthUser = {
           username: apiUser.email || trimmedUser,
-          role: apiUser.role === 'admin' ? 'admin' : 'user',
+          role: isAdmin ? 'admin' : 'user',
           firstName: firstName || apiUser.name?.split(' ')[0],
           lastName: lastName || apiUser.name?.split(' ').slice(1).join(' '),
         };

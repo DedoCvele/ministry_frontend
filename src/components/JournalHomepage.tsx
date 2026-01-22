@@ -20,8 +20,10 @@ import {
 } from './ui/pagination';
 import './styles/JournalHomepage.css';
 
-const API_BASE_URL = 'http://localhost:8000/api';
-const BACKEND_BASE_URL = 'http://localhost:8000';
+// Use environment variables for API configuration, consistent with other components
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+const BACKEND_BASE_URL = API_ROOT;
 
 interface Blog {
   id: number;
@@ -168,27 +170,58 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
     const fetchBlogs = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/blogs`);
+        setError(null);
         
+        const response = await axios.get(`${API_BASE_URL}/blogs`, {
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        // Handle different response structures
         if (response.data.status === 'success' && response.data.data) {
           const blogs: Blog[] = response.data.data;
           // Filter only published blogs
           const publishedBlogs = blogs.filter(blog => blog.status === 'published');
           const mappedArticles = publishedBlogs.map(mapBlogToArticle);
           setArticles(mappedArticles);
+        } else if (Array.isArray(response.data)) {
+          // Handle case where API returns array directly
+          const blogs: Blog[] = response.data;
+          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
+          setArticles(mappedArticles);
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          // Handle case where data is nested
+          const blogs: Blog[] = response.data.data;
+          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
+          setArticles(mappedArticles);
         } else {
+          console.warn('Unexpected API response structure:', response.data);
           setError(t.journal.homepage.failedToLoad);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching blogs:', err);
-        setError(t.journal.homepage.failedToLoadDesc);
+        if (err.response) {
+          // API responded with error status
+          console.error('API Error:', err.response.status, err.response.data);
+          setError(t.journal.homepage.failedToLoadDesc);
+        } else if (err.request) {
+          // Request was made but no response received
+          console.error('Network Error: No response from server');
+          setError('Unable to connect to server. Please check your connection.');
+        } else {
+          // Something else happened
+          setError(t.journal.homepage.failedToLoadDesc);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchBlogs();
-  }, []);
+  }, [t.journal.homepage.failedToLoad, t.journal.homepage.failedToLoadDesc]);
 
   // Extract unique categories from articles
   const categories = [t.journal.homepage.all, ...Array.from(new Set(articles.map(article => article.category).filter(Boolean)))];

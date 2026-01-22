@@ -254,21 +254,21 @@ export function AdminPage() {
     try {
       setLoadingItems(true);
       
-      // Get CSRF cookie first
-      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
       
-      const response = await axios.get(`${API_BASE_URL}/items`, {
-        params: { approved: approvalLevel },
-        withCredentials: true,
-        headers: {
-          'Accept': 'application/json',
-          ...(getAuthToken() ? { 'Authorization': `Bearer ${getAuthToken()}` } : {}),
-        },
-      });
+      const cfg = getAuthConfig(); // Authorization: Bearer <token>, Accept: application/json
+      let response: { data: any };
+      try {
+        // Prefer GET /api/admin/items (returns pending for admins). Fallback to /api/items if 404/405.
+        response = await axios.get(`${API_BASE_URL}/admin/items`, { params: { approved: approvalLevel }, ...cfg });
+      } catch (e: any) {
+        if (e?.response?.status === 404 || e?.response?.status === 405) {
+          response = await axios.get(`${API_BASE_URL}/items`, { params: { approved: approvalLevel }, ...cfg });
+        } else {
+          throw e;
+        }
+      }
       
-      // Handle different response structures
       let items = response.data;
       if (response.data && response.data.data && Array.isArray(response.data.data)) {
         items = response.data.data;
@@ -405,40 +405,25 @@ export function AdminPage() {
     try {
       setLoadingUsers(true);
       
-      // Get CSRF cookie first
-      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
-      
-      // Note: There's no /api/users endpoint. We extract users from items as a workaround.
-      // Ask backend to create GET /api/users or GET /api/admin/users endpoint for proper implementation.
-      const response = await axios.get(`${API_BASE_URL}/items`, getAuthConfig());
-      
-      // Handle different response structures
-      let itemsData = response.data;
-      if (response.data && response.data.data && Array.isArray(response.data.data)) {
-        itemsData = response.data.data;
-      } else if (response.data && Array.isArray(response.data)) {
-        itemsData = response.data;
+      // Use the same endpoint as ClosetsPage: /api/closets
+      const response = await fetch(`${API_BASE_URL}/closets`);
+      const data = await response.json();
+
+      if (data.closets && Array.isArray(data.closets)) {
+        // Map closets to UserData format
+        const usersData: UserData[] = data.closets.map((closet: any) => ({
+          id: closet.id,
+          name: closet.name || 'Unknown',
+          email: closet.email || '',
+          username: closet.username || '',
+          created_at: closet.created_at,
+        }));
+        
+        setUsers(usersData);
       } else {
-        itemsData = [];
+        console.warn('Unexpected closets response structure:', data);
+        setUsers([]);
       }
-      
-      // Extract unique users from items
-      const userMap = new Map<number, UserData>();
-      itemsData.forEach((item: any) => {
-        if (item.user && item.user.id && !userMap.has(item.user.id)) {
-          userMap.set(item.user.id, {
-            id: item.user.id,
-            name: item.user.name || 'Unknown',
-            email: item.user.email || '',
-            username: item.user.username,
-            created_at: item.user.created_at,
-          });
-        }
-      });
-      
-      setUsers(Array.from(userMap.values()));
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Failed to load users', {
@@ -449,6 +434,7 @@ export function AdminPage() {
           fontFamily: 'Manrope, sans-serif',
         },
       });
+      setUsers([]);
     } finally {
       setLoadingUsers(false);
     }
@@ -493,36 +479,70 @@ export function AdminPage() {
     );
   }, [users, userQuery]);
 
+  // Backend / APPROVAL_DOC compliance:
+  // - Never use GET /api/items/{id} in Admin; use GET /api/admin/items/{id} with Authorization + Accept: application/json.
+  // - PUT /api/items/{id}: send Content-Type: application/json, Authorization: Bearer <token>, and only { "approved": 1|2|3 } for approval-only.
+  // - Do not send nested brand/category/user; use category_id / brand_id when updating those.
+  // - Prefer PUT /api/admin/approve/{id} and PUT /api/admin/decline/{id} for approve/decline.
   const updateItemApproval = async (id: string, newApprovalLevel: number, successMessage: string) => {
-    try {
-      // Get CSRF cookie first
-      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
-      
-      // Fetch current item data first to preserve fields
-      let currentItem: any = null;
+    const config = getAuthConfig(); // Authorization: Bearer, Accept + Content-Type: application/json
+
+    const doPutItems = (payload: { approved: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
+      axios.put(`${API_BASE_URL}/items/${id}`, payload, config);
+
+    const run = async (): Promise<void> => {
+      await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+
+      if (newApprovalLevel === 2) {
+        try {
+          await axios.put(`${API_BASE_URL}/admin/approve/${id}`, {}, config);
+          return;
+        } catch (e: any) {
+          if (e?.response?.status === 404 || e?.response?.status === 405) {
+            await doPutItems({ approved: 2 });
+            return;
+          }
+          throw e;
+        }
+      }
+      if (newApprovalLevel === 1) {
+        try {
+          await axios.put(`${API_BASE_URL}/admin/decline/${id}`, {}, config);
+          return;
+        } catch (e: any) {
+          if (e?.response?.status === 404 || e?.response?.status === 405) {
+            await doPutItems({ approved: 1 });
+            return;
+          }
+          throw e;
+        }
+      }
+
+      // Featured (3) or demote to approved (2): PUT /api/items/{id} with only { "approved": N }
       try {
-        const itemResponse = await axios.get(`${API_BASE_URL}/items/${id}`, getAuthConfig());
-        currentItem = itemResponse.data?.data || itemResponse.data;
-      } catch (fetchError) {
-        console.error('Could not fetch current item data:', fetchError);
+        await doPutItems({ approved: newApprovalLevel });
+        return;
+      } catch (e: any) {
+        if (e?.response?.status !== 500) throw e;
+        // 500 on minimal payload: fetch via GET /api/admin/items/{id} then retry with category_id/brand_id (no nested objects).
+        const res = await axios.get(`${API_BASE_URL}/admin/items/${id}`, config);
+        const raw = res?.data?.data ?? res?.data;
+        const name = raw?.name ?? raw?.title;
+        const categoryId = raw?.category_id ?? raw?.category?.id;
+        const brandId = raw?.brand_id ?? raw?.brand?.id;
+        await doPutItems({
+          approved: newApprovalLevel,
+          ...(name != null && name !== '' && { name }),
+          ...(raw?.description != null && { description: raw.description }),
+          ...(raw?.price != null && { price: Number(raw.price) }),
+          ...(categoryId != null && { category_id: Number(categoryId) }),
+          ...(brandId != null && { brand_id: Number(brandId) }),
+        });
       }
-      
-      // Build update payload
-      const updatePayload: any = { approved: newApprovalLevel };
-      
-      if (currentItem) {
-        if (currentItem.name) updatePayload.name = currentItem.name;
-        if (currentItem.title) updatePayload.title = currentItem.title;
-        if (currentItem.description) updatePayload.description = currentItem.description;
-        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
-        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
-        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
-      }
-      
-      await axios.put(`${API_BASE_URL}/items/${id}`, updatePayload, getAuthConfig());
-      
+    };
+
+    try {
+      await run();
       toast.success(successMessage, {
         style: {
           background: '#FFFFFF',
@@ -531,19 +551,13 @@ export function AdminPage() {
           fontFamily: 'Manrope, sans-serif',
         },
       });
-      
-      // Refresh the current tab's items
-      if (approveSubTab === 'pending') {
-        fetchItemsByApproval(1, setPendingItems);
-      } else if (approveSubTab === 'approved') {
-        fetchItemsByApproval(2, setApprovedItems);
-      } else if (approveSubTab === 'featured') {
-        fetchItemsByApproval(3, setFeaturedItems);
-      }
-      
+      if (approveSubTab === 'pending') fetchItemsByApproval(1, setPendingItems);
+      else if (approveSubTab === 'approved') fetchItemsByApproval(2, setApprovedItems);
+      else if (approveSubTab === 'featured') fetchItemsByApproval(3, setFeaturedItems);
     } catch (error: any) {
-      console.error('Error updating item approval:', error);
-      toast.error('Failed to update item', {
+      const msg = error?.response?.data?.message ?? error?.response?.data?.error ?? error?.message;
+      console.error('Error updating item approval:', error?.response?.data ?? error);
+      toast.error(msg && typeof msg === 'string' ? msg : 'Failed to update item', {
         style: {
           background: '#FFFFFF',
           color: '#0A4834',
@@ -1725,7 +1739,7 @@ export function AdminPage() {
                           key={u.id}
                           whileHover={{ scale: 1.02, y: -4 }}
                           whileTap={{ scale: 0.98 }}
-                          onClick={() => navigate(`/closet/${u.id}`)}
+                          onClick={() => navigate(`/closets/${u.id}`)}
                           style={{
                             backgroundColor: '#FFFFFF',
                             borderRadius: '16px',
