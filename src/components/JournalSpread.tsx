@@ -1,66 +1,136 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
 import './styles/JournalSpread.css';
 
+// Use environment variables for API configuration, consistent with other components
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+const BACKEND_BASE_URL = API_ROOT;
+
 interface JournalSpreadProps {
 }
 
+interface Blog {
+  id: number;
+  title: string;
+  category: string;
+  short_summary: string;
+  full_story: string;
+  image_url: string;
+  user_id: number;
+  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
+  created_at: string;
+  updated_at: string;
+}
+
+interface Article {
+  id: number;
+  category: string;
+  title: string;
+  excerpt: string;
+  readTime: string;
+  image: string;
+  alignment: 'left' | 'right';
+}
+
+// Helper function to validate and fix URLs
+const validateAndFixUrl = (url: string | null | undefined): string => {
+  if (!url || url.trim() === '') {
+    return 'https://images.unsplash.com/photo-1583660756881-5b58510d41fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwY2xvdGhpbmclMjBzdXN0YWluYWJsZXxlbnwxfHx8fDE3NjEwNTg2Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080';
+  }
+  
+  const trimmedUrl = url.trim();
+  
+  // If it's already a full URL (http:// or https://), return as is
+  if (trimmedUrl.match(/^https?:\/\//i)) {
+    return trimmedUrl;
+  }
+  
+  // If it starts with storage/ or is a relative path, prepend backend URL
+  if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+  
+  // If it starts with //, add https:
+  if (trimmedUrl.startsWith('//')) {
+    return `https:${trimmedUrl}`;
+  }
+  
+  // Otherwise, assume it's a relative path and prepend backend URL
+  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+  return `${BACKEND_BASE_URL}${cleanPath}`;
+};
+
+// Helper function to generate random read time between 5-10 minutes
+const generateRandomReadTime = (language: string): string => {
+  const minutes = Math.floor(Math.random() * 6) + 5; // Random number between 5-10
+  return language === 'en' ? `${minutes} min read` : `${minutes} мин читање`;
+};
+
 export function JournalSpread({}: JournalSpreadProps = {}) {
   const { language } = useLanguage();
+  const navigate = useNavigate();
   const t = getTranslation(language);
   
-  const articles = language === 'en' ? [
-    {
-      category: 'Style Guide',
-      title: 'Five ways to style a vintage blazer',
-      excerpt: 'From office elegance to weekend casual, discover how one timeless piece transforms your entire wardrobe.',
-      readTime: '5 min read',
-      image: 'https://images.unsplash.com/photo-1611331827787-109e62126722?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwYmxhemVyJTIwc3R5bGV8ZW58MXx8fHwxNzYxMDc5Nzk1fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'left' as const,
-    },
-    {
-      category: 'Culture',
-      title: 'From closets to culture',
-      excerpt: 'How our community is redefining luxury through the art of pre-loved fashion.',
-      readTime: '7 min read',
-      image: 'https://images.unsplash.com/photo-1728626506957-a0bc718078dd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwc3R5bGUlMjBwaG90b2dyYXBoeXxlbnwxfHx8fDE3NjEwODMwMzl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'right' as const,
-    },
-    {
-      category: 'Philosophy',
-      title: 'Sustainability is the new luxury',
-      excerpt: 'Why choosing second-hand fashion is the most elegant statement you can make.',
-      readTime: '6 min read',
-      image: 'https://images.unsplash.com/photo-1583660756881-5b58510d41fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwY2xvdGhpbmclMjBzdXN0YWluYWJsZXxlbnwxfHx8fDE3NjEwNTg2Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'left' as const,
-    },
-  ] : [
-    {
-      category: 'Стилски Водич',
-      title: 'Пет начини да стилизирате винтиџ блејзер',
-      excerpt: 'Од канцелариска елеганција до викенд кежуал, откријте како едно невремено парче ја трансформира целата гардероба.',
-      readTime: '5 мин читање',
-      image: 'https://images.unsplash.com/photo-1611331827787-109e62126722?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwYmxhemVyJTIwc3R5bGV8ZW58MXx8fHwxNzYxMDc5Nzk1fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'left' as const,
-    },
-    {
-      category: 'Култура',
-      title: 'Од плакари до култура',
-      excerpt: 'Како нашата заедница ја редефинира луксузната мода преку уметноста на претходно носени парчиња.',
-      readTime: '7 мин читање',
-      image: 'https://images.unsplash.com/photo-1728626506957-a0bc718078dd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVnYW50JTIwc3R5bGUlMjBwaG90b2dyYXBoeXxlbnwxfHx8fDE3NjEwODMwMzl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'right' as const,
-    },
-    {
-      category: 'Филозофија',
-      title: 'Одржливоста е новиот луксуз',
-      excerpt: 'Зошто изборот на втора рака мода е најелегантната изјава што може да ја дадете.',
-      readTime: '6 мин читање',
-      image: 'https://images.unsplash.com/photo-1583660756881-5b58510d41fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwY2xvdGhpbmclMjBzdXN0YWluYWJsZXxlbnwxfHx8fDE3NjEwNTg2Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      alignment: 'left' as const,
-    },
-  ];
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch top 3 most recently added blogs
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        setLoading(true);
+        
+        const response = await axios.get(`${API_BASE_URL}/blogs`, {
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        
+        // Handle different response structures
+        let blogs: Blog[] = [];
+        if (response.data.status === 'success' && response.data.data) {
+          blogs = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          blogs = response.data;
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          blogs = response.data.data;
+        }
+        
+        // Filter only published blogs (status === 2) and sort by created_at (newest first)
+        const publishedBlogs = blogs
+          .filter(blog => blog.status === 2)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 3); // Get top 3 most recent
+        
+        // Map blogs to articles with alternating alignment
+        const mappedArticles: Article[] = publishedBlogs.map((blog, index) => ({
+          id: blog.id,
+          category: blog.category || 'Uncategorized',
+          title: blog.title,
+          excerpt: blog.short_summary || '',
+          readTime: generateRandomReadTime(language),
+          image: validateAndFixUrl(blog.image_url),
+          alignment: (index % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
+        }));
+        
+        setArticles(mappedArticles);
+      } catch (err: any) {
+        console.error('Error fetching blogs:', err);
+        // On error, set empty array (will show nothing instead of crashing)
+        setArticles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBlogs();
+  }, [language]);
 
   return (
     <>
@@ -131,39 +201,73 @@ export function JournalSpread({}: JournalSpreadProps = {}) {
           </div>
 
           {/* Articles - Alternating Layout with Spacing */}
-          <div className="journal-articles-list">
-            {articles.map((article, index) => (
-              <article 
-                key={index}
-                className={`article-container article-align-${article.alignment}`}
-              >
-                {/* Background Image - Takes 2/3 of screen with rounded corners */}
-                <div 
-                  className="article-background"
-                  style={{ backgroundImage: `url('${article.image}')` }}
-                />
+          {loading ? (
+            <div className="journal-articles-list" style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#9F8151' }}>
+                {language === 'en' ? 'Loading articles...' : 'Вчитување на статии...'}
+              </p>
+            </div>
+          ) : articles.length === 0 ? (
+            <div className="journal-articles-list" style={{ textAlign: 'center', padding: '60px 0' }}>
+              <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: '16px', color: '#9F8151' }}>
+                {language === 'en' ? 'No articles available at the moment.' : 'Моментално нема достапни статии.'}
+              </p>
+            </div>
+          ) : (
+            <div className="journal-articles-list">
+              {articles.map((article, index) => (
+                <article 
+                  key={article.id}
+                  className={`article-container article-align-${article.alignment}`}
+                  onClick={() => navigate(`/blog/${article.id}`)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  {/* Background Image - Takes 2/3 of screen with rounded corners */}
+                  <div 
+                    className="article-background"
+                    style={{ backgroundImage: `url('${article.image}')` }}
+                  />
 
-                {/* Text Overlay Box */}
-                <div className={`article-text-box article-text-box-${article.alignment}`}>
-                  <div className="article-meta">
-                    <p className="article-category">{article.category}</p>
-                    <span className="article-dot" />
-                    <p className="article-readtime">{article.readTime}</p>
+                  {/* Text Overlay Box */}
+                  <div className={`article-text-box article-text-box-${article.alignment}`}>
+                    <div className="article-meta">
+                      <p className="article-category">{article.category}</p>
+                      <span className="article-dot" />
+                      <p className="article-readtime">{article.readTime}</p>
+                    </div>
+
+                    <h3 className="article-title">{article.title}</h3>
+
+                    <p className="article-excerpt">{article.excerpt}</p>
+
+                    <a 
+                      href={`/blog/${article.id}`}
+                      className="article-link"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(`/blog/${article.id}`);
+                      }}
+                    >
+                      {t.journal.spread.readArticle}
+                    </a>
                   </div>
-
-                  <h3 className="article-title">{article.title}</h3>
-
-                  <p className="article-excerpt">{article.excerpt}</p>
-
-                  <a href="#" className="article-link">{t.journal.spread.readArticle}</a>
-                </div>
-              </article>
-            ))}
-          </div>
+                </article>
+              ))}
+            </div>
+          )}
 
           {/* View All Stories Link */}
           <div className="journal-spread-view-all">
-            <a href="#stories" className="view-all-stories">{t.journal.spread.viewAllStories}</a>
+            <a 
+              href="/blog" 
+              className="view-all-stories"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/blog');
+              }}
+            >
+              {t.journal.spread.viewAllStories}
+            </a>
           </div>
         </div>
       </section>
