@@ -27,7 +27,7 @@ interface Blog {
   content: string;
   image_url: string;
   user_id: number;
-  status: string;
+  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
   created_at: string;
   updated_at: string;
 }

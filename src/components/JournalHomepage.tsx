@@ -33,7 +33,7 @@ interface Blog {
   full_story: string;
   image_url: string;
   user_id: number;
-  status: string;
+  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
   created_at: string;
   updated_at: string;
 }
@@ -179,22 +179,23 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
         });
         
         // Handle different response structures
+        // According to API docs: status = 2 means Published (BlogStatus::Published)
         if (response.data.status === 'success' && response.data.data) {
           const blogs: Blog[] = response.data.data;
-          // Filter only published blogs
-          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          // Filter only published blogs (status === 2)
+          const publishedBlogs = blogs.filter(blog => blog.status === 2);
           const mappedArticles = publishedBlogs.map(mapBlogToArticle);
           setArticles(mappedArticles);
         } else if (Array.isArray(response.data)) {
           // Handle case where API returns array directly
           const blogs: Blog[] = response.data;
-          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          const publishedBlogs = blogs.filter(blog => blog.status === 2);
           const mappedArticles = publishedBlogs.map(mapBlogToArticle);
           setArticles(mappedArticles);
         } else if (response.data.data && Array.isArray(response.data.data)) {
           // Handle case where data is nested
           const blogs: Blog[] = response.data.data;
-          const publishedBlogs = blogs.filter(blog => blog.status === 'published');
+          const publishedBlogs = blogs.filter(blog => blog.status === 2);
           const mappedArticles = publishedBlogs.map(mapBlogToArticle);
           setArticles(mappedArticles);
         } else {

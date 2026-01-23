@@ -53,14 +53,17 @@ const STORAGE_KEY_CATEGORIES = 'ministry_blog_categories';
 interface Blog {
   id: number;
   title: string;
-  category: string;
-  short_summary: string;
-  full_story: string;
-  image_url: string;
+  content: string;
+  image: string | null;
+  image_url: string | null;
+  status: number;
   user_id: number;
-  status: string;
   created_at: string;
   updated_at: string;
+  // Optional fields that might be returned but not used in API requests
+  category?: string;
+  short_summary?: string;
+  full_story?: string;
 }
 
 interface UserData {
@@ -461,8 +464,9 @@ export function AdminPage() {
     return blogs.filter(
       (blog) =>
         blog.title.toLowerCase().includes(lowered) ||
-        blog.category.toLowerCase().includes(lowered) ||
-        blog.short_summary.toLowerCase().includes(lowered),
+        (blog.category && blog.category.toLowerCase().includes(lowered)) ||
+        (blog.short_summary && blog.short_summary.toLowerCase().includes(lowered)) ||
+        (blog.content && blog.content.toLowerCase().includes(lowered))
     );
   }, [blogs, blogQuery]);
 
@@ -726,12 +730,7 @@ export function AdminPage() {
     
     let payload: FormData | {
       title: string;
-      full_story: string;
       content: string;
-      context?: string;
-      category?: string;
-      short_summary?: string;
-      image_url?: string;
     };
 
     try {
@@ -739,14 +738,6 @@ export function AdminPage() {
         const formData = new FormData();
         formData.append('title', blogForm.title);
         formData.append('content', blogForm.content);
-        formData.append('full_story', blogForm.content);
-        
-        if (blogForm.category) {
-          formData.append('category', blogForm.category);
-        }
-        if (blogForm.summary) {
-          formData.append('short_summary', blogForm.summary);
-        }
         
         if (heroImageFile) {
           formData.append('image', heroImageFile);
@@ -757,18 +748,7 @@ export function AdminPage() {
         payload = {
           title: blogForm.title,
           content: blogForm.content,
-          full_story: blogForm.content,
         };
-
-        if (blogForm.category) {
-          payload.category = blogForm.category;
-        }
-        if (blogForm.summary) {
-          payload.short_summary = blogForm.summary;
-        }
-        if (blogForm.heroImage) {
-          payload.image_url = blogForm.heroImage;
-        }
       }
 
       if (editingBlogId) {
@@ -896,7 +876,7 @@ export function AdminPage() {
       title: blog.title,
       category: blog.category || (categories[0] ?? ''),
       summary: blog.short_summary || '',
-      content: blog.full_story,
+      content: blog.content || blog.full_story || '', // Use content field from API, fallback to full_story for compatibility
       heroImage: blog.image_url || '',
     });
     handleRemoveImage();
