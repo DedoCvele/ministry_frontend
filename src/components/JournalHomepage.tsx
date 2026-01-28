@@ -28,12 +28,12 @@ const BACKEND_BASE_URL = API_ROOT;
 interface Blog {
   id: number;
   title: string;
-  category: string;
-  short_summary: string;
-  full_story: string;
-  image_url: string;
-  user_id: number;
-  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
+  content: string;
+  image?: string | null;
+  image_url?: string | null;
+  category?: string | null;
+  user_id?: number;
+  status?: number; // BlogStatus enum: 1 = Draft, 2 = Published
   created_at: string;
   updated_at: string;
 }
@@ -71,12 +71,19 @@ const calculateReadTime = (content: string): string => {
 };
 
 // Helper function to validate and fix URLs
+const FALLBACK_BLOG_IMAGE =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjI4MCIgdmlld0JveD0iMCAwIDQwMCAyODAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIyODAiIGZpbGw9IiNGNUY1RjUiLz4KICA8cGF0aCBkPSJNOTIgMTg0bDQwLTQwIDU2IDU2IDgwLTgwIDQwIDQwIiBzdHJva2U9IiNDRUNFQ0UiIHN0cm9rZS13aWR0aD0iNiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjI2MCIgY3k9IjExNiIgcj0iMjAiIGZpbGw9IiNDRUNFQ0UiLz4KICA8dGV4dCB4PSIyMDAiIHk9IjE0MCIgZm9udC1mYW1pbHk9Ik1hbnJvcGUsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiNCOEI4QjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5vIGltYWdlPC90ZXh0Pgo8L3N2Zz4K';
+
 const validateAndFixUrl = (url: string | null | undefined): string => {
   if (!url || url.trim() === '') {
-    return 'https://via.placeholder.com/400x280?text=No+Image';
+    return FALLBACK_BLOG_IMAGE;
   }
   
   const trimmedUrl = url.trim();
+
+  if (trimmedUrl.includes('via.placeholder.com')) {
+    return FALLBACK_BLOG_IMAGE;
+  }
   
   // If it's already a full URL (http:// or https://), return as is
   if (trimmedUrl.match(/^https?:\/\//i)) {
@@ -87,6 +94,12 @@ const validateAndFixUrl = (url: string | null | undefined): string => {
   if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
     const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
     return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+
+  // If backend returns a blog image path without /storage, normalize it
+  if (trimmedUrl.startsWith('blogs/') || trimmedUrl.startsWith('/blogs/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${BACKEND_BASE_URL}/storage${cleanPath}`;
   }
   
   // If it starts with //, add https:
@@ -108,22 +121,29 @@ const validateAndFixUrl = (url: string | null | undefined): string => {
       // Try backend URL first (for storage paths)
       return backendUrl;
     }
-    // If still not valid, return placeholder
-    return 'https://via.placeholder.com/400x280?text=Invalid+URL';
+    // If still not valid, return fallback image
+    return FALLBACK_BLOG_IMAGE;
   }
 };
 
 // Helper function to map blog to article
+const getExcerpt = (content: string, maxLength: number = 160): string => {
+  const trimmed = content.trim();
+  if (trimmed.length <= maxLength) return trimmed;
+  return `${trimmed.slice(0, maxLength).trim()}...`;
+};
+
 const mapBlogToArticle = (blog: Blog): Article => {
+  const content = blog.content || '';
   return {
     id: blog.id,
     title: blog.title,
-    excerpt: blog.short_summary || '',
-    category: blog.category || 'Uncategorized',
-    image: validateAndFixUrl(blog.image_url),
+    excerpt: getExcerpt(content),
+    category: blog.category || 'Journal',
+    image: validateAndFixUrl(blog.image_url ?? blog.image),
     author: 'Ministry Journal',
     date: formatDate(blog.created_at),
-    readTime: calculateReadTime(blog.full_story || ''),
+    readTime: calculateReadTime(content),
   };
 };
 
@@ -178,30 +198,29 @@ export function JournalHomepage({ onArticleClick, onClose, language: languagePro
           },
         });
         
-        // Handle different response structures
-        // According to API docs: status = 2 means Published (BlogStatus::Published)
-        if (response.data.status === 'success' && response.data.data) {
-          const blogs: Blog[] = response.data.data;
-          // Filter only published blogs (status === 2)
-          const publishedBlogs = blogs.filter(blog => blog.status === 2);
-          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
-          setArticles(mappedArticles);
-        } else if (Array.isArray(response.data)) {
-          // Handle case where API returns array directly
-          const blogs: Blog[] = response.data;
-          const publishedBlogs = blogs.filter(blog => blog.status === 2);
-          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
-          setArticles(mappedArticles);
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          // Handle case where data is nested
-          const blogs: Blog[] = response.data.data;
-          const publishedBlogs = blogs.filter(blog => blog.status === 2);
-          const mappedArticles = publishedBlogs.map(mapBlogToArticle);
-          setArticles(mappedArticles);
-        } else {
-          console.warn('Unexpected API response structure:', response.data);
-          setError(t.journal.homepage.failedToLoad);
+        const payload = response.data;
+        const blogs: Blog[] = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data)
+            ? payload.data
+            : Array.isArray(payload?.data?.data)
+              ? payload.data.data
+              : [];
+
+        if (blogs.length === 0) {
+          if (payload?.data || payload?.status) {
+            setArticles([]);
+          } else {
+            console.warn('Unexpected API response structure:', payload);
+            setError(t.journal.homepage.failedToLoad);
+          }
+          return;
         }
+
+        // Filter only published blogs when status is present (BlogStatus::Published = 2)
+        const publishedBlogs = blogs.filter(blog => blog.status ? blog.status === 2 : true);
+        const mappedArticles = publishedBlogs.map(mapBlogToArticle);
+        setArticles(mappedArticles);
       } catch (err: any) {
         console.error('Error fetching blogs:', err);
         if (err.response) {

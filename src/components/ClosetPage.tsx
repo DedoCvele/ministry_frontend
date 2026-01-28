@@ -11,6 +11,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { getTranslation } from '../translations';
 import './styles/ClosetPage.css';
 
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+
 interface ClosetItem {
   id: number;
   name: string;
@@ -52,7 +55,7 @@ export default function ClosetPage({
   const language = contextLanguage || languageProp || 'en';
   const t = getTranslation(language);
   
-  const userId = propUserId || closetId || '1';
+  const userId = propUserId || closetId || user?.id?.toString() || '1';
 
   
   // Check if user is viewing their own closet
@@ -87,6 +90,15 @@ export default function ClosetPage({
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
+  const resolveImageUrl = (value?: string | null): string | null => {
+    if (!value) return null;
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith('/storage') || value.startsWith('storage/')) {
+      return `${API_ROOT}${value.startsWith('/') ? value : `/${value}`}`;
+    }
+    return value;
+  };
+
   // Update selectedFilter when language changes
   useEffect(() => {
     setSelectedFilter(t.closet.filters.all);
@@ -98,13 +110,60 @@ export default function ClosetPage({
 
   // FETCH DATA
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/api/closets/${userId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setUserProfile(data.user);
-        setClosetItems(data.items);
-      })
-      .catch((err) => console.error('Closet fetch error:', err));
+    const fetchCloset = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/closets/${userId}`, {
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'omit',
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const fallbackText = await response.text();
+          throw new Error(
+            `Unexpected response (${response.status}). ${fallbackText.slice(0, 120)}`
+          );
+        }
+
+        const data = await response.json();
+        const payload = data?.data || data?.user || data;
+        const items = data?.items || payload?.items || [];
+
+        const normalizedUser: ClosetUser = {
+          id: Number(payload?.id ?? 0),
+          name: payload?.name || payload?.username || 'Closet',
+          username: payload?.username || String(payload?.id ?? ''),
+          location: payload?.location || payload?.city || '',
+          bio: payload?.bio || payload?.tagline || '',
+          avatar: resolveImageUrl(payload?.avatar || payload?.profile_photo_url) || null,
+        };
+
+        const normalizedItems: ClosetItem[] = Array.isArray(items)
+          ? items.map((item: any) => ({
+              id: Number(item?.id ?? 0),
+              name: item?.name || item?.title || 'Item',
+              price: String(item?.price ?? ''),
+              image:
+                resolveImageUrl(item?.mainImage?.url) ||
+                resolveImageUrl(item?.images?.[0]?.url) ||
+                resolveImageUrl(item?.image_url) ||
+                resolveImageUrl(item?.image) ||
+                null,
+              category: item?.category?.name || item?.category || '',
+            }))
+          : [];
+
+        setUserProfile(normalizedUser);
+        setClosetItems(normalizedItems);
+      } catch (err) {
+        console.error('Closet fetch error:', err);
+      }
+    };
+
+    fetchCloset();
   }, [userId]);
 
   const filterCategories = [

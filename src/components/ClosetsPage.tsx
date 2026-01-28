@@ -11,6 +11,9 @@ import { type Language, getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
 import './styles/ClosetsPage.css';
 
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+
 interface Closet {
   id: number;
   name: string;
@@ -54,6 +57,55 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
   const [currentPage, setCurrentPage] = useState(1);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  const resolveImageUrl = (value?: string | null): string => {
+    if (!value) return '';
+    if (/^https?:\/\//i.test(value)) return value;
+    if (value.startsWith('/storage') || value.startsWith('storage/')) {
+      return `${API_ROOT}${value.startsWith('/') ? value : `/${value}`}`;
+    }
+    return value;
+  };
+
+  const getPrimaryImage = (closet: any): string => {
+    const firstItem = Array.isArray(closet?.items) ? closet.items[0] : undefined;
+    return (
+      resolveImageUrl(closet?.coverImage) ||
+      resolveImageUrl(closet?.cover_image) ||
+      resolveImageUrl(firstItem?.mainImage?.url) ||
+      resolveImageUrl(firstItem?.images?.[0]?.url) ||
+      resolveImageUrl(firstItem?.image_url) ||
+      resolveImageUrl(firstItem?.image) ||
+      ''
+    );
+  };
+
+  const normalizeCloset = (closet: any): Closet => {
+    const name = closet?.name || closet?.username || 'Closet';
+    const username = closet?.username || String(closet?.id ?? '');
+    const profilePhoto =
+      closet?.profilePhoto ||
+      closet?.profile_photo ||
+      closet?.avatar ||
+      closet?.profile_photo_url ||
+      (typeof name === 'string' && name.length > 0 ? name[0].toUpperCase() : 'C');
+
+    return {
+      id: Number(closet?.id ?? 0),
+      name,
+      username,
+      tagline: closet?.tagline || closet?.bio || '',
+      coverImage: getPrimaryImage(closet),
+      profilePhoto,
+      pieces: closet?.items_count ?? closet?.pieces ?? (Array.isArray(closet?.items) ? closet.items.length : 0),
+      followers: closet?.followers_count ?? closet?.followers ?? 0,
+      category: closet?.category || '',
+      avatar: closet?.avatar || closet?.profile_photo_url || '',
+      user: closet?.user,
+      role: closet?.role,
+      user_role: closet?.user_role,
+    };
+  };
+
   // Update activeFilter when language changes
   useEffect(() => {
     setActiveFilter(t.closets.filters.allClosets);
@@ -77,12 +129,35 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
   useEffect(() => {
     const fetchClosets = async () => {
       try {
-        const response = await fetch("http://127.0.0.1:8000/api/closets");
+        const response = await fetch(`${API_BASE_URL}/closets`, {
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          credentials: 'omit',
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const fallbackText = await response.text();
+          throw new Error(
+            `Unexpected response (${response.status}). ${fallbackText.slice(0, 120)}`
+          );
+        }
+
         const data = await response.json();
 
-        if (data.closets) {
+        const rawClosets =
+          data?.data?.data ||
+          data?.data ||
+          data?.closets ||
+          data?.data?.closets ||
+          [];
+
+        if (Array.isArray(rawClosets)) {
+          const normalizedClosets = rawClosets.map(normalizeCloset);
           // Filter out admin profiles - only show users with user profiles
-          const userClosets = data.closets.filter((closet: Closet) => {
+          const userClosets = normalizedClosets.filter((closet: Closet) => {
             // Check if username is 'admin' (exclude admin profile)
             if (closet.username?.toLowerCase() === 'admin') {
               return false;
@@ -114,7 +189,9 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
     if (onClosetClick) {
       onClosetClick(closetId);
     } else {
-      navigate(`/closets/${closetId}`);
+      const closet = closets.find((item) => item.id === closetId);
+      const routeId = closet?.username || String(closetId);
+      navigate(`/closets/${routeId}`);
     }
   };
 
@@ -382,7 +459,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
           isOpen={shareModalOpen}
           onClose={() => setShareModalOpen(false)}
           closetName={selectedCloset.name}
-          closetUrl={`https://ministryofsecondhand.com/closets/${selectedCloset.username}`}
+          closetUrl={`https://ministryofsecondhand.com/closets/${selectedCloset.username || selectedCloset.id}`}
         />
       )}
     </div>

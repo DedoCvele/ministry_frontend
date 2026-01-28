@@ -10,8 +10,9 @@ import { type Language, getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
 import './styles/ArticleDetail.css';
 
-const API_BASE_URL = 'http://localhost:8000/api';
-const BACKEND_BASE_URL = 'http://localhost:8000';
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+const BACKEND_BASE_URL = API_ROOT;
 
 interface ArticleDetailProps {
   articleId?: number;
@@ -22,12 +23,11 @@ interface ArticleDetailProps {
 interface Blog {
   id: number;
   title: string;
-  category: string;
-  short_summary: string;
   content: string;
-  image_url: string;
-  user_id: number;
-  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
+  image?: string | null;
+  image_url?: string | null;
+  user_id?: number;
+  status?: number; // BlogStatus enum: 1 = Draft, 2 = Published
   created_at: string;
   updated_at: string;
 }
@@ -79,13 +79,26 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language: lang
     return `${minutes} ${t.journal.article.minRead}`;
   };
 
+  const getExcerpt = (content: string, maxLength: number = 180): string => {
+    const trimmed = content.trim();
+    if (trimmed.length <= maxLength) return trimmed;
+    return `${trimmed.slice(0, maxLength).trim()}...`;
+  };
+
   // Helper function to validate and fix URLs
+  const FALLBACK_HERO_IMAGE =
+    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI1MDAiIHZpZXdCb3g9IjAgMCAxMjAwIDUwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMTIwMCIgaGVpZ2h0PSI1MDAiIGZpbGw9IiNGNUY1RjUiLz4KICA8cGF0aCBkPSJNMzAwIDM1MGwxMjAtMTIwIDE2OCAxNjggMjQwLTI0MCAxMjAgMTIwIiBzdHJva2U9IiNDRUNFQ0UiIHN0cm9rZS13aWR0aD0iOCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgZmlsbD0ibm9uZSIvPgogIDxjaXJjbGUgY3g9Ijc4MCIgY3k9IjIyMCIgcj0iNDAiIGZpbGw9IiNDRUNFQ0UiLz4KICA8dGV4dCB4PSI2MDAiIHk9IjI1MCIgZm9udC1mYW1pbHk9Ik1hbnJvcGUsIHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiNCOEI4QjgiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5vIGltYWdlPC90ZXh0Pgo8L3N2Zz4K';
+
   const validateAndFixUrl = (url: string | null | undefined): string => {
     if (!url || url.trim() === '') {
-      return 'https://via.placeholder.com/1200x500?text=No+Image';
+      return FALLBACK_HERO_IMAGE;
     }
     
     const trimmedUrl = url.trim();
+
+    if (trimmedUrl.includes('via.placeholder.com')) {
+      return FALLBACK_HERO_IMAGE;
+    }
     
     // If it's already a full URL (http:// or https://), return as is
     if (trimmedUrl.match(/^https?:\/\//i)) {
@@ -96,6 +109,12 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language: lang
     if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
       const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
       return `${BACKEND_BASE_URL}${cleanPath}`;
+    }
+
+    // If backend returns a blog image path without /storage, normalize it
+    if (trimmedUrl.startsWith('blogs/') || trimmedUrl.startsWith('/blogs/')) {
+      const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+      return `${BACKEND_BASE_URL}/storage${cleanPath}`;
     }
     
     // If it starts with //, add https:
@@ -210,9 +229,10 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language: lang
         setLoading(true);
         setError(null);
         const response = await axios.get(`${API_BASE_URL}/blogs/${articleId}`);
+        const payload = response.data;
+        const blogData = payload?.data ?? payload;
         
-        if (response.data.status === 'success' && response.data.data) {
-          const blogData = response.data.data;
+        if (blogData && blogData.id) {
           // Debug: Check if content exists
           if (!blogData.content || blogData.content.trim() === '') {
             console.warn('Blog fetched but content is empty:', blogData);
@@ -260,15 +280,16 @@ export function ArticleDetail({ articleId: propArticleId, onBack, language: lang
   const article = useMemo(() => {
     if (!blog) return null;
     
+    const content = blog.content || '';
     return {
       id: blog.id,
       title: blog.title,
-      subtitle: blog.short_summary || '',
+      subtitle: getExcerpt(content, 140),
       author: 'Ministry Journal',
       date: formatDate(blog.created_at),
-      readTime: calculateReadTime(blog.content || ''),
-      category: blog.category || 'Uncategorized',
-      heroImage: validateAndFixUrl(blog.image_url),
+      readTime: calculateReadTime(content),
+      category: 'Journal',
+      heroImage: validateAndFixUrl(blog.image_url ?? blog.image),
       content: parsedContent
     };
   }, [blog, parsedContent]);

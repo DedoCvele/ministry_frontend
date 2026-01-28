@@ -19,46 +19,38 @@ interface Product {
   condition: string;
 }
 
-// Robust helper to safely extract numeric approval value from various response shapes
-const getApprovalNumber = (item: any): number | null => {
-  if (!item) return null;
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
 
-  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
-  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+const normalizeImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
+  if (trimmed.match(/^https?:\/\//i)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
 
-  if (candidate !== undefined && candidate !== null) {
-    // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
-    if (typeof candidate === 'object') {
-      if (candidate.value !== undefined) return Number(candidate.value);
-      if (candidate.approved_number !== undefined) return Number(candidate.approved_number);
-      if (candidate.approved !== undefined) return Number(candidate.approved);
-      
-      // Try to find first numeric-like value in the object
-      for (const v of Object.values(candidate)) {
-        if (typeof v === 'number') return v;
-        if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
-      }
-      
-      // Fallback to null if no numeric value found
-      return null;
-    }
-
-    // If it's a string or number, coerce safely
-    const coerced = Number(String(candidate).trim());
-    return Number.isNaN(coerced) ? null : coerced;
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) {
+    return `${API_ROOT}${cleanPath}`;
+  }
+  if (
+    trimmed.startsWith('items/') ||
+    trimmed.startsWith('/items/') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('/images/')
+  ) {
+    return `${API_ROOT}/storage${cleanPath}`;
   }
 
-  // 2) Try alternative keys (some responses include additional keys)
-  const altKeys = ['approved_number', 'approved_type', 'approval', 'approvalNumber', 'data', 'attributes'];
-  for (const k of altKeys) {
-    const v = item[k];
-    if (v !== undefined && v !== null) {
-      const n = Number(String(v).trim());
-      if (!Number.isNaN(n)) return n;
-    }
-  }
+  return `${API_ROOT}${cleanPath}`;
+};
 
-  return null;
+const CONDITION_LABELS: Record<number, string> = {
+  1: 'New',
+  2: 'Excellent',
+  3: 'Very Good',
+  4: 'Good',
+  5: 'Fair',
 };
 
 export function ShopTheFinds({}: ShopTheFindsProps = {}) {
@@ -74,14 +66,8 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
     const fetchApprovedItems = async () => {
       try {
         setLoading(true);
-        
-        // Use API endpoint with approved=3 query parameter to filter items
-        // According to API docs: GET /api/items?approved=3
-        const response = await axios.get('http://127.0.0.1:8000/api/items', {
-          params: {
-            approved: 3
-          }
-        });
+
+        const response = await axios.get(`${API_BASE_URL}/items`);
         
         // Handle different response structures
         let items = response.data;
@@ -99,11 +85,11 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
         // console.log('Processed items:', items);
         // console.log('Items count:', Array.isArray(items) ? items.length : 0);
 
-        // Map items to product format (all items from API are already filtered to approved=3)
+        // Map items to product format and filter by approved status (2 = Approved)
         const approvedProducts: Product[] = items
+          .filter((item: any) => item?.approval_status === 2)
           .map((item: any) => {
-            // Per API docs: response includes both 'title' and 'name' fields
-            const itemTitle = item.title || item.name || item.product_name || 'Untitled Item';
+            const itemTitle = item.name || 'Untitled Item';
             
             // Format price with euro symbol
             const priceValue = parseFloat(item.price) || 0;
@@ -112,57 +98,14 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
               maximumFractionDigits: 0,
             });
 
-            // Get image URL - handle different formats from backend
-            // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
-            const getImageUrl = (item: any): string => {
-              const API_ROOT_FOR_IMAGES = 'http://127.0.0.1:8000';
-              
-              // Per API docs: Check 'images[]' array first - first image is main image
-              if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
-                const mainImage = item.images[0];
-                // Use 'url' field if available (preferred)
-                if (mainImage?.url) {
-                  return mainImage.url;
-                }
-                // Otherwise construct from 'path'
-                if (mainImage?.path) {
-                  const img = mainImage.path;
-                  if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                    return img;
-                  }
-                  const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-                  if (cleanPath.startsWith('storage/')) {
-                    return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-                  }
-                  return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-                }
-              }
-              
-              // Per API docs: Use 'image_url' if available (preferred)
-              if (item?.image_url) {
-                return item.image_url;
-              }
-              
-              // Otherwise use 'image' path and construct URL
-              if (item?.image) {
-                const img = item.image;
-                // If already a full URL
-                if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                  return img;
-                }
-                // Construct from path
-                const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-                if (cleanPath.startsWith('storage/')) {
-                  return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-                }
-                return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-              }
-              
-              // Only return default if no image is available at all
-              return '';
-            };
-            
-            const imageUrl = getImageUrl(item);
+            const rawImageUrl =
+              item?.mainImage?.url ??
+              item?.main_image?.url ??
+              (Array.isArray(item?.images) && item.images.length > 0 ? item.images[0]?.url : '') ??
+              item?.image_url ??
+              item?.image ??
+              '';
+            const imageUrl = normalizeImageUrl(rawImageUrl);
 
             // Get seller name
             const sellerName = item.user?.name || item.user?.email || 'Unknown Seller';
@@ -182,7 +125,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
               title: itemTitle,
               price: `€${formattedPrice}`,
               seller: sellerName,
-              condition: item.condition || 'Good',
+              condition: CONDITION_LABELS[item?.condition] || 'Good',
             };
           });
 
@@ -212,7 +155,7 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
     
     try {
       // Fetch the product data when clicked to log the response
-      const response = await axios.get(`http://127.0.0.1:8000/api/items/${productId}`);
+      const response = await axios.get(`${API_BASE_URL}/items/${productId}`);
       // console.log('=== AXIOS RESPONSE ON ITEM CLICK ===');
       // console.log('Full response:', response);
       // console.log('Response data:', response.data);

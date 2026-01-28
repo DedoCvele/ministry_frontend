@@ -9,11 +9,11 @@ import { getTranslation } from '../translations';
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login, register } = useAuth();
+  const { login, register, forgotPassword } = useAuth();
   const { language, toggleLanguage } = useLanguage();
   const t = getTranslation(language);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -22,12 +22,18 @@ export function LoginPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const isSuccessMessage = !!error && error.toLowerCase().includes('registration succeeded');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+    setResetError(null);
+    setResetMessage(null);
 
     try {
       if (isRegisterMode) {
@@ -39,7 +45,7 @@ export function LoginPage() {
         }
 
         const result = await register({
-          username,
+          username: email,
           password,
           firstName: firstName || undefined,
           lastName: lastName || undefined,
@@ -59,7 +65,7 @@ export function LoginPage() {
         navigate(destination);
       } else {
         // Login flow
-        const result = await login(username, password);
+        const result = await login(email, password, rememberMe);
         if (!result.success) {
           setError(result.message ?? t.auth.errors.unableToSignIn);
           setIsLoading(false);
@@ -71,7 +77,7 @@ export function LoginPage() {
           (result.user?.role === 'admin' ? '/admin' : '/');
 
         if (rememberMe && typeof window !== 'undefined') {
-          window.localStorage.setItem('ministry_last_user', username);
+          window.localStorage.setItem('ministry_last_user', email);
         }
 
         navigate(destination);
@@ -80,6 +86,27 @@ export function LoginPage() {
       setError(t.auth.errors.unexpectedError);
       setIsLoading(false);
     }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setResetError('Please enter your email.');
+      return;
+    }
+
+    setIsResetting(true);
+    setResetError(null);
+    setResetMessage(null);
+
+    const result = await forgotPassword(email);
+    if (!result.success) {
+      setResetError(result.message ?? t.auth.errors.unexpectedError);
+      setIsResetting(false);
+      return;
+    }
+
+    setResetMessage(result.message ?? 'Password reset email sent.');
+    setIsResetting(false);
   };
 
   return (
@@ -306,7 +333,7 @@ export function LoginPage() {
                 display: 'block',
                 marginBottom: '8px',
               }}>
-                {isRegisterMode ? t.auth.email : t.auth.usernameOrEmail}
+                {t.auth.email}
               </label>
               <div style={{ position: 'relative' }}>
                 <Mail
@@ -321,8 +348,8 @@ export function LoginPage() {
                 />
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
                   placeholder={isRegisterMode ? t.auth.emailPlaceholderRegister : t.auth.emailPlaceholder}
                   style={{
@@ -531,19 +558,55 @@ export function LoginPage() {
 
                 <button
                   type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isResetting}
                   style={{
                     background: 'transparent',
                     border: 'none',
                     fontFamily: 'Manrope, sans-serif',
                     fontSize: '14px',
-                    color: '#9F8151',
-                    cursor: 'pointer',
+                    color: isResetting ? 'rgba(159, 129, 81, 0.6)' : '#9F8151',
+                    cursor: isResetting ? 'not-allowed' : 'pointer',
                     padding: 0,
                     textDecoration: 'underline',
                   }}
                 >
-                  {t.auth.forgotPassword}
+                  {isResetting ? 'Sending...' : t.auth.forgotPassword}
                 </button>
+              </div>
+            )}
+
+            {resetMessage && (
+              <div
+                style={{
+                  marginBottom: '24px',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(10, 72, 52, 0.08)',
+                  border: '1px solid rgba(10, 72, 52, 0.25)',
+                  color: '#0A4834',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                }}
+              >
+                {resetMessage}
+              </div>
+            )}
+
+            {resetError && (
+              <div
+                style={{
+                  marginBottom: '24px',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(193, 64, 64, 0.1)',
+                  border: '1px solid rgba(193, 64, 64, 0.35)',
+                  color: '#A32020',
+                  fontFamily: 'Manrope, sans-serif',
+                  fontSize: '14px',
+                }}
+              >
+                {resetError}
               </div>
             )}
 
@@ -553,9 +616,9 @@ export function LoginPage() {
                   marginBottom: '24px',
                   padding: '12px 16px',
                   borderRadius: '12px',
-                  backgroundColor: 'rgba(193, 64, 64, 0.1)',
-                  border: '1px solid rgba(193, 64, 64, 0.35)',
-                  color: '#A32020',
+                  backgroundColor: isSuccessMessage ? 'rgba(10, 72, 52, 0.08)' : 'rgba(193, 64, 64, 0.1)',
+                  border: isSuccessMessage ? '1px solid rgba(10, 72, 52, 0.25)' : '1px solid rgba(193, 64, 64, 0.35)',
+                  color: isSuccessMessage ? '#0A4834' : '#A32020',
                   fontFamily: 'Manrope, sans-serif',
                   fontSize: '14px',
                 }}

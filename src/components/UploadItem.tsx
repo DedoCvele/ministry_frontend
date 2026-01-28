@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiClient } from '../api/apiClient';
 import { Upload, X, Image as ImageIcon, Check } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
@@ -72,9 +73,9 @@ export function UploadItem({ onClose }: UploadItemProps) {
         // Fetch brands, categories, and conditions from API endpoints
         // NOTE: Sizes are fetched separately when category is selected
         const [brandsResponse, categoriesResponse, conditionsResponse] = await Promise.allSettled([
-          axios.get(`${API_BASE_URL}/brands`),
-          axios.get(`${API_BASE_URL}/categories`),
-          axios.get(`${API_BASE_URL}/conditions`),
+          apiClient.get('/brands'),
+          apiClient.get('/categories'),
+          apiClient.get('/conditions'),
         ]);
 
         const brandMap = new Map<string, number>();
@@ -196,7 +197,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
         // Also fetch items to build lookup maps as fallback
         try {
-          const itemsResponse = await axios.get(`${API_BASE_URL}/items`);
+          const itemsResponse = await apiClient.get('/items');
           const payload = Array.isArray(itemsResponse.data)
             ? itemsResponse.data
             : Array.isArray(itemsResponse.data?.data)
@@ -588,7 +589,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
       // Last resort: search through all items to find the category/brand
       try {
-        const itemsResponse = await axios.get(`${API_BASE_URL}/items`);
+        const itemsResponse = await apiClient.get('/items');
         const allItems = Array.isArray(itemsResponse.data)
           ? itemsResponse.data
           : Array.isArray(itemsResponse.data?.data)
@@ -832,14 +833,11 @@ export function UploadItem({ onClose }: UploadItemProps) {
       // Make the POST request with Bearer token authentication
       // The backend will automatically associate the item with the authenticated user
       // Note: Don't set Content-Type header for FormData - browser will set it with boundary
-      console.log('📡 Sending POST request to:', `${API_BASE_URL}/items`);
-      const response = await axios.post(`${API_BASE_URL}/items`, payload, {
+      console.log('📡 Sending POST request to:', `${API_BASE_URL}/me/items`);
+      const response = await apiClient.post('/me/items', payload, {
         headers: {
-          Accept: 'application/json',
-          Authorization: `Bearer ${token}`,
           // Don't set Content-Type - let browser set it automatically for FormData with boundary
         },
-        withCredentials: true,
       });
 
       // CRITICAL: Verify the response status code (should be 201 Created)
@@ -917,13 +915,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
         
         try {
           console.log('🔍 Optional verification: Trying to fetch item back...');
-          const verifyResponse = await axios.get(`${API_BASE_URL}/items/${itemId}`, {
-            headers: {
-              Accept: 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-            withCredentials: true,
-          });
+          const verifyResponse = await apiClient.get(`/items/${itemId}`);
           const verifiedItem = verifyResponse.data?.data || verifyResponse.data;
           const approvedStatus = verifiedItem?.approved;
           console.log('✅ Verification successful - item exists in database:', {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface SignupDialogProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface SignupDialogProps {
 }
 
 export function SignupDialog({ isOpen, onClose, onSwitchToLogin }: SignupDialogProps) {
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -19,20 +21,43 @@ export function SignupDialog({ isOpen, onClose, onSwitchToLogin }: SignupDialogP
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const isSuccessMessage = !!error && error.toLowerCase().includes('registration succeeded');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
     if (!acceptedTerms) {
-      alert('Please accept the terms and conditions');
+      setError('Please accept the terms and conditions');
       return;
     }
-    // Handle signup
-    console.log('Sign up:', formData);
-    onClose();
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await register({
+        username: formData.email,
+        password: formData.password,
+        password_confirmation: formData.confirmPassword,
+        firstName: formData.firstName || undefined,
+        lastName: formData.lastName || undefined,
+      });
+
+      if (!result.success) {
+        setError(result.message ?? 'Unable to sign up. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+
+      onClose();
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -484,34 +509,57 @@ export function SignupDialog({ isOpen, onClose, onSwitchToLogin }: SignupDialogP
                     </label>
                   </div>
 
+                  {error && (
+                    <div
+                      style={{
+                        marginBottom: '24px',
+                        padding: '12px 16px',
+                        borderRadius: '12px',
+                        backgroundColor: isSuccessMessage ? 'rgba(10, 72, 52, 0.08)' : 'rgba(193, 64, 64, 0.1)',
+                        border: isSuccessMessage ? '1px solid rgba(10, 72, 52, 0.25)' : '1px solid rgba(193, 64, 64, 0.35)',
+                        color: isSuccessMessage ? '#0A4834' : '#A32020',
+                        fontFamily: 'Manrope, sans-serif',
+                        fontSize: '14px',
+                      }}
+                    >
+                      {error}
+                    </div>
+                  )}
+
                   {/* Sign Up Button */}
                   <motion.button
                     type="submit"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    disabled={isLoading}
+                    whileHover={!isLoading ? { scale: 1.02 } : {}}
+                    whileTap={!isLoading ? { scale: 0.98 } : {}}
                     style={{
                       width: '100%',
                       fontFamily: 'Manrope, sans-serif',
                       fontSize: '16px',
                       fontWeight: 600,
                       color: '#FFFFFF',
-                      backgroundColor: '#0A4834',
+                      backgroundColor: isLoading ? '#6B8E7A' : '#0A4834',
                       border: 'none',
                       borderRadius: '12px',
                       padding: '16px',
-                      cursor: 'pointer',
+                      cursor: isLoading ? 'not-allowed' : 'pointer',
                       transition: 'all 0.3s ease',
                       boxShadow: '0px 4px 12px rgba(10, 72, 52, 0.2)',
                       marginBottom: '24px',
+                      opacity: isLoading ? 0.7 : 1,
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#083D2C';
+                      if (!isLoading) {
+                        e.currentTarget.style.backgroundColor = '#083D2C';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#0A4834';
+                      if (!isLoading) {
+                        e.currentTarget.style.backgroundColor = '#0A4834';
+                      }
                     }}
                   >
-                    Create Account
+                    {isLoading ? 'Creating account...' : 'Create Account'}
                   </motion.button>
 
                   {/* Divider */}

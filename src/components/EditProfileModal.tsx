@@ -101,20 +101,15 @@ export function EditProfileModal({
   }, [isOpen, currentBio, currentAvatar]);
 
   const handleSave = async () => {
-    let profilePictureValue: string | File | null | undefined = undefined; // undefined = don't update, null = remove
-    
+    // Send current selection: hex for color, raw SVG string for default avatars (backend accepts SVG markup)
+    let profilePictureValue: string | File | null | undefined;
     if (selectedAvatarType === 'color') {
-      // Convert RGB to hex
       const hex = `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`;
       profilePictureValue = hex;
-    } else if (selectedAvatarType === 'default') {
-      // Send SVG string directly - backend supports storing SVG
-      const selectedAvatar = defaultAvatars.find(a => a.id === selectedDefaultAvatar);
-      if (selectedAvatar) {
-        profilePictureValue = selectedAvatar.svg;
-      }
+    } else {
+      const selectedAvatar = defaultAvatars.find(a => a.id === selectedDefaultAvatar) ?? defaultAvatars[0];
+      profilePictureValue = selectedAvatar.svg; // send inline SVG markup so backend can store it
     }
-    
     onSave(bio, profilePictureValue);
     onClose();
   };

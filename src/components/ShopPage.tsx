@@ -42,46 +42,38 @@ interface ShopPageProps {
   language?: Language;
 }
 
-// Robust helper to safely extract numeric approval value from various response shapes
-const getApprovalNumber = (item: any): number | null => {
-  if (!item) return null;
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
 
-  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
-  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+const normalizeImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
+  if (trimmed.match(/^https?:\/\//i)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
 
-  if (candidate !== undefined && candidate !== null) {
-    // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
-    if (typeof candidate === 'object') {
-      if (candidate.value !== undefined) return Number(candidate.value);
-      if (candidate.approved_number !== undefined) return Number(candidate.approved_number);
-      if (candidate.approved !== undefined) return Number(candidate.approved);
-      
-      // Try to find first numeric-like value in the object
-      for (const v of Object.values(candidate)) {
-        if (typeof v === 'number') return v;
-        if (typeof v === 'string' && !isNaN(Number(v))) return Number(v);
-      }
-      
-      // Fallback to null if no numeric value found
-      return null;
-    }
-
-    // If it's a string or number, coerce safely
-    const coerced = Number(String(candidate).trim());
-    return Number.isNaN(coerced) ? null : coerced;
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) {
+    return `${API_ROOT}${cleanPath}`;
+  }
+  if (
+    trimmed.startsWith('items/') ||
+    trimmed.startsWith('/items/') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('/images/')
+  ) {
+    return `${API_ROOT}/storage${cleanPath}`;
   }
 
-  // 2) Try alternative keys (some responses include additional keys)
-  const altKeys = ['approved_number', 'approved_type', 'approval', 'approvalNumber', 'data', 'attributes'];
-  for (const k of altKeys) {
-    const v = item[k];
-    if (v !== undefined && v !== null) {
-      const n = Number(String(v).trim());
-      if (!Number.isNaN(n)) return n;
-    }
-  }
+  return `${API_ROOT}${cleanPath}`;
+};
 
-  return null;
+const CONDITION_LABELS: Record<number, string> = {
+  1: 'New',
+  2: 'Excellent',
+  3: 'Very Good',
+  4: 'Good',
+  5: 'Fair',
 };
 
 export function ShopPage({ onProductClick, language: languageProp }: ShopPageProps) {
@@ -240,17 +232,7 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
     const fetchItems = async () => {
       try {
         setLoading(true);
-        const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-        const API_BASE_URL = `${API_ROOT}/api`;
         const response = await axios.get(`${API_BASE_URL}/items`);
-        
-        // Console log the full response
-        console.log('=== AXIOS RESPONSE ===');
-        console.log('Full response:', response);
-        console.log('Response data:', response.data);
-        console.log('Response data type:', typeof response.data);
-        console.log('Is array?', Array.isArray(response.data));
-        console.log('Number of items:', Array.isArray(response.data) ? response.data.length : 'Not an array');
         
         // Handle different response structures
         let items = response.data;
@@ -264,127 +246,44 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
           items = [];
         }
         
-        console.log('📦 Processed items:', items);
-        console.log('📦 Items count:', Array.isArray(items) ? items.length : 0);
-        
-        // Log first item structure if available
-        if (Array.isArray(items) && items.length > 0) {
-          console.log('First item structure:', items[0]);
-          console.log('First item keys:', Object.keys(items[0]));
-          console.log('First item approved status:', items[0].approved);
-        }
-        
-        // Filter items for shop page: show items with approved = 2 or 3 only
-        // 0 = Pending (not shown), 1 = Admin approved but not for shop, 2 = Shop approved, 3 = Premium
-        const approvedItems = Array.isArray(items) 
-          ? items.filter((item: any) => {
-              const status = getApprovalNumber(item);
-              return status !== null && (status === 2 || status === 3);
-            })
+
+        // Filter items for shop page: show items with approval_status === 2 (Approved)
+        const approvedItems = Array.isArray(items)
+          ? items.filter((item: any) => item?.approval_status === 2)
           : [];
-        
-        console.log('🛍️ ShopPage - Filtered Items:', {
-          total_items: Array.isArray(items) ? items.length : 0,
-          approved_items: approvedItems.length,
-          items_by_status: {
-            status_1: items.filter((item: any) => getApprovalNumber(item) === 1).length,
-            status_2: items.filter((item: any) => getApprovalNumber(item) === 2).length,
-            status_3: items.filter((item: any) => getApprovalNumber(item) === 3).length,
-          }
-        });
-        
-          console.log('📊 Items filter stats:', {
-          total_items: Array.isArray(items) ? items.length : 0,
-          approved_items: approvedItems.length,
-          pending_items: Array.isArray(items) ? items.filter((item: any) => {
-            const approvedStatus = item.approved;
-            // Items with approved !== 1 or 2 are considered pending
-            return approvedStatus !== 1 && approvedStatus !== '1' && approvedStatus !== 2 && approvedStatus !== '2';
-          }).length : 0
-        });
-        
-        // Map API response to Product interface (only approved items)
+
         const mappedProducts: Product[] = approvedItems.map((item: any) => {
-          const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-          console.log('Mapping item:', {
-            id: item.id,
-            name: item.name,
-            title: item.title, // Legacy field
-            approved: item.approved,
-            has_image: !!(item.image),
-            image_data: item.image
-          });
-          
-          // Handle different image formats from backend
-          // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
-          const getImageUrl = (item: any): string => {
-            // Per API docs: Check 'images[]' array first - first image is main image
-            if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
-              const mainImage = item.images[0];
-              // Use 'url' field if available (preferred)
-              if (mainImage?.url) {
-                return mainImage.url;
-              }
-              // Otherwise construct from 'path'
-              if (mainImage?.path) {
-                const img = mainImage.path;
-                if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                  return img;
-                }
-                const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-                if (cleanPath.startsWith('storage/')) {
-                  return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-                }
-                return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-              }
-            }
-            
-            // Per API docs: Use 'image_url' if available (preferred)
-            if (item?.image_url) {
-              return item.image_url;
-            }
-            
-            // Otherwise use 'image' path and construct URL
-            if (item?.image) {
-              const img = item.image;
-              // If already a full URL
-              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                return img;
-              }
-              // Construct from path
-              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-              if (cleanPath.startsWith('storage/')) {
-                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-              }
-              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-            }
-            
-            // Only return empty string if no image is available - ImageWithFallback will handle the fallback
-            return '';
-          };
-          
+          const rawImageUrl =
+            item?.mainImage?.url ??
+            item?.main_image?.url ??
+            (Array.isArray(item?.images) && item.images.length > 0 ? item.images[0]?.url : '') ??
+            item?.image_url ??
+            item?.image ??
+            '';
+          const imageUrl = normalizeImageUrl(rawImageUrl);
+
+          const sizeLabel =
+            Array.isArray(item?.sizes) && item.sizes.length > 0
+              ? item.sizes[0]?.label
+              : 'One Size';
+
           return {
-          id: item.id,
-          title: item.title || item.name || 'Untitled Item', // Per API docs: both 'title' and 'name' are available
-          price: parseFloat(item.price) || 0,
-          seller: item.user?.name || item.user?.email || 'Unknown Seller',
-          sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
-          image: getImageUrl(item), // Per API docs: use 'image_url' or construct from 'image'
-          tags: item.tags ? (Array.isArray(item.tags) ? item.tags : typeof item.tags === 'string' ? item.tags.split(',').map(t => t.trim()) : [item.tags]) : [],
-          category: item.category?.name || 'Uncategorized',
-          brand: item.brand?.name || 'Unknown',
-          size: item.size || 'One Size',
-          condition: item.condition || 'Good',
-          description: item.description || '', // Add description for search
-          // Store full API data for additional info
-          apiData: item,
+            id: item.id,
+            title: item.name || 'Untitled Item',
+            price: parseFloat(item.price) || 0,
+            seller: item.user?.name || item.user?.email || 'Unknown Seller',
+            sellerAvatar: item.user?.name?.charAt(0).toUpperCase() || 'U',
+            image: imageUrl,
+            tags: Array.isArray(item?.tags) ? item.tags.map((tag: any) => tag?.name || tag) : [],
+            category: item.category?.name || 'Uncategorized',
+            brand: item.brand?.name || 'Unknown',
+            size: sizeLabel,
+            condition: CONDITION_LABELS[item?.condition] || 'Good',
+            description: item.description || '',
+            apiData: item,
           };
         });
-        
-        console.log('Mapped products:', mappedProducts);
-        console.log('Number of mapped products:', mappedProducts.length);
-        console.log('First mapped product:', mappedProducts[0]);
-        
+
         setApiProducts(mappedProducts);
       } catch (error) {
         console.error('Error fetching items:', error);
@@ -848,11 +747,11 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
                         )}
                       </div>
 
-                      {product.apiData.approved && (
+                      {product.apiData.approval_status && (
                         <div>
                           <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.approvalStatus}:</strong>
-                          <span style={{ color: '#0A4834', backgroundColor: (product.apiData.approved === 1 || product.apiData.approved === '1') ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
-                            {product.apiData.approved === 1 || product.apiData.approved === '1' ? t.shop.approvalStatus.approved : product.apiData.approved === 2 || product.apiData.approved === '2' ? t.shop.approvalStatus.special : t.shop.approvalStatus.pending}
+                          <span style={{ color: '#0A4834', backgroundColor: product.apiData.approval_status === 2 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
+                            {product.apiData.approval_status === 2 ? t.shop.approvalStatus.approved : t.shop.approvalStatus.pending}
                           </span>
                         </div>
                       )}
@@ -885,7 +784,7 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
                         </div>
                       )}
 
-                      {product.apiData.image && (
+                      {product.image && (
                         <div>
                           <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>{t.shop.additionalInfo.image}:</strong>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import axios from 'axios';
+import { apiClient } from '../api/apiClient';
 import { Heart, MessageCircle, ChevronDown, Package, RotateCcw, Leaf, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import {
@@ -26,6 +26,17 @@ interface ProductPageProps {
   language?: Language;
 }
 
+const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = `${API_ROOT}/api`;
+
+const CONDITION_LABELS: Record<number, string> = {
+  1: 'New',
+  2: 'Excellent',
+  3: 'Very Good',
+  4: 'Good',
+  5: 'Fair',
+};
+
 export function ProductPage({ onBack, onCheckout, language: languageProp }: ProductPageProps) {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
@@ -46,45 +57,12 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
   
   const handleCheckout = () => {
     if (user && !isAdmin && product) {
-      // Compute image URL
-      const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-      const getImageUrl = (img: any): string => {
-        if (!img) return '';
-        if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-          return img;
-        }
-        if (typeof img === 'object' && img !== null) {
-          const url = img.url || img.image_url || img.path || img.image || img.src;
-          if (url) {
-            if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-              return url;
-            }
-            const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-            if (cleanPath.startsWith('storage/')) {
-              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-            }
-            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-          }
-        }
-        if (typeof img === 'string') {
-          const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-          if (cleanPath.startsWith('storage/')) {
-            return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-          }
-          return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-        }
-        return '';
-      };
-      
-      let mainImageUrl = '';
-      if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
-        const mainImage = product.images[0];
-        mainImageUrl = mainImage?.url || getImageUrl(mainImage?.path || mainImage);
-      } else {
-        mainImageUrl = product?.image_url || getImageUrl(product?.image);
-      }
-      
-      const productTitle = product?.title || product?.name || product?.product_name || 'Product';
+      const mainImageUrl =
+        product?.mainImage?.url ??
+        (Array.isArray(product?.images) && product.images.length > 0 ? product.images[0]?.url : '') ??
+        '';
+
+      const productTitle = product?.name || 'Product';
       
       // User is logged in, navigate to checkout with product info
       navigate('/checkout', { 
@@ -108,67 +86,14 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
     if (!productId) return;
     
     try {
-      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-      const API_BASE_URL = `${API_ROOT}/api`;
-      
-      // Get CSRF cookie first
-      await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
-      
       // Get auth token
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
       
-      // CRITICAL: Fetch current item data first to preserve images and other fields
-      let currentItem: any = null;
-      try {
-        const itemResponse = await axios.get(`${API_BASE_URL}/items/${productId}`, {
-          withCredentials: true,
-          headers: {
-            'Accept': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-        });
-        currentItem = itemResponse.data?.data || itemResponse.data;
-        // console.log('📥 Current item data fetched before approval queue:', {
-        //   id: currentItem?.id,
-        //   images: currentItem?.images,
-        //   image: currentItem?.image,
-        //   image_url: currentItem?.image_url
-        // });
-      } catch (fetchError) {
-        console.error('⚠️ Could not fetch current item data, proceeding with update anyway:', fetchError);
-      }
-      
-      // Update item to set approved = 2 (add to approval queue)
-      // Build update payload - preserve existing image data
-      const updatePayload: any = { approved: 2 };
-      
-      // Preserve image data and other critical fields if they exist
-      if (currentItem) {
-        if (currentItem.name) updatePayload.name = currentItem.name;
-        if (currentItem.title) updatePayload.title = currentItem.title;
-        if (currentItem.description) updatePayload.description = currentItem.description;
-        if (currentItem.price !== undefined) updatePayload.price = currentItem.price;
-        if (currentItem.brand_id) updatePayload.brand_id = currentItem.brand_id;
-        if (currentItem.category_id) updatePayload.category_id = currentItem.category_id;
-      }
-      
-      const updateResponse = await axios.put(
-        `${API_BASE_URL}/items/${productId}`,
-        updatePayload,
-        {
-          withCredentials: true,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
-        }
-      );
-      
-      const updatedItem = updateResponse.data?.data || updateResponse.data;
-      // console.log('🖼️ Images after approval queue update:', updatedItem?.images || updatedItem?.image || 'none');
+      await apiClient.patch(`/me/items/${productId}`, { approval_status: 2 }, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
       toast.success('Item added to approval queue ✅', {
         style: {
@@ -221,92 +146,12 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
       setError(null);
       setSelectedImage(0); // Reset image selection when product changes
       
-      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-      const API_BASE_URL = `${API_ROOT}/api`;
-      
       try {
-        // No authentication required for viewing products - public endpoint
-        // Simple GET request without any auth headers
-        let response;
-        let productData;
-        
-        try {
-          // First, try to fetch the single item directly
-          response = await axios.get(`${API_BASE_URL}/items/${productId}`);
-          productData = response.data?.data || response.data;
-        } catch (singleItemError: any) {
-          // WORKAROUND: If single item fetch fails (e.g., backend incorrectly filtering by approval status),
-          // fallback to fetching from items list and finding by ID.
-          // 
-          // NOTE: Approval ratings (1, 2, 3) should only be used for filtering/sorting, NOT for access control.
-          // All approved items (1, 2, or 3) should be viewable by all users.
-          // The backend should be fixed to return all approved items regardless of rating for single item requests.
-          // 
-          // This fallback ensures items with approval rating 2 or 3 are still accessible.
-          console.warn('Single item fetch failed, trying fallback from items list:', singleItemError);
-          
-          const listResponse = await axios.get(`${API_BASE_URL}/items`);
-          let items = listResponse.data;
-          
-          // Handle different response structures
-          if (items?.data && Array.isArray(items.data)) {
-            items = items.data;
-          } else if (Array.isArray(items)) {
-            items = items;
-          } else {
-            items = [];
-          }
-          
-          // Find the item by ID from the list
-          const foundItem = items.find((item: any) => 
-            item.id === Number(productId) || item.id === productId
-          );
-          
-          if (foundItem) {
-            productData = foundItem;
-            // console.log('✅ Found product in items list fallback');
-          } else {
-            // If still not found, throw the original error
-            throw singleItemError;
-          }
-        }
-        
-        // Per API docs: response structure is { status: "success", data: {...} }
-        // Extract the actual product data from the nested structure (already extracted above)
-        
-        // Console log the response for debugging
-        // console.log('=== PRODUCT PAGE - API RESPONSE ===');
-        // if (response) {
-        //   console.log('Full response:', response);
-        //   console.log('Response data:', response.data);
-        // }
-        // console.log('Extracted product data:', productData);
-        // console.log('Product ID:', productId);
-        // console.log('Product keys:', Object.keys(productData || {}));
-        // console.log('Product title:', productData?.title);
-        // console.log('Product name:', productData?.name);
-        // console.log('Product description:', productData?.description);
-        // console.log('Product size:', productData?.size);
-        // console.log('Product condition:', productData?.condition);
-        // console.log('Product brand:', productData?.brand);
-        
-        // CRITICAL: Log image data
-        // Per API docs: response includes 'image' (path), 'image_url' (full URL), and 'images' (array)
-        // console.log('🖼️ PRODUCT PAGE - Image Debug:');
-        // console.log('🖼️ Product image (path):', productData?.image);
-        // console.log('🖼️ Product image_url (full URL):', productData?.image_url);
-        // console.log('🖼️ Product images (array):', productData?.images);
-        
-        // if (productData?.image_url) {
-        //   console.log('✅ Using image_url from response:', productData.image_url);
-        // } else if (productData?.image) {
-        //   console.log('⚠️ No image_url, constructing from image path:', `${API_ROOT}/storage/${productData.image}`);
-        // } else {
-        //   console.warn('⚠️ Product has NO image or image_url field!');
-        // }
+        const response = await apiClient.get(`/items/${productId}`);
+        const productData = response.data?.data || response.data;
         
         // Verify we have the essential product data
-        if (!productData || (!productData.name && !productData.title)) {
+        if (!productData || !productData.name) {
           console.error('❌ Product data is missing name/title field!');
           setError(t.product.errors.dataIncomplete);
           setLoading(false);
@@ -319,13 +164,12 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
         if (token && productId) {
           try {
-            const favoriteResponse = await axios.get(`${API_BASE_URL}/items/${productId}/favorite-status`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Accept': 'application/json',
-              },
-            });
-            setIsWishlisted(favoriteResponse.data?.is_favorited || false);
+            const favoriteResponse = await apiClient.get('/me/favourites');
+            const favourites = favoriteResponse.data?.data || favoriteResponse.data || [];
+            const isFavorited = Array.isArray(favourites)
+              ? favourites.some((item: any) => String(item?.id) === String(productId))
+              : false;
+            setIsWishlisted(isFavorited);
           } catch (favErr) {
             // Silently fail - user just won't see their favorite status
             console.warn('Could not fetch favorite status:', favErr);
@@ -361,79 +205,39 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
   }, [productId]);
 
   // Map API product data to display format
-  // Per API docs: response includes 'images[]' array (first is main), 'image_url', or 'image' (path)
-  const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-  
-  const getImageUrl = (img: any): string => {
-    if (!img) {
-      return '';
-    }
-    
-    // If image is already a full URL, return as is
-    if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-      return img;
-    }
-    
-    // If image is an object with url or path property (from images array)
-    if (typeof img === 'object' && img !== null) {
-      const url = img.url || img.image_url || img.path || img.image || img.src;
-      if (url) {
-        if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-          return url;
-        }
-        const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-        if (cleanPath.startsWith('storage/')) {
-          return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-        }
-        return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-      }
-    }
-    
-    // If image is a string (path), construct URL
-    if (typeof img === 'string') {
-      const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-      if (cleanPath.startsWith('storage/')) {
-        return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-      }
-      return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-    }
-    
-    return '';
-  };
-  
-  // Per API docs: Check 'images[]' array first - first image is main image
-  // Then fall back to 'image_url' or 'image' path
+  // Per API docs: images[] with url (first is main image)
   let mainImageUrl = '';
   let additionalImages: string[] = [];
   
   if (product?.images && Array.isArray(product.images) && product.images.length > 0) {
     // Use images array - first image is main
     const mainImage = product.images[0];
-    mainImageUrl = mainImage?.url || getImageUrl(mainImage?.path || mainImage);
+    mainImageUrl = mainImage?.url || '';
     
     // Additional images (skip first one as it's the main)
     additionalImages = product.images.slice(1).map((img: any) => 
-      img.url || getImageUrl(img.path || img)
+      img?.url || ''
     ).filter(Boolean);
   } else {
-    // Fallback to image_url or image path
-    mainImageUrl = product?.image_url || getImageUrl(product?.image);
+    mainImageUrl = product?.mainImage?.url || '';
   }
   
   // Combine main image with additional images
   const productImages = [mainImageUrl, ...additionalImages].filter(Boolean);
 
-  // Per API docs: response includes both 'name' and 'title' fields
-  const productTitle = product?.title || product?.name || product?.product_name || t.product.defaults.loading;
+  const productTitle = product?.name || t.product.defaults.loading;
   const productPrice = product?.price ? `€${parseFloat(product.price).toFixed(2)}` : '€0';
   const productBrand = product?.brand?.name || t.product.defaults.unknownBrand;
   const productDescription = product?.description || t.product.defaults.noDescription;
-  const productSize = product?.size || t.product.defaults.oneSize;
-  const productCondition = product?.condition || t.product.defaults.good;
+  const productSize = product?.sizes?.[0]?.label || t.product.defaults.oneSize;
+  const productCondition = CONDITION_LABELS[product?.condition] || t.product.defaults.good;
   const productMaterial = product?.material || 'Material information not available';
   const sellerName = product?.user?.name || product?.user?.email || t.product.defaults.unknownSeller;
   const sellerInitial = sellerName.charAt(0).toUpperCase();
   const sellerUsername = `@${sellerName.split(' ')[0]}`;
+  const productTags = Array.isArray(product?.tags)
+    ? product.tags.map((tag: any) => tag?.name || tag)
+    : [];
 
   // Similar items
   const similarItems = [
@@ -508,23 +312,16 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
     
     setFavoriteLoading(true);
     try {
-      const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-      const url = `${API_ROOT}/api/items/${productId}/favorite`;
-      console.log('📡 Posting to:', url);
-      
-      // Get CSRF cookie first (required for Sanctum)
-      await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, { withCredentials: true });
-      
-      const response = await axios.post(url, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        withCredentials: true,
-      });
-      console.log('✅ Favorite response:', response.data);
-      setIsWishlisted(response.data?.is_favorited || false);
-      toast.success(response.data?.message || (response.data?.is_favorited ? 'Added to favorites' : 'Removed from favorites'));
+      const url = `/me/favourites/${productId}`;
+      const response = isWishlisted
+        ? await apiClient.delete(url)
+        : await apiClient.post(url, {});
+      const nextWishlisted = !isWishlisted;
+      setIsWishlisted(nextWishlisted);
+      toast.success(
+        response.data?.message ||
+          (nextWishlisted ? 'Added to favorites' : 'Removed from favorites')
+      );
     } catch (err: any) {
       console.error('❌ Error toggling favorite:', err);
       console.error('Error response:', err.response?.data);
@@ -706,7 +503,12 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
                   <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 12, color: '#9F8151', fontWeight: 500 }}>✓ {t.product.verifiedCloset}</div>
                 </div>
 
-                <a href={`/closets/${product?.user?.id || ''}`} className="view-closet-link">{t.product.viewCloset} →</a>
+                <a
+                  href={`/closets/${product?.user?.username || product?.user?.id || ''}`}
+                  className="view-closet-link"
+                >
+                  {t.product.viewCloset} →
+                </a>
               </div>
 
               <motion.button
@@ -776,8 +578,8 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
                   {product.category.name}
                 </span>
               )}
-              {product?.tags && Array.isArray(product.tags) && product.tags.length > 0 && (
-                product.tags.slice(0, 2).map((tag: string) => (
+              {productTags.length > 0 && (
+                productTags.slice(0, 2).map((tag: string) => (
                   <span
                     key={tag}
                     style={{

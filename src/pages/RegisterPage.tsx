@@ -23,6 +23,7 @@ export function RegisterPage() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const isSuccessMessage = !!error && error.toLowerCase().includes('registration succeeded');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,9 +346,9 @@ export function RegisterPage() {
                     marginBottom: '24px',
                     padding: '12px 16px',
                     borderRadius: '12px',
-                    backgroundColor: 'rgba(193, 64, 64, 0.1)',
-                    border: '1px solid rgba(193, 64, 64, 0.35)',
-                    color: '#A32020',
+                    backgroundColor: isSuccessMessage ? 'rgba(10, 72, 52, 0.08)' : 'rgba(193, 64, 64, 0.1)',
+                    border: isSuccessMessage ? '1px solid rgba(10, 72, 52, 0.25)' : '1px solid rgba(193, 64, 64, 0.35)',
+                    color: isSuccessMessage ? '#0A4834' : '#A32020',
                     fontFamily: 'Manrope, sans-serif',
                     fontSize: '14px',
                   }}

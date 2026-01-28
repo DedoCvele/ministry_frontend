@@ -17,12 +17,15 @@ interface JournalSpreadProps {
 interface Blog {
   id: number;
   title: string;
-  category: string;
-  short_summary: string;
-  full_story: string;
-  image_url: string;
-  user_id: number;
-  status: number; // BlogStatus enum: 1 = Draft, 2 = Published
+  content: string;
+  image?: string | null;
+  image_url?: string | null;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  status?: number; // BlogStatus enum: 1 = Draft, 2 = Published
   created_at: string;
   updated_at: string;
 }
@@ -38,12 +41,19 @@ interface Article {
 }
 
 // Helper function to validate and fix URLs
+const FALLBACK_BLOG_IMAGE =
+  'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAwIiBoZWlnaHQ9IjQwMCIgdmlld0JveD0iMCAwIDgwMCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjgwMCIgaGVpZ2h0PSI0MDAiIGZpbGw9IiNGNUY1RjUiLz4KICA8cGF0aCBkPSJNMjAwIDI4MGw4MC04MCAxMTIgMTEyIDE2MC0xNjAgODAgODAiIHN0cm9rZT0iN0M3QzddIiBzdHJva2Utd2lkdGg9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KICA8Y2lyY2xlIGN4PSI1MjAiIGN5PSIxNzYiIHI9IjMwIiBmaWxsPSIjN0M3QzdDIi8+CiAgPHRleHQgeD0iNDAwIiB5PSIxOTAiIGZvbnQtZmFtaWx5PSJNYW5yb3BlLCBzYW5zLXNlcmlmIiBmb250LXNpemU9IjE4IiBmaWxsPSIjOTk5OTk5IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIj5ObyBpbWFnZTwvdGV4dD4KPC9zdmc+Cg==';
+
 const validateAndFixUrl = (url: string | null | undefined): string => {
   if (!url || url.trim() === '') {
-    return 'https://images.unsplash.com/photo-1583660756881-5b58510d41fc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwY2xvdGhpbmclMjBzdXN0YWluYWJsZXxlbnwxfHx8fDE3NjEwNTg2Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080';
+    return FALLBACK_BLOG_IMAGE;
   }
   
   const trimmedUrl = url.trim();
+
+  if (trimmedUrl.includes('via.placeholder.com')) {
+    return FALLBACK_BLOG_IMAGE;
+  }
   
   // If it's already a full URL (http:// or https://), return as is
   if (trimmedUrl.match(/^https?:\/\//i)) {
@@ -54,6 +64,12 @@ const validateAndFixUrl = (url: string | null | undefined): string => {
   if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
     const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
     return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+
+  // If backend returns a blog image path without /storage, normalize it
+  if (trimmedUrl.startsWith('blogs/') || trimmedUrl.startsWith('/blogs/')) {
+    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
+    return `${BACKEND_BASE_URL}/storage${cleanPath}`;
   }
   
   // If it starts with //, add https:
@@ -94,9 +110,7 @@ export function JournalSpread({}: JournalSpreadProps = {}) {
         
         // Handle different response structures
         let blogs: Blog[] = [];
-        if (response.data.status === 'success' && response.data.data) {
-          blogs = response.data.data;
-        } else if (Array.isArray(response.data)) {
+        if (Array.isArray(response.data)) {
           blogs = response.data;
         } else if (response.data.data && Array.isArray(response.data.data)) {
           blogs = response.data.data;
@@ -104,18 +118,18 @@ export function JournalSpread({}: JournalSpreadProps = {}) {
         
         // Filter only published blogs (status === 2) and sort by created_at (newest first)
         const publishedBlogs = blogs
-          .filter(blog => blog.status === 2)
+          .filter(blog => blog.status ? blog.status === 2 : true)
           .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 3); // Get top 3 most recent
         
         // Map blogs to articles with alternating alignment
         const mappedArticles: Article[] = publishedBlogs.map((blog, index) => ({
           id: blog.id,
-          category: blog.category || 'Uncategorized',
+          category: 'Journal',
           title: blog.title,
-          excerpt: blog.short_summary || '',
+          excerpt: blog.content ? `${blog.content.slice(0, 140).trim()}...` : '',
           readTime: generateRandomReadTime(language),
-          image: validateAndFixUrl(blog.image_url),
+          image: validateAndFixUrl(blog.image_url ?? blog.image),
           alignment: (index % 2 === 0 ? 'left' : 'right') as 'left' | 'right',
         }));
         

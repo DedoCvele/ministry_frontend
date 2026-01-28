@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { apiClient } from '../api/apiClient';
 import { 
   Camera, 
   Settings, 
@@ -38,6 +39,55 @@ import './styles/ProfilePage.css';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_ROOT = `${API_BASE_URL}/api`;
 const BACKEND_BASE_URL = API_BASE_URL;
+
+const getCookieValue = (name: string): string | null => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const match = document.cookie.match(new RegExp(`(^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+const getXsrfHeader = () => {
+  const token = getCookieValue('XSRF-TOKEN');
+  return token ? { 'X-XSRF-TOKEN': token } : {};
+};
+
+const extractUserData = (responseData: any) => {
+  return responseData?.user || responseData?.data || responseData;
+};
+
+const isSvgMarkup = (value?: string) => {
+  return typeof value === 'string' && value.trim().startsWith('<svg');
+};
+
+const resolveAvatarForModal = (avatar?: string) => {
+  if (!avatar) {
+    return '';
+  }
+
+  if (avatar.startsWith('#') || defaultAvatarSvgs[avatar]) {
+    return avatar;
+  }
+
+  if (avatar.startsWith('data:image/svg+xml,')) {
+    try {
+      const svg = decodeURIComponent(avatar.slice('data:image/svg+xml,'.length));
+      const match = Object.entries(defaultAvatarSvgs).find(([, s]) => s === svg);
+      return match ? match[0] : avatar;
+    } catch {
+      return avatar;
+    }
+  }
+
+  if (isSvgMarkup(avatar)) {
+    const match = Object.entries(defaultAvatarSvgs).find(([, svg]) => svg === avatar);
+    return match ? match[0] : avatar;
+  }
+
+  return avatar;
+};
 
 // Default avatar SVGs (matching EditProfileModal)
 const defaultAvatarSvgs: Record<string, string> = {
@@ -162,7 +212,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     // Try multiple endpoints to get user data
     const tryUserEndpoints = async () => {
       const endpoints = [
-        `${API_ROOT}/profile`, // Authenticated user's profile
+        `${API_ROOT}/profile`, // Authenticated user's profile (preferred)
+        `${API_ROOT}/user`, // Authenticated user's profile (legacy)
         `${API_ROOT}/users/1`, // Fallback
       ];
 
@@ -330,7 +381,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     }
 
     try {
-      const url = `${API_ROOT}/profile/favorites`;
+      const url = `${API_ROOT}/me/favourites`;
       console.log('📡 Fetching favorites from:', url);
       
       const res = await axios.get(url, {
@@ -378,16 +429,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     if (!token) return;
 
     try {
-      // Get CSRF cookie first
-      await axios.get(`${API_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
-      
-      await axios.post(`${API_ROOT}/items/${itemId}/favorite`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        withCredentials: true,
-      });
+      await apiClient.delete(`/me/favourites/${itemId}`);
       console.log('✅ Favorite removed');
       // Reload favorites after removal
       loadFavorites();
@@ -397,26 +439,16 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     }
   };
 
-  // Load closet items - use /api/items and filter by user_id
+  // Load closet items - use /api/me/items
   useEffect(() => {
     // Always load items for the user (for overview and closet tabs)
     const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
-    axios.get(`${API_ROOT}/items`, {
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : undefined,
-        'Accept': 'application/json',
-      },
-      withCredentials: true,
-    })
+    apiClient.get('/me/items')
       .then(res => {
         const data = res.data?.data || res.data || [];
         if (Array.isArray(data)) {
-          // Filter items that belong to this user
-          const userItems = data.filter((item: any) => 
-            item.user_id === userId || item.user?.id === userId
-          );
           // Map items to ClosetItem format
-          const mappedItems: ClosetItem[] = userItems.map((item: any) => ({
+          const mappedItems: ClosetItem[] = data.map((item: any) => ({
             id: item.id,
             name: item.title || item.name || 'Item',
             price: item.price || 0,
@@ -427,8 +459,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           }));
           // Sort by created_at to get most recent first
           const sortedItems = mappedItems.sort((a: any, b: any) => {
-            const originalA = userItems.find((i: any) => i.id === a.id);
-            const originalB = userItems.find((i: any) => i.id === b.id);
+            const originalA = data.find((i: any) => i.id === a.id);
+            const originalB = data.find((i: any) => i.id === b.id);
             const dateA = new Date(originalA?.created_at || originalA?.createdAt || 0).getTime();
             const dateB = new Date(originalB?.created_at || originalB?.createdAt || 0).getTime();
             return dateB - dateA;
@@ -468,23 +500,69 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     }
   };
 
+  const isValidHexColor = (value: string) => /^#[0-9a-fA-F]{6}$/.test(value.trim());
+  const isSvgDataUri = (value: string) => {
+    const trimmed = value.trim();
+    return trimmed.startsWith('data:image/svg+xml');
+  };
+  const isSvgMarkupOrDataUri = (value: string) => isSvgMarkup(value) || isSvgDataUri(value);
+
   const handleSaveProfile = async (bio: string, profilePicture: string | File | null | undefined) => {
     try {
       // Get auth token from localStorage
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
       
-      if (!token) {
-        console.error('No authentication token found');
-        // Try to get CSRF cookie and use session-based auth
+      try {
         await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
           withCredentials: true,
         });
+      } catch (csrfError) {
+        console.warn('Could not refresh CSRF cookie:', csrfError);
       }
+
+      if (!token) {
+        console.error('No authentication token found');
+      }
+
+      const xsrfHeader = getXsrfHeader();
+      const refreshUserProfile = async () => {
+        const endpoints = [
+          `${API_ROOT}/profile`,
+          `${API_ROOT}/user`,
+        ];
+
+        for (const endpoint of endpoints) {
+          try {
+            const userResponse = await axios.get(endpoint, {
+              headers: {
+                'Authorization': token ? `Bearer ${token}` : undefined,
+                'Accept': 'application/json',
+                ...xsrfHeader,
+              },
+              withCredentials: true,
+            });
+            return extractUserData(userResponse.data);
+          } catch (refreshError: any) {
+            const status = refreshError?.response?.status;
+            if (status === 404 || status === 405) {
+              continue;
+            }
+            throw refreshError;
+          }
+        }
+
+        return null;
+      };
 
       // Handle file upload (avatar image) or JSON request (bio and/or color)
       let response;
+      const updateEndpoint = `${API_ROOT}/me`;
       
       if (profilePicture instanceof File) {
+        if (!profilePicture.type || !profilePicture.type.includes('svg')) {
+          alert('Profile picture must be an SVG file.');
+          return;
+        }
         // Upload avatar image file
         const formData = new FormData();
         formData.append('profile_picture', profilePicture);
@@ -492,45 +570,50 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           formData.append('bio', bio);
         }
 
-        response = await axios.put(`${API_ROOT}/profile`, formData, {
+        response = await axios.patch(updateEndpoint, formData, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : undefined,
             'Accept': 'application/json',
+            ...xsrfHeader,
             // Don't set Content-Type for FormData - browser will set it with boundary
           },
           withCredentials: true,
         });
       } else {
-        // JSON request for bio and/or profile picture (color or URL)
-        const payload: any = {};
+        // PATCH /api/me: "profile_picture" = hex or SVG (markup or data URI)
+        const payload: Record<string, unknown> = {};
         if (bio !== undefined && bio !== null) {
-          payload.bio = bio;
+          payload.bio = bio; // allow any length including empty
         }
-        // Only include profile_picture if it's not undefined (undefined means don't update)
         if (profilePicture !== undefined) {
-          payload.profile_picture = profilePicture; // Can be string (color hex or URL) or null (to remove)
+          if (
+            profilePicture !== null &&
+            typeof profilePicture === 'string' &&
+            !isValidHexColor(profilePicture) &&
+            !isSvgMarkupOrDataUri(profilePicture)
+          ) {
+            alert('Profile picture must be a hex color or SVG.');
+            return;
+          }
+          payload.profile_picture = profilePicture; // hex, inline SVG string, or null to clear
+        }
+        if (Object.keys(payload).length === 0) {
+          return; // nothing to update
         }
 
-        response = await axios.put(`${API_ROOT}/profile`, payload, {
+        response = await axios.patch(updateEndpoint, payload, {
           headers: {
             'Authorization': token ? `Bearer ${token}` : undefined,
             'Content-Type': 'application/json',
             'Accept': 'application/json',
+            ...xsrfHeader,
           },
           withCredentials: true,
         });
       }
 
       // Reload user data from API
-      const userResponse = await axios.get(`${API_ROOT}/profile`, {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : undefined,
-          'Accept': 'application/json',
-        },
-        withCredentials: true,
-      });
-
-      const userData = userResponse.data?.user || userResponse.data?.data || userResponse.data;
+      const userData = await refreshUserProfile();
       if (userData) {
         setUser({
           name: userData.name || user?.name || '',
@@ -545,11 +628,41 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
       console.log('Profile updated successfully:', response.data);
     } catch (error: any) {
       console.error('Error updating profile:', error);
+      if (error?.response?.status === 500) {
+        try {
+          const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+          const xsrfHeader = getXsrfHeader();
+          const userResponse = await axios.get(`${API_ROOT}/user`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : undefined,
+              'Accept': 'application/json',
+              ...xsrfHeader,
+            },
+            withCredentials: true,
+          });
+          const userData = extractUserData(userResponse.data);
+          if (userData) {
+            setUser({
+              name: userData.name || user?.name || '',
+              username: userData.username || `@${userData.email?.split('@')[0] || ''}` || user?.username || '',
+              bio: userData.bio || '',
+              location: userData.city || userData.location || user?.location || '',
+              avatar: userData.profile_picture_url || userData.profile_picture || user?.avatar || '',
+              memberSince: user?.memberSince || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            });
+            alert('Profile update may have succeeded, but the server returned an error. Please refresh if changes do not appear.');
+            return;
+          }
+        } catch (refreshError) {
+          console.warn('Failed to refresh profile after 500 error:', refreshError);
+        }
+      }
+
       if (error.response?.data?.message) {
         alert(`Error: ${error.response.data.message}`);
-      } else {
-        alert('Failed to update profile. Please try again.');
+        return;
       }
+      alert('Failed to update profile. Please try again.');
     }
   };
 
@@ -608,6 +721,11 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               {user?.avatar?.startsWith('#') ? (
                 // Color-based avatar
                 <div style={{ width: '100%', height: '100%', backgroundColor: user.avatar }} />
+              ) : isSvgMarkup(user?.avatar) ? (
+                <div
+                  style={{ width: '100%', height: '100%' }}
+                  dangerouslySetInnerHTML={{ __html: user?.avatar || '' }}
+                />
               ) : user?.avatar && defaultAvatarSvgs[user.avatar] ? (
                 // Default SVG avatar (legacy support)
                 <div 
@@ -1559,14 +1677,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
                           e.stopPropagation();
                           if (window.confirm('Are you sure you want to delete this item?')) {
                             try {
-                              const token = localStorage.getItem('auth_token');
-                              await axios.delete(`${API_ROOT}/items/${item.id}`, {
-                                headers: {
-                                  'Authorization': token ? `Bearer ${token}` : undefined,
-                                  'Accept': 'application/json',
-                                },
-                                withCredentials: true,
-                              });
+                              await apiClient.delete(`/me/items/${item.id}`);
                               setCloset(prev => prev.filter(i => i.id !== item.id));
                             } catch (error) {
                               console.error('Failed to delete item:', error);
@@ -2607,7 +2718,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
         isOpen={editProfileModalOpen}
         onClose={() => setEditProfileModalOpen(false)}
         currentBio={user?.bio || ''}
-        currentAvatar={user?.avatar || ''}
+        currentAvatar={resolveAvatarForModal(user?.avatar)}
         onSave={handleSaveProfile}
       />
     </div>

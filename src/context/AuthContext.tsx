@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import axios from 'axios';
 
 type Role = 'admin' | 'user';
@@ -21,7 +21,8 @@ interface RegisterPayload {
 interface AuthContextValue {
   user: AuthUser | null;
   isAdmin: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; message?: string; user?: AuthUser }>;
+  login: (email: string, password: string, remember?: boolean) => Promise<{ success: boolean; message?: string; user?: AuthUser }>;
+  forgotPassword: (email: string) => Promise<{ success: boolean; message?: string }>;
   register: (payload: RegisterPayload & { password: string }) => Promise<{
     success: boolean;
     message?: string;
@@ -30,8 +31,19 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
-const API_BASE_URL = 'http://localhost:8000/api';
 const BACKEND_BASE_URL = 'http://localhost:8000';
+
+const api = axios.create({
+  baseURL: BACKEND_BASE_URL,
+  withCredentials: true,
+  withXSRFToken: true,
+  headers: {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+  },
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+});
 
 const ADMIN_ACCOUNT = {
   username: 'admin',
@@ -60,6 +72,63 @@ const SOFI_USER_ACCOUNT = {
 const STORAGE_KEYS = {
   users: 'ministry_users',
   currentUser: 'ministry_current_user',
+};
+
+const PROFILE_ENDPOINTS = ['/api/user', '/api/me'];
+
+const isAdminRoleValue = (role: unknown): boolean => {
+  if (role === null || role === undefined) {
+    return false;
+  }
+
+  if (typeof role === 'number') {
+    return role === 1;
+  }
+
+  if (typeof role === 'string') {
+    const normalized = role.trim().toLowerCase();
+    return normalized === '1' || normalized === 'admin' || normalized === 'administrator';
+  }
+
+  if (typeof role === 'object') {
+    const roleObject = role as { id?: unknown; value?: unknown; name?: unknown; label?: unknown };
+    return (
+      isAdminRoleValue(roleObject.id) ||
+      isAdminRoleValue(roleObject.value) ||
+      isAdminRoleValue(roleObject.name) ||
+      isAdminRoleValue(roleObject.label)
+    );
+  }
+
+  return false;
+};
+
+const resolveRole = (roleCandidates: Array<unknown>, fallback: Role = 'user'): Role => {
+  for (const candidate of roleCandidates) {
+    if (isAdminRoleValue(candidate)) {
+      return 'admin';
+    }
+  }
+
+  return fallback;
+};
+
+const extractRoleCandidate = (user: any): unknown => {
+  if (!user || typeof user !== 'object') {
+    return undefined;
+  }
+
+  return (
+    user.role ??
+    user.role_id ??
+    user.roleId ??
+    user.user_role ??
+    user.userRole ??
+    user.role?.id ??
+    user.role?.name ??
+    user.role?.value ??
+    user.role?.label
+  );
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -153,28 +222,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If we have a token and a stored user, refresh the profile to get accurate role
       if (token && storedUser) {
         try {
-          // Get CSRF cookie first
-          await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-            withCredentials: true,
-          });
+          // Try to get CSRF cookie for Sanctum, but do not block token auth
+          try {
+            await api.get('/sanctum/csrf-cookie');
+          } catch (csrfError) {
+            console.warn('Could not fetch CSRF cookie, continuing with token auth:', csrfError);
+          }
 
-          const profileResponse = await axios.get(`${API_BASE_URL}/profile`, {
-            withCredentials: true,
-            headers: {
-              'Accept': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            },
-          });
-          
-          const profileUser = profileResponse.data?.user || profileResponse.data?.data?.user || profileResponse.data;
-          // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
-          const userRole = profileUser?.role;
-          const isAdmin = userRole === 1 || userRole === '1';
+          let profileUser: any = null;
+
+          for (const endpoint of PROFILE_ENDPOINTS) {
+            try {
+              const profileResponse = await api.get(endpoint, {
+                headers: {
+                  ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                },
+              });
+              profileUser =
+                profileResponse.data?.user ||
+                profileResponse.data?.data?.user ||
+                profileResponse.data?.data ||
+                profileResponse.data;
+              if (profileUser) {
+                break;
+              }
+            } catch (profileError: any) {
+              const status = profileError?.response?.status;
+              if (status === 404 || status === 405) {
+                continue;
+              }
+              throw profileError;
+            }
+          }
+
+          const resolvedRole = resolveRole(
+            [extractRoleCandidate(profileUser), extractRoleCandidate(storedUser), storedUser?.role],
+            storedUser?.role || 'user',
+          );
           
           // Update user with correct role from backend
           const updatedUser: AuthUser = {
             username: profileUser?.email || storedUser.username,
-            role: isAdmin ? 'admin' : 'user',
+            role: resolvedRole,
             firstName: profileUser?.name?.split(' ')[0] || profileUser?.first_name || profileUser?.firstName || storedUser.firstName,
             lastName: profileUser?.name?.split(' ').slice(1).join(' ') || profileUser?.last_name || profileUser?.lastName || storedUser.lastName,
           };
@@ -206,36 +295,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback<AuthContextValue['login']>(
-    async (username, password) => {
-      const trimmedUser = username.trim();
-      if (!trimmedUser) {
-        return { success: false, message: 'Username is required.' };
+    async (email, password, remember) => {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        return { success: false, message: 'Email is required.' };
       }
 
       // Authenticate with Laravel backend
       try {
-        // Get CSRF cookie first (required for Sanctum SPA authentication)
-        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-          withCredentials: true,
-        });
+        // Try to get CSRF cookie first (for Sanctum SPA), but continue if it fails
+        try {
+          await api.get('/sanctum/csrf-cookie');
+        } catch (csrfError) {
+          console.warn('Could not fetch CSRF cookie, continuing with token auth:', csrfError);
+        }
 
         // Authenticate with Laravel
-        // Note: Laravel expects 'email' but we're using username, so we'll use username as email
-        // If your backend uses a different field, adjust accordingly
-        const loginResponse = await axios.post(
-          `${API_BASE_URL}/login`,
-          {
-            email: trimmedUser, // Using username as email
-            password: password,
-          },
-          {
-            withCredentials: true,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          }
-        );
+        const loginResponse = await api.post('/api/login', {
+          email: trimmedEmail,
+          password: password,
+          ...(typeof remember === 'boolean' ? { remember } : {}),
+        });
 
         // If Laravel authentication succeeds, store token and proceed with frontend auth
         const responseData = loginResponse.data;
@@ -248,33 +328,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         // Fetch user profile to get accurate role information
-        // The profile endpoint returns the most up-to-date user data including role
+        // Prefer /api/user, fall back to /api/me
         let profileUser = apiUser;
-        try {
-          const profileResponse = await axios.get(`${API_BASE_URL}/profile`, {
-            withCredentials: true,
-            headers: {
-              'Accept': 'application/json',
-              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            },
-          });
-          
-          // Profile endpoint returns { status: 'success', user: {...} } or just user object
-          profileUser = profileResponse.data?.user || profileResponse.data?.data?.user || profileResponse.data || apiUser;
-        } catch (profileError) {
-          console.warn('Could not fetch user profile, using login response data:', profileError);
-          // Continue with apiUser from login response
+        for (const endpoint of PROFILE_ENDPOINTS) {
+          try {
+            const profileResponse = await api.get(endpoint, {
+              headers: {
+                ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              },
+            });
+            profileUser =
+              profileResponse.data?.user ||
+              profileResponse.data?.data?.user ||
+              profileResponse.data?.data ||
+              profileResponse.data ||
+              apiUser;
+            break;
+          } catch (profileError: any) {
+            const status = profileError?.response?.status;
+            if (status === 404 || status === 405) {
+              continue;
+            }
+            console.warn('Could not fetch user profile, using login response data:', profileError);
+            break;
+          }
         }
 
         // Create AuthUser from API response (use backend data as source of truth)
         // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
-        const userRole = profileUser?.role || apiUser?.role;
-        // Convert integer role to frontend role string
-        // role === 1 means admin, anything else is 'user'
-        const isAdmin = userRole === 1 || userRole === '1';
+        const resolvedRole = resolveRole(
+          [extractRoleCandidate(profileUser), extractRoleCandidate(apiUser)],
+          'user',
+        );
         const authUser: AuthUser = {
-          username: profileUser?.email || apiUser?.email || profileUser?.username || apiUser?.username || trimmedUser,
-          role: isAdmin ? 'admin' : 'user',
+          username: profileUser?.email || apiUser?.email || profileUser?.username || apiUser?.username || trimmedEmail,
+          role: resolvedRole,
           firstName: profileUser?.name?.split(' ')[0] || apiUser?.name?.split(' ')[0] || profileUser?.first_name || apiUser?.first_name || profileUser?.firstName || apiUser?.firstName || undefined,
           lastName: profileUser?.name?.split(' ').slice(1).join(' ') || apiUser?.name?.split(' ').slice(1).join(' ') || profileUser?.last_name || apiUser?.last_name || profileUser?.lastName || apiUser?.lastName || undefined,
         };
@@ -319,12 +407,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           const match = users.find(
             (user) =>
-              user.username.toLowerCase() === trimmedUser.toLowerCase() &&
+              user.username.toLowerCase() === trimmedEmail.toLowerCase() &&
               user.password === password,
           );
 
           if (!match) {
-            return { success: false, message: 'Invalid username or password.' };
+            return { success: false, message: 'Invalid email or password.' };
           }
 
           const { password: _password, ...safeUser } = match;
@@ -332,9 +420,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { success: true, user: safeUser };
         } else if (error.response?.status === 401 || error.response?.status === 422) {
           // Authentication failed - invalid credentials
+          const apiErrors = error.response?.data?.errors || {};
+          const errorMessage =
+            apiErrors.email?.[0] ||
+            apiErrors.password?.[0] ||
+            error.response?.data?.message ||
+            'Invalid email or password.';
           return { 
             success: false, 
-            message: error.response?.data?.message || 'Invalid username or password.' 
+            message: errorMessage,
           };
         }
         
@@ -347,6 +441,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [persistCurrent, users],
   );
+
+  const forgotPassword = useCallback<AuthContextValue['forgotPassword']>(async (email) => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      return { success: false, message: 'Email is required.' };
+    }
+
+    try {
+      const response = await api.post('/api/forgot-password', { email: trimmedEmail });
+
+      return {
+        success: true,
+        message: response.data?.status || 'Password reset email sent.',
+      };
+    } catch (error: any) {
+      if (error.response?.status === 422) {
+        const errors = error.response?.data?.errors || {};
+        const firstError = errors.email?.[0] || error.response?.data?.message;
+        return { success: false, message: firstError || 'Unable to send reset email.' };
+      }
+
+      if (!error.response) {
+        return { success: false, message: 'Unable to connect to server. Please try again.' };
+      }
+
+      return { success: false, message: error.response?.data?.message || 'Unable to send reset email.' };
+    }
+  }, []);
 
   const register = useCallback<AuthContextValue['register']>(
     async ({ username, password, firstName, lastName, password_confirmation }) => {
@@ -371,43 +493,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Register with Laravel backend
       try {
         // Get CSRF cookie first (required for Sanctum SPA authentication)
-        await axios.get(`${BACKEND_BASE_URL}/sanctum/csrf-cookie`, {
-          withCredentials: true,
-        });
+        await api.get('/sanctum/csrf-cookie');
 
         // Register with Laravel
-        const registerResponse = await axios.post(
-          `${API_BASE_URL}/register`,
-          {
-            name: name,
-            email: trimmedUser, // Using username as email
-            password: password,
-            password_confirmation: password_confirmation || password,
-          },
-          {
-            withCredentials: true,
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          }
-        );
+        const registerResponse = await api.post('/api/register', {
+          name: name,
+          email: trimmedUser, // Using username as email
+          password: password,
+          password_confirmation: password_confirmation || password,
+        });
 
-        // If registration succeeds, extract user data and token
-        const { user: apiUser, token } = registerResponse.data;
+        // Registration may return 204 or a user/token payload depending on backend
+        const registerData = registerResponse.data || {};
+        let apiUser = registerData?.user || registerData?.data?.user || null;
+        let token = registerData?.token || registerData?.access_token || null;
+
+        // If registration did not include a token/user, log in to get them
+        if (!token || !apiUser) {
+          try {
+            const loginResponse = await api.post('/api/login', {
+              email: trimmedUser,
+              password: password,
+            });
+            const loginData = loginResponse.data || {};
+            token = token || loginData?.token || loginData?.access_token || null;
+            apiUser = apiUser || loginData?.user || loginData?.data?.user || loginData || null;
+          } catch (loginError) {
+            console.warn('Registration succeeded, but login failed:', loginError);
+          }
+        }
 
         // Store token in localStorage
         if (token && typeof window !== 'undefined') {
           window.localStorage.setItem('auth_token', token);
         }
 
+        // If we still don't have user data, try to fetch it with the token
+        if (!apiUser && token) {
+          try {
+            for (const endpoint of PROFILE_ENDPOINTS) {
+              try {
+                const profileResponse = await api.get(endpoint, {
+                  headers: {
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+                  },
+                });
+                apiUser =
+                  profileResponse.data?.user ||
+                  profileResponse.data?.data?.user ||
+                  profileResponse.data?.data ||
+                  profileResponse.data ||
+                  null;
+                break;
+              } catch (profileError: any) {
+                const status = profileError?.response?.status;
+                if (status === 404 || status === 405) {
+                  continue;
+                }
+                console.warn('Could not fetch user after registration:', profileError);
+                break;
+              }
+            }
+          } catch (profileError) {
+            console.warn('Could not fetch user after registration:', profileError);
+          }
+        }
+
+        if (!apiUser) {
+          return {
+            success: false,
+            message: 'Registration succeeded. Please log in.',
+          };
+        }
+
         // Create AuthUser from API response
         // API uses integer roles: 1 = Admin, 2 = Buyer, 3 = Seller
-        const userRole = apiUser?.role;
-        const isAdmin = userRole === 1 || userRole === '1';
+        const resolvedRole = resolveRole([extractRoleCandidate(apiUser)], 'user');
         const newAuthUser: AuthUser = {
           username: apiUser.email || trimmedUser,
-          role: isAdmin ? 'admin' : 'user',
+          role: resolvedRole,
           firstName: firstName || apiUser.name?.split(' ')[0],
           lastName: lastName || apiUser.name?.split(' ').slice(1).join(' '),
         };
@@ -474,13 +638,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     // Logout from Laravel backend
     try {
-      await axios.post(
-        `${API_BASE_URL}/logout`,
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      await api.post(
+        '/api/logout',
         {},
         {
-          withCredentials: true,
           headers: {
-            'Accept': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
         }
       );
@@ -491,6 +655,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // Clear frontend state
     persistCurrent(null);
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('auth_token');
+    }
   }, [persistCurrent]);
 
   const value = useMemo<AuthContextValue>(
@@ -498,10 +665,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user: currentUser,
       isAdmin: currentUser?.role === 'admin',
       login,
+      forgotPassword,
       register,
       logout,
     }),
-    [currentUser, login, logout, register],
+    [currentUser, login, forgotPassword, logout, register],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

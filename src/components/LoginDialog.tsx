@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface LoginDialogProps {
   isOpen: boolean;
@@ -9,16 +10,57 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ isOpen, onClose, onSwitchToSignup }: LoginDialogProps) {
+  const { login, forgotPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login
-    console.log('Login:', { email, password, rememberMe });
-    onClose();
+    setIsLoading(true);
+    setError(null);
+    setResetError(null);
+    setResetMessage(null);
+
+    try {
+      const result = await login(email, password, rememberMe);
+      if (!result.success) {
+        setError(result.message ?? 'Unable to sign in. Please try again.');
+        setIsLoading(false);
+        return;
+      }
+      onClose();
+    } catch (err) {
+      setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setResetError('Please enter your email.');
+      return;
+    }
+
+    setIsResetting(true);
+    setResetError(null);
+    setResetMessage(null);
+
+    const result = await forgotPassword(email);
+    if (!result.success) {
+      setResetError(result.message ?? 'Unable to send reset email.');
+      setIsResetting(false);
+      return;
+    }
+
+    setResetMessage(result.message ?? 'Password reset email sent.');
+    setIsResetting(false);
   };
 
   return (
@@ -278,49 +320,108 @@ export function LoginDialog({ isOpen, onClose, onSwitchToSignup }: LoginDialogPr
 
                   <button
                     type="button"
+                  onClick={handleForgotPassword}
+                  disabled={isResetting}
                     style={{
                       background: 'transparent',
                       border: 'none',
                       fontFamily: 'Manrope, sans-serif',
                       fontSize: '14px',
-                      color: '#9F8151',
-                      cursor: 'pointer',
+                    color: isResetting ? 'rgba(159, 129, 81, 0.6)' : '#9F8151',
+                    cursor: isResetting ? 'not-allowed' : 'pointer',
                       padding: 0,
                       textDecoration: 'underline',
                     }}
                   >
-                    Forgot password?
+                  {isResetting ? 'Sending...' : 'Forgot password?'}
                   </button>
                 </div>
+
+              {resetMessage && (
+                <div
+                  style={{
+                    marginBottom: '24px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(10, 72, 52, 0.08)',
+                    border: '1px solid rgba(10, 72, 52, 0.25)',
+                    color: '#0A4834',
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '14px',
+                  }}
+                >
+                  {resetMessage}
+                </div>
+              )}
+
+              {resetError && (
+                <div
+                  style={{
+                    marginBottom: '24px',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(193, 64, 64, 0.1)',
+                    border: '1px solid rgba(193, 64, 64, 0.35)',
+                    color: '#A32020',
+                    fontFamily: 'Manrope, sans-serif',
+                    fontSize: '14px',
+                  }}
+                >
+                  {resetError}
+                </div>
+              )}
+
+                {error && (
+                  <div
+                    style={{
+                      marginBottom: '24px',
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(193, 64, 64, 0.1)',
+                      border: '1px solid rgba(193, 64, 64, 0.35)',
+                      color: '#A32020',
+                      fontFamily: 'Manrope, sans-serif',
+                      fontSize: '14px',
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
 
                 {/* Login Button */}
                 <motion.button
                   type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  disabled={isLoading}
+                  whileHover={!isLoading ? { scale: 1.02 } : {}}
+                  whileTap={!isLoading ? { scale: 0.98 } : {}}
                   style={{
                     width: '100%',
                     fontFamily: 'Manrope, sans-serif',
                     fontSize: '16px',
                     fontWeight: 600,
                     color: '#FFFFFF',
-                    backgroundColor: '#0A4834',
+                    backgroundColor: isLoading ? '#6B8E7A' : '#0A4834',
                     border: 'none',
                     borderRadius: '12px',
                     padding: '16px',
-                    cursor: 'pointer',
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
                     transition: 'all 0.3s ease',
                     boxShadow: '0px 4px 12px rgba(10, 72, 52, 0.2)',
                     marginBottom: '24px',
+                    opacity: isLoading ? 0.7 : 1,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#083D2C';
+                    if (!isLoading) {
+                      e.currentTarget.style.backgroundColor = '#083D2C';
+                    }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = '#0A4834';
+                    if (!isLoading) {
+                      e.currentTarget.style.backgroundColor = '#0A4834';
+                    }
                   }}
                 >
-                  Log In
+                  {isLoading ? 'Logging in...' : 'Log In'}
                 </motion.button>
 
                 {/* Divider */}
