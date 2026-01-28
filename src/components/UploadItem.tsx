@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { apiClient } from '../api/apiClient';
 import { Upload, X, Image as ImageIcon, Check } from 'lucide-react';
@@ -28,8 +28,10 @@ export function UploadItem({ onClose }: UploadItemProps) {
   const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [uploadedImages, setUploadedImages] = useState<LocalImage[]>([]);
+  const [existingImages, setExistingImages] = useState<Array<{ id?: number; url: string; path?: string }>>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,6 +39,12 @@ export function UploadItem({ onClose }: UploadItemProps) {
   const [brandLookup, setBrandLookup] = useState<Record<string, number>>({});
   const [categoryLookup, setCategoryLookup] = useState<Record<string, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Edit mode state
+  const editItemId = searchParams.get('edit');
+  const isEditMode = !!editItemId;
+  const [isLoadingItem, setIsLoadingItem] = useState(false);
+  const pendingEditSizeRef = useRef<{ sizeId: string; sizeQuantity: string } | null>(null);
 
   // Database-fetched options for dropdowns
   const [brands, setBrands] = useState<Array<{ id: number; name: string }>>([]);
@@ -312,6 +320,24 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
         if (isMounted) {
           setSizes(formattedSizes);
+          
+          // Apply pending edit size if we're in edit mode and have a stored size
+          if (pendingEditSizeRef.current) {
+            const { sizeId: pendingSizeId, sizeQuantity: pendingQuantity } = pendingEditSizeRef.current;
+            // Verify the size exists in the loaded sizes
+            const sizeExists = formattedSizes.some(s => String(s.id) === pendingSizeId);
+            if (sizeExists) {
+              console.log('✅ Applying pending edit size:', pendingSizeId);
+              setFormData(prev => ({ 
+                ...prev, 
+                sizeId: pendingSizeId, 
+                sizeQuantity: pendingQuantity 
+              }));
+            } else {
+              console.warn('⚠️ Pending size ID not found in available sizes:', pendingSizeId);
+            }
+            pendingEditSizeRef.current = null; // Clear the ref
+          }
         }
       } catch (error: any) {
         console.error('Failed to fetch sizes for category:', error);
@@ -338,6 +364,156 @@ export function UploadItem({ onClose }: UploadItemProps) {
       uploadedImages.forEach((image) => URL.revokeObjectURL(image.previewUrl));
     };
   }, [uploadedImages]);
+
+  // Fetch item data when in edit mode
+  useEffect(() => {
+    if (!isEditMode || !editItemId || isLoadingOptions) return;
+
+    let isMounted = true;
+
+    const fetchItemForEditing = async () => {
+      setIsLoadingItem(true);
+      try {
+        console.log('📝 Edit mode: Fetching item data for ID:', editItemId);
+        
+        // Try to fetch the item from /api/me/items/{id} first (user's own items)
+        let itemData: any = null;
+        try {
+          const response = await apiClient.get(`/me/items/${editItemId}`);
+          itemData = response.data?.data || response.data;
+          console.log('✅ Fetched item from /me/items:', itemData);
+        } catch (err: any) {
+          // If that fails, try the general items endpoint
+          console.log('⚠️ Could not fetch from /me/items, trying /items...');
+          try {
+            const response = await apiClient.get(`/items/${editItemId}`);
+            itemData = response.data?.data || response.data;
+            console.log('✅ Fetched item from /items:', itemData);
+          } catch (err2) {
+            console.error('❌ Failed to fetch item for editing:', err2);
+            setSubmitError('Failed to load item for editing. Please try again.');
+            return;
+          }
+        }
+
+        if (!itemData || !isMounted) return;
+
+        console.log('📋 Item data to pre-fill:', itemData);
+
+        // Pre-fill form data
+        const brandName = itemData.brand?.name || '';
+        const categoryName = itemData.category?.name || '';
+        
+        // Get condition ID (could be object with id, or direct value)
+        let conditionId = '';
+        if (itemData.condition) {
+          if (typeof itemData.condition === 'object' && itemData.condition.id) {
+            conditionId = String(itemData.condition.id);
+          } else if (typeof itemData.condition === 'number') {
+            conditionId = String(itemData.condition);
+          } else if (typeof itemData.condition === 'string') {
+            conditionId = itemData.condition;
+          }
+        }
+
+        // Get size information - handle different API response formats
+        let sizeId = '';
+        let sizeQuantity = '1';
+        if (itemData.sizes && Array.isArray(itemData.sizes) && itemData.sizes.length > 0) {
+          const firstSize = itemData.sizes[0];
+          if (firstSize.id) {
+            sizeId = String(firstSize.id);
+          } else if (firstSize.pivot?.size_id) {
+            sizeId = String(firstSize.pivot.size_id);
+          }
+          if (firstSize.pivot?.quantity) {
+            sizeQuantity = String(firstSize.pivot.quantity);
+          } else if (firstSize.quantity) {
+            sizeQuantity = String(firstSize.quantity);
+          }
+        }
+
+        // Get tags - could be array or comma-separated string
+        let tagsString = '';
+        if (itemData.tags) {
+          if (Array.isArray(itemData.tags)) {
+            tagsString = itemData.tags.map((t: any) => typeof t === 'object' ? t.name : t).join(', ');
+          } else if (typeof itemData.tags === 'string') {
+            tagsString = itemData.tags;
+          }
+        }
+
+        // Store the size info in ref to apply after sizes load (since sizes effect resets sizeId)
+        if (sizeId) {
+          pendingEditSizeRef.current = { sizeId, sizeQuantity };
+          console.log('📌 Stored pending size for edit:', { sizeId, sizeQuantity });
+        }
+
+        // Set form data (sizeId will be empty initially, applied after sizes load)
+        setFormData({
+          title: itemData.name || itemData.title || '',
+          brand: brandName,
+          category: categoryName,
+          sizeId: '', // Will be set after sizes load
+          sizeQuantity: '1', // Will be set after sizes load
+          condition: conditionId,
+          description: itemData.description || '',
+          tags: tagsString,
+          sellingPrice: itemData.price ? String(itemData.price) : '',
+          material: itemData.material || '',
+          autoExpire: true,
+        });
+
+        // Set existing images
+        const images: Array<{ id?: number; url: string; path?: string }> = [];
+        
+        // Main image
+        if (itemData.image_url) {
+          images.push({ url: itemData.image_url, path: itemData.image });
+        } else if (itemData.image) {
+          images.push({ url: `${API_ROOT}/../storage/${itemData.image}`, path: itemData.image });
+        }
+        
+        // Additional images
+        if (itemData.images && Array.isArray(itemData.images)) {
+          itemData.images.forEach((img: any) => {
+            const imgUrl = img.url || img.image_url || (img.path ? `${API_ROOT}/../storage/${img.path}` : null);
+            if (imgUrl && !images.some(i => i.url === imgUrl)) {
+              images.push({ id: img.id, url: imgUrl, path: img.path });
+            }
+          });
+        }
+
+        if (isMounted) {
+          setExistingImages(images);
+          console.log('✅ Form pre-filled for editing:', {
+            title: itemData.name || itemData.title,
+            brand: brandName,
+            category: categoryName,
+            sizeId,
+            condition: conditionId,
+            price: itemData.price,
+            existingImages: images.length,
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error fetching item for edit:', error);
+        if (isMounted) {
+          setSubmitError('Failed to load item for editing.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingItem(false);
+        }
+      }
+    };
+
+    fetchItemForEditing();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isEditMode, editItemId, isLoadingOptions]);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -454,8 +630,9 @@ export function UploadItem({ onClose }: UploadItemProps) {
     if (!formData.sizeId.trim()) missingFields.push('size');
     if (!formData.condition.trim()) missingFields.push('condition');
     if (!formData.sellingPrice.trim()) missingFields.push('selling price');
-    // Images are required per API docs
-    if (uploadedImages.length === 0) missingFields.push('at least one image');
+    // Images are required per API docs - but in edit mode, existing images count
+    const totalImages = uploadedImages.length + existingImages.length;
+    if (totalImages === 0) missingFields.push('at least one image');
 
     if (missingFields.length) {
       setSubmitError(t.upload.errors.missingFields.replace('{fields}', missingFields.join(', ')));
@@ -799,19 +976,42 @@ export function UploadItem({ onClose }: UploadItemProps) {
         brand_id: brandId,
         category_id: categoryId,
         main_image: uploadedImages.length > 0 ? 'yes' : 'no',
+        existing_images: existingImages.length,
         additional_images: uploadedImages.length > 1 ? uploadedImages.length - 1 : 0,
         has_token: !!token,
+        isEditMode: isEditMode,
+        editItemId: editItemId,
       });
 
-      // Make the POST request with Bearer token authentication
-      // The backend will automatically associate the item with the authenticated user
-      // Note: Don't set Content-Type header for FormData - browser will set it with boundary
-      console.log('📡 Sending POST request to:', `${API_BASE_URL}/me/items`);
-      const response = await apiClient.post('/me/items', payload, {
-        headers: {
-          // Don't set Content-Type - let browser set it automatically for FormData with boundary
-        },
-      });
+      let response;
+      
+      if (isEditMode && editItemId) {
+        // UPDATE existing item with PUT request
+        // Note: For Laravel, we need to use POST with _method=PUT for FormData
+        payload.append('_method', 'PUT');
+        
+        // Include existing image paths to keep them
+        existingImages.forEach((img, index) => {
+          if (img.path) {
+            payload.append(`keep_images[${index}]`, img.path);
+          }
+        });
+        
+        console.log('📡 Sending PUT request (via POST with _method) to:', `${API_BASE_URL}/me/items/${editItemId}`);
+        response = await apiClient.post(`/me/items/${editItemId}`, payload, {
+          headers: {
+            // Don't set Content-Type - let browser set it automatically for FormData with boundary
+          },
+        });
+      } else {
+        // CREATE new item with POST request
+        console.log('📡 Sending POST request to:', `${API_BASE_URL}/me/items`);
+        response = await apiClient.post('/me/items', payload, {
+          headers: {
+            // Don't set Content-Type - let browser set it automatically for FormData with boundary
+          },
+        });
+      }
 
       // CRITICAL: Verify the response status code (should be 201 Created)
       console.log('📥 Response received:', {
@@ -1041,11 +1241,18 @@ export function UploadItem({ onClose }: UploadItemProps) {
         {/* Header */}
         <div className="upload-item-header">
           <h1 className="upload-item-title">
-            {t.upload.title}
+            {isEditMode ? (language === 'mk' ? 'Уреди артикл' : 'Edit Item') : t.upload.title}
           </h1>
           <p className="upload-item-subtitle">
-            {t.upload.subtitle}
+            {isEditMode 
+              ? (language === 'mk' ? 'Ажурирајте ги деталите за вашиот артикл' : 'Update the details of your item')
+              : t.upload.subtitle}
           </p>
+          {isLoadingItem && (
+            <p style={{ color: '#9F8151', fontSize: '14px', marginTop: '8px' }}>
+              {language === 'mk' ? 'Се вчитува артиклот...' : 'Loading item data...'}
+            </p>
+          )}
         </div>
 
         {/* Photo Upload Section */}
@@ -1079,11 +1286,43 @@ export function UploadItem({ onClose }: UploadItemProps) {
             className="upload-file-input"
           />
 
-          {/* Image Thumbnails */}
-          {uploadedImages.length > 0 && (
+          {/* Image Thumbnails - Show existing images and newly uploaded images */}
+          {(existingImages.length > 0 || uploadedImages.length > 0) && (
             <div className="upload-images-grid">
+              {/* Existing images from server (in edit mode) */}
+              {existingImages.map((img, index) => (
+                <div key={`existing-${index}`} className="upload-image-thumbnail" style={{ position: 'relative' }}>
+                  <ImageWithFallback
+                    src={img.url}
+                    alt={`Existing ${index + 1}`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '4px',
+                    left: '4px',
+                    background: 'rgba(10, 72, 52, 0.8)',
+                    color: 'white',
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                  }}>
+                    {language === 'mk' ? 'Постоечка' : 'Existing'}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExistingImages(prev => prev.filter((_, i) => i !== index));
+                    }}
+                    className="upload-image-remove-btn"
+                  >
+                    <X size={16} color="#000000" />
+                  </button>
+                </div>
+              ))}
+              {/* Newly uploaded images */}
               {uploadedImages.map((img, index) => (
-                <div key={index} className="upload-image-thumbnail">
+                <div key={`new-${index}`} className="upload-image-thumbnail">
                   <ImageWithFallback
                     src={img.previewUrl}
                     alt={`Upload ${index + 1}`}
@@ -1351,6 +1590,14 @@ export function UploadItem({ onClose }: UploadItemProps) {
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               </div>
+            ) : existingImages.length > 0 ? (
+              <div className="upload-preview-image">
+                <ImageWithFallback
+                  src={existingImages[0].url}
+                  alt="Preview"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              </div>
             ) : (
               <div className="upload-preview-placeholder">
                 <ImageIcon size={48} color="#00000020" />
@@ -1387,15 +1634,24 @@ export function UploadItem({ onClose }: UploadItemProps) {
         <div className="upload-buttons">
           <button
             onClick={handlePublish}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoadingItem}
             className="upload-button-primary"
             aria-busy={isSubmitting}
           >
-            {isSubmitting ? t.upload.publishing : t.upload.publish}
+            {isSubmitting 
+              ? (isEditMode 
+                  ? (language === 'mk' ? 'Се ажурира...' : 'Updating...') 
+                  : t.upload.publishing)
+              : (isEditMode 
+                  ? (language === 'mk' ? 'Зачувај промени' : 'Save Changes') 
+                  : t.upload.publish)}
           </button>
 
-          <button className="upload-button-secondary">
-            {t.upload.saveDraft}
+          <button 
+            className="upload-button-secondary"
+            onClick={() => navigate('/profile')}
+          >
+            {language === 'mk' ? 'Откажи' : 'Cancel'}
           </button>
         </div>
       </div>
@@ -1413,7 +1669,9 @@ export function UploadItem({ onClose }: UploadItemProps) {
               {language === 'mk' ? 'Успешно!' : 'Success!'}
             </h3>
             <p className="upload-toast-message">
-              {t.upload.itemSavedSuccess}
+              {isEditMode 
+                ? (language === 'mk' ? 'Артиклот е успешно ажуриран!' : 'Item updated successfully!')
+                : t.upload.itemSavedSuccess}
             </p>
             <p className="upload-toast-submessage">
               {language === 'mk' 

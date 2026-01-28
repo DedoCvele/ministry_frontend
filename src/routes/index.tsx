@@ -143,7 +143,11 @@ export const router = createBrowserRouter([
       },
       {
         path: 'become-seller',
-        element: <BecomeSellerOnboarding />,
+        element: (
+          <RequireAuth>
+            <BecomeSellerOnboarding />
+          </RequireAuth>
+        ),
       },
       {
         path: 'coming-soon',

@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Check, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Check, Sparkles, Plus, X, Instagram } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -9,7 +10,91 @@ import { Checkbox } from './ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import './styles/BecomeSellerOnboarding.css';
+
+// API Configuration
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_ROOT = `${API_BASE_URL}/api`;
+
+const getCookieValue = (name: string): string | null => {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const match = document.cookie.match(new RegExp(`(^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[2]) : null;
+};
+
+const getXsrfHeader = () => {
+  const token = getCookieValue('XSRF-TOKEN');
+  return token ? { 'X-XSRF-TOKEN': token } : {};
+};
+
+// Social platform types
+type SocialPlatform = 'tiktok' | 'instagram' | 'facebook';
+
+interface SocialLink {
+  id: string;
+  platform: SocialPlatform;
+  url: string;
+}
+
+// TikTok Icon component
+const TikTokIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    style={{ width: '1em', height: '1em' }}
+  >
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+  </svg>
+);
+
+// Facebook Icon component
+const FacebookIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    style={{ width: '1em', height: '1em' }}
+  >
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+  </svg>
+);
+
+const getPlatformIcon = (platform: SocialPlatform) => {
+  switch (platform) {
+    case 'tiktok':
+      return <TikTokIcon className="w-4 h-4" />;
+    case 'instagram':
+      return <Instagram className="w-4 h-4" />;
+    case 'facebook':
+      return <FacebookIcon className="w-4 h-4" />;
+  }
+};
+
+const getPlatformColor = (platform: SocialPlatform) => {
+  switch (platform) {
+    case 'tiktok':
+      return '#000000';
+    case 'instagram':
+      return '#E4405F';
+    case 'facebook':
+      return '#1877F2';
+  }
+};
+
+const getPlatformPlaceholder = (platform: SocialPlatform) => {
+  switch (platform) {
+    case 'tiktok':
+      return 'https://tiktok.com/@username';
+    case 'instagram':
+      return 'https://instagram.com/username';
+    case 'facebook':
+      return 'https://facebook.com/username';
+  }
+};
 
 interface BecomeSellerOnboardingProps {
   onClose?: () => void;
@@ -20,7 +105,13 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
   const { language } = useLanguage();
   const t = getTranslation(language);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const [step, setStep] = useState<'welcome' | 'info' | 'payment' | 'processing' | 'success'>('welcome');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -28,7 +119,6 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
     city: '',
     country: '',
     bio: '',
-    socialLink: '',
     termsAccepted: false,
     ageConfirmed: false,
     paymentMethod: 'card',
@@ -39,6 +129,65 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
     savePayment: false,
   });
 
+  // Social links state
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [showAddSocial, setShowAddSocial] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | ''>('');
+
+  // Load user data on mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Get CSRF cookie
+        try {
+          await axios.get(`${API_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+        } catch (csrfError) {
+          console.warn('Could not refresh CSRF cookie:', csrfError);
+        }
+
+        const xsrfHeader = getXsrfHeader();
+        
+        // Fetch user data
+        const response = await axios.get(`${API_ROOT}/user`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            ...xsrfHeader,
+          },
+          withCredentials: true,
+        });
+
+        const userData = response.data?.data || response.data?.user || response.data;
+        
+        if (userData) {
+          // Pre-fill form with existing user data
+          setFormData(prev => ({
+            ...prev,
+            fullName: userData.name || '',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            city: userData.city || '',
+            bio: userData.bio || '',
+          }));
+        }
+      } catch (err) {
+        console.error('Error fetching user data:', err);
+        // Don't show error - just use empty form
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
   const handleContinueToInfo = () => {
     setStep('info');
     setTimeout(() => {
@@ -46,15 +195,89 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
     }, 100);
   };
 
-  const handleContinueToPayment = () => {
+  const handleContinueToPayment = async () => {
     if (!formData.termsAccepted || !formData.ageConfirmed) {
       alert(t.onboarding.pleaseAcceptTerms);
       return;
     }
-    setStep('payment');
-    setTimeout(() => {
-      document.getElementById('payment-section')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+
+    // Save user data before proceeding to payment
+    setSaving(true);
+    setError(null);
+
+    try {
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      
+      if (!token) {
+        setError('Not authenticated. Please log in again.');
+        setSaving(false);
+        return;
+      }
+
+      // Get CSRF cookie
+      try {
+        await axios.get(`${API_BASE_URL}/sanctum/csrf-cookie`, { withCredentials: true });
+      } catch (csrfError) {
+        console.warn('Could not refresh CSRF cookie:', csrfError);
+      }
+
+      const xsrfHeader = getXsrfHeader();
+
+      // Prepare payload for PATCH /api/me
+      // According to API docs:
+      // - name (string, optional, min 3, max 255)
+      // - phone (string, optional, nullable)
+      // - city (string, optional, nullable, min 3)
+      // - bio (string, optional, nullable, max 5000)
+      // - role (optional; 3 = Seller)
+      const payload: Record<string, unknown> = {
+        name: formData.fullName,
+        phone: formData.phone || null,
+        city: formData.city || null,
+        bio: formData.bio || null,
+        role: 3, // Seller role
+      };
+
+      // Store social links in bio as a formatted section if there are any
+      // Since the API doesn't have a dedicated social_links field, we can append to bio
+      if (socialLinks.length > 0) {
+        const socialLinksText = socialLinks
+          .map(link => `${link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}: ${link.url}`)
+          .join('\n');
+        
+        // If there's existing bio, append social links; otherwise just use social links
+        const bioWithLinks = formData.bio 
+          ? `${formData.bio}\n\n--- Social Links ---\n${socialLinksText}`
+          : `--- Social Links ---\n${socialLinksText}`;
+        
+        payload.bio = bioWithLinks;
+      }
+
+      console.log('📤 PATCH /api/me - Updating seller profile:', payload);
+
+      const response = await axios.patch(`${API_ROOT}/me`, payload, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...xsrfHeader,
+        },
+        withCredentials: true,
+      });
+
+      console.log('📥 PATCH /api/me - Response:', response.data);
+
+      // Successfully saved - proceed to payment
+      setStep('payment');
+      setTimeout(() => {
+        document.getElementById('payment-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      console.error('Error saving profile:', err);
+      setError(err.response?.data?.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePayment = () => {
@@ -65,12 +288,62 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
     }, 2500);
   };
 
+  // Add a new social link
+  const handleAddSocialLink = () => {
+    if (!selectedPlatform) return;
+
+    // Check if platform already exists
+    if (socialLinks.some(link => link.platform === selectedPlatform)) {
+      alert(`You already have a ${selectedPlatform} link. Please edit the existing one.`);
+      return;
+    }
+
+    const newLink: SocialLink = {
+      id: `${selectedPlatform}-${Date.now()}`,
+      platform: selectedPlatform,
+      url: '',
+    };
+
+    setSocialLinks([...socialLinks, newLink]);
+    setSelectedPlatform('');
+    setShowAddSocial(false);
+  };
+
+  // Update social link URL
+  const handleUpdateSocialLink = (id: string, url: string) => {
+    setSocialLinks(links =>
+      links.map(link =>
+        link.id === id ? { ...link, url } : link
+      )
+    );
+  };
+
+  // Remove social link
+  const handleRemoveSocialLink = (id: string) => {
+    setSocialLinks(links => links.filter(link => link.id !== id));
+  };
+
+  // Get available platforms (not yet added)
+  const getAvailablePlatforms = (): SocialPlatform[] => {
+    const usedPlatforms = socialLinks.map(link => link.platform);
+    const allPlatforms: SocialPlatform[] = ['tiktok', 'instagram', 'facebook'];
+    return allPlatforms.filter(p => !usedPlatforms.includes(p));
+  };
+
   const progressPercentage = 
     step === 'welcome' ? 0 :
     step === 'info' ? 33 :
     step === 'payment' ? 66 :
     step === 'processing' ? 90 :
     100;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#F0ECE3] flex items-center justify-center">
+        <div className="text-[#9F8151] text-lg bs-manrope">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F0ECE3]">
@@ -89,7 +362,6 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('Back to Home clicked');
                 navigate('/');
               }}
               className="flex items-center gap-2 text-[#9F8151] hover:text-[#0A4834] transition-colors bs-manrope"
@@ -105,9 +377,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
               <ArrowLeft className="w-5 h-5" />
               <span>{t.onboarding.backToHome}</span>
             </button>
-            <div
-              className="text-[#0A4834] text-[20px] bs-cormorant"
-            >
+            <div className="text-[#0A4834] text-[20px] bs-cormorant">
               {t.onboarding.sellerOnboarding}
             </div>
           </div>
@@ -163,6 +433,12 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
               {t.onboarding.personalInformation}
             </h2>
 
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm bs-manrope">
+                {error}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <Label className="text-[#0A4834] mb-2 bs-manrope">
@@ -187,8 +463,9 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder={t.onboarding.emailPlaceholder}
                   className="bg-[#F0ECE3] border-none focus:ring-2 focus:ring-[#9F8151] rounded-xl"
-                  disabled={step !== 'info'}
+                  disabled={true} // Email cannot be changed
                 />
+                <p className="text-xs text-[#9F8151] mt-1 bs-manrope">Email cannot be changed</p>
               </div>
 
               <div>
@@ -250,17 +527,108 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
               />
             </div>
 
+            {/* Social Links Section */}
             <div className="mt-6">
-              <Label className="text-[#0A4834] mb-2 bs-manrope">
-                {t.onboarding.socialLink}
+              <Label className="text-[#0A4834] mb-3 bs-manrope flex items-center gap-2">
+                Social Links
+                <span className="text-[#9F8151] text-sm font-normal">(Optional)</span>
               </Label>
-              <Input
-                value={formData.socialLink}
-                onChange={(e) => setFormData({ ...formData, socialLink: e.target.value })}
-                placeholder={t.onboarding.socialPlaceholder}
-                className="bg-[#F0ECE3] border-none focus:ring-2 focus:ring-[#9F8151] rounded-xl"
-                disabled={step !== 'info'}
-              />
+
+              {/* Existing social links */}
+              <div className="space-y-3">
+                {socialLinks.map((link) => (
+                  <div 
+                    key={link.id} 
+                    className="flex items-center gap-3 p-3 bg-[#F0ECE3] rounded-xl"
+                  >
+                    <div 
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white"
+                      style={{ backgroundColor: getPlatformColor(link.platform) }}
+                    >
+                      {getPlatformIcon(link.platform)}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[#0A4834] text-sm font-medium bs-manrope capitalize">
+                        {link.platform}
+                      </p>
+                      <Input
+                        value={link.url}
+                        onChange={(e) => handleUpdateSocialLink(link.id, e.target.value)}
+                        placeholder={getPlatformPlaceholder(link.platform)}
+                        className="mt-1 bg-white border-none focus:ring-2 focus:ring-[#9F8151] rounded-lg text-sm"
+                        disabled={step !== 'info'}
+                      />
+                    </div>
+                    {step === 'info' && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSocialLink(link.id)}
+                        className="p-2 text-[#9F8151] hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add social link button/selector */}
+              {step === 'info' && getAvailablePlatforms().length > 0 && (
+                <div className="mt-4">
+                  {!showAddSocial ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddSocial(true)}
+                      className="flex items-center gap-2 text-[#9F8151] hover:text-[#0A4834] transition-colors bs-manrope text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Social Link
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-3 p-4 bg-[#F0ECE3]/50 rounded-xl border-2 border-dashed border-[#9F8151]/30">
+                      <Select
+                        value={selectedPlatform}
+                        onValueChange={(value: string) => setSelectedPlatform(value as SocialPlatform)}
+                      >
+                        <SelectTrigger className="bg-white border-none rounded-xl w-40">
+                          <SelectValue placeholder="Select platform" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {getAvailablePlatforms().map((platform) => (
+                            <SelectItem key={platform} value={platform}>
+                              <div className="flex items-center gap-2">
+                                {getPlatformIcon(platform)}
+                                <span className="capitalize">{platform}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        onClick={handleAddSocialLink}
+                        disabled={!selectedPlatform}
+                        className="bg-[#9F8151] text-white hover:bg-[#9F8151]/90 rounded-xl px-4 py-2 text-sm"
+                      >
+                        Add
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddSocial(false);
+                          setSelectedPlatform('');
+                        }}
+                        className="p-2 text-[#9F8151] hover:text-[#0A4834] transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {socialLinks.length === 0 && step !== 'info' && (
+                <p className="text-[#9F8151] text-sm bs-manrope mt-2">No social links added</p>
+              )}
             </div>
 
             {step === 'info' && (
@@ -296,9 +664,10 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                 <div className="mt-8">
                   <Button
                     onClick={handleContinueToPayment}
-                    className="w-full bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl py-6 bs-manrope"
+                    disabled={saving}
+                    className="w-full bg-[#0A4834] text-white hover:bg-[#0A4834]/90 rounded-xl py-6 bs-manrope disabled:opacity-50"
                   >
-                    {t.onboarding.continueSubscription}
+                    {saving ? 'Saving...' : t.onboarding.continueSubscription}
                   </Button>
                 </div>
               </>
