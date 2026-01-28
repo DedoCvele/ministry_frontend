@@ -59,7 +59,7 @@ api.interceptors.request.use((config) => {
 });
 
 const ADMIN_ACCOUNT = {
-  username: 'admin',
+  username: 'admin@najjak.com',
   password: 'najjakadmin123',
   role: 'admin' as Role,
   firstName: 'Admin',

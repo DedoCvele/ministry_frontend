@@ -30,14 +30,104 @@ const getXsrfHeader = () => {
   return token ? { 'X-XSRF-TOKEN': token } : {};
 };
 
-// Social platform types
-type SocialPlatform = 'tiktok' | 'instagram' | 'facebook';
+// Country calling codes and phone format info
+// Balkan phone formats supported by backend regex:
+// /^(\+?\d{1,4})?[-.\s]?\(?\d{2,3}\)?[-.\s]?\d{2,3}[-.\s]?\d{3,4}$/
+interface CountryPhoneInfo {
+  code: string;       // Country code (e.g., 'rs')
+  name: string;       // Country name
+  prefix: string;     // Phone prefix (e.g., '+381')
+  placeholder: string; // Example local number format
+  digitCount: number; // Expected number of digits in local part
+  format: number[];   // Digit grouping pattern (e.g., [2, 3, 4] for XX XXX XXXX)
+}
+
+const countryPhoneInfo: Record<string, CountryPhoneInfo> = {
+  rs: { code: 'rs', name: 'Serbia', prefix: '+381', placeholder: '64 123 4567', digitCount: 9, format: [2, 3, 4] },
+  hr: { code: 'hr', name: 'Croatia', prefix: '+385', placeholder: '91 123 4567', digitCount: 9, format: [2, 3, 4] },
+  ba: { code: 'ba', name: 'Bosnia', prefix: '+387', placeholder: '61 123 456', digitCount: 8, format: [2, 3, 3] },
+  mk: { code: 'mk', name: 'North Macedonia', prefix: '+389', placeholder: '70 123 456', digitCount: 8, format: [2, 3, 3] },
+  si: { code: 'si', name: 'Slovenia', prefix: '+386', placeholder: '40 123 456', digitCount: 8, format: [2, 3, 3] },
+};
+
+// Phone number validation regex (matches updated backend)
+// Supports: +country (2-3 digits) (2-3 digits) (3-4 digits)
+const phoneValidationRegex = /^(\+?\d{1,4})?[-.\s]?\(?\d{2,3}\)?[-.\s]?\d{2,3}[-.\s]?\d{3,4}$/;
+
+// Validate phone number format
+const isValidPhoneFormat = (phone: string): boolean => {
+  if (!phone || phone.trim() === '') return true; // Empty is valid (nullable)
+  return phoneValidationRegex.test(phone.trim());
+};
+
+// Format local phone number as user types based on country format
+const formatLocalPhone = (value: string, countryCode?: string): string => {
+  // Remove all non-digits
+  const digits = value.replace(/\D/g, '');
+  
+  if (!countryCode || !countryPhoneInfo[countryCode]) {
+    // Default format: just add spaces every 3 digits
+    return digits.replace(/(\d{3})(?=\d)/g, '$1 ').trim();
+  }
+  
+  const { format, digitCount } = countryPhoneInfo[countryCode];
+  const limitedDigits = digits.slice(0, digitCount);
+  
+  // Apply country-specific format
+  let result = '';
+  let position = 0;
+  
+  for (let i = 0; i < format.length && position < limitedDigits.length; i++) {
+    const groupSize = format[i];
+    const group = limitedDigits.slice(position, position + groupSize);
+    result += (result ? ' ' : '') + group;
+    position += groupSize;
+  }
+  
+  return result;
+};
+
+// Social platform enum values (matching backend SocialLinkPlatform enum)
+// 1 = Instagram, 2 = Facebook, 3 = TikTok, 4 = X (Twitter)
+const SocialLinkPlatform = {
+  INSTAGRAM: 1,
+  FACEBOOK: 2,
+  TIKTOK: 3,
+  X: 4,
+} as const;
+
+type SocialPlatformValue = typeof SocialLinkPlatform[keyof typeof SocialLinkPlatform];
 
 interface SocialLink {
-  id: string;
-  platform: SocialPlatform;
+  id?: number; // From backend, undefined for new links
+visibleId: string; // Local ID for UI management
+  platform: SocialPlatformValue;
   url: string;
 }
+
+// Map platform enum to display info
+const platformInfo: Record<SocialPlatformValue, { name: string; color: string; placeholder: string }> = {
+  [SocialLinkPlatform.INSTAGRAM]: {
+    name: 'Instagram',
+    color: '#E4405F',
+    placeholder: 'https://instagram.com/username',
+  },
+  [SocialLinkPlatform.FACEBOOK]: {
+    name: 'Facebook',
+    color: '#1877F2',
+    placeholder: 'https://facebook.com/username',
+  },
+  [SocialLinkPlatform.TIKTOK]: {
+    name: 'TikTok',
+    color: '#000000',
+    placeholder: 'https://tiktok.com/@username',
+  },
+  [SocialLinkPlatform.X]: {
+    name: 'X (Twitter)',
+    color: '#000000',
+    placeholder: 'https://x.com/username',
+  },
+};
 
 // TikTok Icon component
 const TikTokIcon = ({ className }: { className?: string }) => (
@@ -63,36 +153,28 @@ const FacebookIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const getPlatformIcon = (platform: SocialPlatform) => {
+// X (Twitter) Icon component
+const XIcon = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    fill="currentColor" 
+    className={className}
+    style={{ width: '1em', height: '1em' }}
+  >
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+
+const getPlatformIcon = (platform: SocialPlatformValue) => {
   switch (platform) {
-    case 'tiktok':
+    case SocialLinkPlatform.TIKTOK:
       return <TikTokIcon className="w-4 h-4" />;
-    case 'instagram':
+    case SocialLinkPlatform.INSTAGRAM:
       return <Instagram className="w-4 h-4" />;
-    case 'facebook':
+    case SocialLinkPlatform.FACEBOOK:
       return <FacebookIcon className="w-4 h-4" />;
-  }
-};
-
-const getPlatformColor = (platform: SocialPlatform) => {
-  switch (platform) {
-    case 'tiktok':
-      return '#000000';
-    case 'instagram':
-      return '#E4405F';
-    case 'facebook':
-      return '#1877F2';
-  }
-};
-
-const getPlatformPlaceholder = (platform: SocialPlatform) => {
-  switch (platform) {
-    case 'tiktok':
-      return 'https://tiktok.com/@username';
-    case 'instagram':
-      return 'https://instagram.com/username';
-    case 'facebook':
-      return 'https://facebook.com/username';
+    case SocialLinkPlatform.X:
+      return <XIcon className="w-4 h-4" />;
   }
 };
 
@@ -115,7 +197,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    phone: '',
+    phoneLocal: '', // Local part of phone number (without country prefix)
     city: '',
     country: '',
     bio: '',
@@ -129,12 +211,39 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
     savePayment: false,
   });
 
-  // Social links state
+  // Get the full phone number with country prefix
+  const getFullPhoneNumber = () => {
+    if (!formData.country || !formData.phoneLocal) return '';
+    const countryInfo = countryPhoneInfo[formData.country];
+    if (!countryInfo) return formData.phoneLocal;
+    return `${countryInfo.prefix} ${formData.phoneLocal}`;
+  };
+
+  // Parse an existing phone number to extract local part
+  const parsePhoneNumber = (fullPhone: string, countryCode: string): string => {
+    if (!fullPhone) return '';
+    const countryInfo = countryPhoneInfo[countryCode];
+    if (!countryInfo) return fullPhone;
+    
+    // Remove the country prefix if present
+    const prefix = countryInfo.prefix;
+    let localPart = fullPhone.trim();
+    
+    if (localPart.startsWith(prefix)) {
+      localPart = localPart.slice(prefix.length).trim();
+    } else if (localPart.startsWith(prefix.replace('+', ''))) {
+      localPart = localPart.slice(prefix.length - 1).trim();
+    }
+    
+    return localPart;
+  };
+
+  // Social links state - using backend enum values
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
   const [showAddSocial, setShowAddSocial] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatform | ''>('');
+  const [selectedPlatform, setSelectedPlatform] = useState<SocialPlatformValue | ''>('');
 
-  // Load user data on mount
+  // Load user data and existing social links on mount
   useEffect(() => {
     const fetchUserData = async () => {
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
@@ -167,15 +276,56 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
         const userData = response.data?.data || response.data?.user || response.data;
         
         if (userData) {
+          // Try to detect country from existing phone number
+          let detectedCountry = '';
+          let localPhone = userData.phone || '';
+          
+          if (userData.phone) {
+            // Try to match country prefix from phone number
+            for (const [code, info] of Object.entries(countryPhoneInfo)) {
+              if (userData.phone.startsWith(info.prefix)) {
+                detectedCountry = code;
+                localPhone = userData.phone.slice(info.prefix.length).trim();
+                break;
+              }
+            }
+          }
+          
           // Pre-fill form with existing user data
           setFormData(prev => ({
             ...prev,
             fullName: userData.name || '',
             email: userData.email || '',
-            phone: userData.phone || '',
+            phoneLocal: localPhone,
             city: userData.city || '',
+            country: detectedCountry,
             bio: userData.bio || '',
           }));
+        }
+
+        // Try to fetch existing social links
+        try {
+          const socialResponse = await axios.get(`${API_ROOT}/me/social-links`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              ...xsrfHeader,
+            },
+            withCredentials: true,
+          });
+
+          const existingLinks = socialResponse.data?.data || socialResponse.data || [];
+          if (Array.isArray(existingLinks)) {
+            setSocialLinks(existingLinks.map((link: any) => ({
+              id: link.id,
+              visibleId: `existing-${link.id}`,
+              platform: link.platform,
+              url: link.url,
+            })));
+          }
+        } catch (socialError: any) {
+          // Routes might not be ready yet - this is expected
+          console.log('Social links API not available yet:', socialError.response?.status);
         }
       } catch (err) {
         console.error('Error fetching user data:', err);
@@ -198,6 +348,19 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
   const handleContinueToPayment = async () => {
     if (!formData.termsAccepted || !formData.ageConfirmed) {
       alert(t.onboarding.pleaseAcceptTerms);
+      return;
+    }
+
+    // Validate bio has at least 4 characters if provided
+    if (formData.bio && formData.bio.length > 0 && formData.bio.length < 4) {
+      setError('Bio must be at least 4 characters long.');
+      return;
+    }
+
+    // Validate phone number format if provided
+    const fullPhone = getFullPhoneNumber();
+    if (fullPhone && !isValidPhoneFormat(fullPhone)) {
+      setError(`Invalid phone number format. Example: ${formData.country ? countryPhoneInfo[formData.country]?.prefix + ' ' + countryPhoneInfo[formData.country]?.placeholder : '+381 64 123 4567'}`);
       return;
     }
 
@@ -224,34 +387,20 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
       const xsrfHeader = getXsrfHeader();
 
       // Prepare payload for PATCH /api/me
-      // According to API docs:
+      // According to updated API docs:
       // - name (string, optional, min 3, max 255)
-      // - phone (string, optional, nullable)
+      // - phone (string, optional, nullable; must match phone validation regex)
       // - city (string, optional, nullable, min 3)
-      // - bio (string, optional, nullable, max 5000)
+      // - bio (string, optional, nullable, min 4, max 5000)
       // - role (optional; 3 = Seller)
+      // Note: fullPhone already validated above
       const payload: Record<string, unknown> = {
         name: formData.fullName,
-        phone: formData.phone || null,
+        phone: fullPhone || null,
         city: formData.city || null,
         bio: formData.bio || null,
         role: 3, // Seller role
       };
-
-      // Store social links in bio as a formatted section if there are any
-      // Since the API doesn't have a dedicated social_links field, we can append to bio
-      if (socialLinks.length > 0) {
-        const socialLinksText = socialLinks
-          .map(link => `${link.platform.charAt(0).toUpperCase() + link.platform.slice(1)}: ${link.url}`)
-          .join('\n');
-        
-        // If there's existing bio, append social links; otherwise just use social links
-        const bioWithLinks = formData.bio 
-          ? `${formData.bio}\n\n--- Social Links ---\n${socialLinksText}`
-          : `--- Social Links ---\n${socialLinksText}`;
-        
-        payload.bio = bioWithLinks;
-      }
 
       console.log('📤 PATCH /api/me - Updating seller profile:', payload);
 
@@ -266,6 +415,49 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
       });
 
       console.log('📥 PATCH /api/me - Response:', response.data);
+
+      // Now save social links via the dedicated API
+      // Filter out links with empty URLs
+      const linksToSave = socialLinks.filter(link => link.url.trim());
+      
+      for (const link of linksToSave) {
+        try {
+          if (link.id) {
+            // Update existing link
+            console.log(`📤 PUT /api/me/social-links/${link.id}`, { platform: link.platform, url: link.url });
+            await axios.put(`${API_ROOT}/me/social-links/${link.id}`, {
+              platform: link.platform,
+              url: link.url,
+            }, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...xsrfHeader,
+              },
+              withCredentials: true,
+            });
+          } else {
+            // Create new link
+            console.log('📤 POST /api/me/social-links', { platform: link.platform, url: link.url });
+            await axios.post(`${API_ROOT}/me/social-links`, {
+              platform: link.platform,
+              url: link.url,
+            }, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                ...xsrfHeader,
+              },
+              withCredentials: true,
+            });
+          }
+        } catch (socialError: any) {
+          // Routes might not be ready yet - log but don't fail
+          console.warn('Social link save failed (API may not be ready):', socialError.response?.status, socialError.response?.data);
+        }
+      }
 
       // Successfully saved - proceed to payment
       setStep('payment');
@@ -294,12 +486,12 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
 
     // Check if platform already exists
     if (socialLinks.some(link => link.platform === selectedPlatform)) {
-      alert(`You already have a ${selectedPlatform} link. Please edit the existing one.`);
+      alert(`You already have a ${platformInfo[selectedPlatform].name} link. Please edit the existing one.`);
       return;
     }
 
     const newLink: SocialLink = {
-      id: `${selectedPlatform}-${Date.now()}`,
+      visibleId: `new-${selectedPlatform}-${Date.now()}`,
       platform: selectedPlatform,
       url: '',
     };
@@ -310,23 +502,51 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
   };
 
   // Update social link URL
-  const handleUpdateSocialLink = (id: string, url: string) => {
+  const handleUpdateSocialLink = (visibleId: string, url: string) => {
     setSocialLinks(links =>
       links.map(link =>
-        link.id === id ? { ...link, url } : link
+        link.visibleId === visibleId ? { ...link, url } : link
       )
     );
   };
 
   // Remove social link
-  const handleRemoveSocialLink = (id: string) => {
-    setSocialLinks(links => links.filter(link => link.id !== id));
+  const handleRemoveSocialLink = async (visibleId: string) => {
+    const linkToRemove = socialLinks.find(link => link.visibleId === visibleId);
+    
+    // If it has a backend ID, try to delete it from the API
+    if (linkToRemove?.id) {
+      const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+      if (token) {
+        try {
+          const xsrfHeader = getXsrfHeader();
+          await axios.delete(`${API_ROOT}/me/social-links/${linkToRemove.id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Accept': 'application/json',
+              ...xsrfHeader,
+            },
+            withCredentials: true,
+          });
+          console.log(`📤 DELETE /api/me/social-links/${linkToRemove.id} - Success`);
+        } catch (deleteError: any) {
+          console.warn('Could not delete social link from API:', deleteError.response?.status);
+        }
+      }
+    }
+    
+    setSocialLinks(links => links.filter(link => link.visibleId !== visibleId));
   };
 
   // Get available platforms (not yet added)
-  const getAvailablePlatforms = (): SocialPlatform[] => {
+  const getAvailablePlatforms = (): SocialPlatformValue[] => {
     const usedPlatforms = socialLinks.map(link => link.platform);
-    const allPlatforms: SocialPlatform[] = ['tiktok', 'instagram', 'facebook'];
+    const allPlatforms: SocialPlatformValue[] = [
+      SocialLinkPlatform.INSTAGRAM,
+      SocialLinkPlatform.FACEBOOK,
+      SocialLinkPlatform.TIKTOK,
+      SocialLinkPlatform.X,
+    ];
     return allPlatforms.filter(p => !usedPlatforms.includes(p));
   };
 
@@ -470,20 +690,6 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
 
               <div>
                 <Label className="text-[#0A4834] mb-2 bs-manrope">
-                  {t.onboarding.phoneNumber}
-                </Label>
-                <Input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder={t.onboarding.phonePlaceholder}
-                  className="bg-[#F0ECE3] border-none focus:ring-2 focus:ring-[#9F8151] rounded-xl"
-                  disabled={step !== 'info'}
-                />
-              </div>
-
-              <div>
-                <Label className="text-[#0A4834] mb-2 bs-manrope">
                   {t.onboarding.location}
                 </Label>
                 <div className="flex gap-2">
@@ -503,14 +709,74 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                       <SelectValue placeholder={t.onboarding.country} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="rs">Serbia</SelectItem>
-                      <SelectItem value="hr">Croatia</SelectItem>
-                      <SelectItem value="ba">Bosnia</SelectItem>
-                      <SelectItem value="mk">Macedonia</SelectItem>
-                      <SelectItem value="si">Slovenia</SelectItem>
+                      {Object.entries(countryPhoneInfo).map(([code, info]) => (
+                        <SelectItem key={code} value={code}>
+                          {info.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div>
+                <Label className="text-[#0A4834] mb-2 bs-manrope">
+                  {t.onboarding.phoneNumber}
+                </Label>
+                <div className="flex">
+                  {/* Country prefix - non-editable */}
+                  <div 
+                    className={`flex items-center justify-center px-4 rounded-l-xl border-r border-[#DCD6C9] ${
+                      formData.country 
+                        ? 'bg-[#0A4834] text-white' 
+                        : 'bg-[#DCD6C9] text-[#9F8151]'
+                    }`}
+                    style={{ minWidth: '80px' }}
+                  >
+                    <span className="text-sm font-medium bs-manrope">
+                      {formData.country 
+                        ? countryPhoneInfo[formData.country]?.prefix 
+                        : '+XXX'}
+                    </span>
+                  </div>
+                  {/* Local phone number input */}
+                  <Input
+                    type="tel"
+                    value={formData.phoneLocal}
+                    onChange={(e) => {
+                      // Format based on country's phone format
+                      const formatted = formatLocalPhone(e.target.value, formData.country);
+                      setFormData({ ...formData, phoneLocal: formatted });
+                    }}
+                    placeholder={
+                      formData.country 
+                        ? countryPhoneInfo[formData.country]?.placeholder 
+                        : 'Select country first'
+                    }
+                    className={`bg-[#F0ECE3] border-none focus:ring-2 focus:ring-[#9F8151] rounded-l-none rounded-r-xl flex-1 ${
+                      formData.phoneLocal && !isValidPhoneFormat(getFullPhoneNumber()) 
+                        ? 'ring-2 ring-red-400' 
+                        : ''
+                    }`}
+                    disabled={step !== 'info' || !formData.country}
+                    maxLength={formData.country ? countryPhoneInfo[formData.country]?.digitCount + 2 : 15}
+                  />
+                </div>
+                {!formData.country && step === 'info' && (
+                  <p className="text-xs text-[#9F8151] mt-1 bs-manrope">
+                    Please select a country first to enter your phone number
+                  </p>
+                )}
+                {formData.country && formData.phoneLocal && step === 'info' && (
+                  <p className={`text-xs mt-1 bs-manrope ${
+                    isValidPhoneFormat(getFullPhoneNumber()) ? 'text-green-600' : 'text-red-500'
+                  }`}>
+                    {isValidPhoneFormat(getFullPhoneNumber()) 
+                      ? `✓ ${getFullPhoneNumber()}` 
+                      : `✗ Invalid format (e.g., ${countryPhoneInfo[formData.country]?.placeholder})`
+                    }
+                  </p>
+                )}
               </div>
             </div>
 
@@ -525,6 +791,9 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                 className="bg-[#F0ECE3] border-none focus:ring-2 focus:ring-[#9F8151] rounded-xl min-h-[100px]"
                 disabled={step !== 'info'}
               />
+              <p className="text-xs text-[#9F8151] mt-1 bs-manrope">
+                {formData.bio.length > 0 ? `${formData.bio.length} characters (minimum 4)` : 'Minimum 4 characters'}
+              </p>
             </div>
 
             {/* Social Links Section */}
@@ -538,23 +807,23 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
               <div className="space-y-3">
                 {socialLinks.map((link) => (
                   <div 
-                    key={link.id} 
+                    key={link.visibleId} 
                     className="flex items-center gap-3 p-3 bg-[#F0ECE3] rounded-xl"
                   >
                     <div 
                       className="w-10 h-10 rounded-full flex items-center justify-center text-white"
-                      style={{ backgroundColor: getPlatformColor(link.platform) }}
+                      style={{ backgroundColor: platformInfo[link.platform].color }}
                     >
                       {getPlatformIcon(link.platform)}
                     </div>
                     <div className="flex-1">
-                      <p className="text-[#0A4834] text-sm font-medium bs-manrope capitalize">
-                        {link.platform}
+                      <p className="text-[#0A4834] text-sm font-medium bs-manrope">
+                        {platformInfo[link.platform].name}
                       </p>
                       <Input
                         value={link.url}
-                        onChange={(e) => handleUpdateSocialLink(link.id, e.target.value)}
-                        placeholder={getPlatformPlaceholder(link.platform)}
+                        onChange={(e) => handleUpdateSocialLink(link.visibleId, e.target.value)}
+                        placeholder={platformInfo[link.platform].placeholder}
                         className="mt-1 bg-white border-none focus:ring-2 focus:ring-[#9F8151] rounded-lg text-sm"
                         disabled={step !== 'info'}
                       />
@@ -562,7 +831,7 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                     {step === 'info' && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveSocialLink(link.id)}
+                        onClick={() => handleRemoveSocialLink(link.visibleId)}
                         className="p-2 text-[#9F8151] hover:text-red-500 transition-colors"
                       >
                         <X className="w-4 h-4" />
@@ -587,18 +856,18 @@ export function BecomeSellerOnboarding({ onClose, onSuccess }: BecomeSellerOnboa
                   ) : (
                     <div className="flex items-center gap-3 p-4 bg-[#F0ECE3]/50 rounded-xl border-2 border-dashed border-[#9F8151]/30">
                       <Select
-                        value={selectedPlatform}
-                        onValueChange={(value: string) => setSelectedPlatform(value as SocialPlatform)}
+                        value={selectedPlatform ? String(selectedPlatform) : ''}
+                        onValueChange={(value: string) => setSelectedPlatform(Number(value) as SocialPlatformValue)}
                       >
-                        <SelectTrigger className="bg-white border-none rounded-xl w-40">
+                        <SelectTrigger className="bg-white border-none rounded-xl w-44">
                           <SelectValue placeholder="Select platform" />
                         </SelectTrigger>
                         <SelectContent>
                           {getAvailablePlatforms().map((platform) => (
-                            <SelectItem key={platform} value={platform}>
+                            <SelectItem key={platform} value={String(platform)}>
                               <div className="flex items-center gap-2">
                                 {getPlatformIcon(platform)}
-                                <span className="capitalize">{platform}</span>
+                                <span>{platformInfo[platform].name}</span>
                               </div>
                             </SelectItem>
                           ))}

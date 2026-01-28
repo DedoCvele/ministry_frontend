@@ -207,6 +207,71 @@ interface UserData {
   memberSince: string;
 }
 
+// Social link platform enum (matches backend)
+const SocialLinkPlatform = {
+  INSTAGRAM: 1,
+  FACEBOOK: 2,
+  TIKTOK: 3,
+  X: 4,
+} as const;
+
+interface SocialLink {
+  id: number;
+  platform: number;
+  url: string;
+}
+
+// Social platform display info
+const socialPlatformInfo: Record<number, { name: string; color: string }> = {
+  [SocialLinkPlatform.INSTAGRAM]: { name: 'Instagram', color: '#E4405F' },
+  [SocialLinkPlatform.FACEBOOK]: { name: 'Facebook', color: '#1877F2' },
+  [SocialLinkPlatform.TIKTOK]: { name: 'TikTok', color: '#000000' },
+  [SocialLinkPlatform.X]: { name: 'X', color: '#000000' },
+};
+
+// Social media icons as inline SVGs
+const InstagramIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+  </svg>
+);
+
+const FacebookIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+  </svg>
+);
+
+const TikTokIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+  </svg>
+);
+
+const XIcon = ({ size = 18, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+);
+
+// Get icon component for platform
+const getSocialIcon = (platform: number) => {
+  switch (platform) {
+    case SocialLinkPlatform.INSTAGRAM:
+      return InstagramIcon;
+    case SocialLinkPlatform.FACEBOOK:
+      return FacebookIcon;
+    case SocialLinkPlatform.TIKTOK:
+      return TikTokIcon;
+    case SocialLinkPlatform.X:
+      return XIcon;
+    default:
+      return null;
+  }
+};
+
 interface Order {
   id: number;
   name: string;
@@ -278,6 +343,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   const [mostRecentItem, setMostRecentItem] = useState<ClosetItem | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
 
   // Load user data and get user_id from API
   useEffect(() => {
@@ -350,6 +416,25 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     };
 
     tryUserEndpoints();
+  }, [authUser]);
+
+  // Load social links
+  useEffect(() => {
+    const fetchSocialLinks = async () => {
+      try {
+        const response = await apiClient.get('/me/social-links');
+        const links = response.data?.data || response.data || [];
+        setSocialLinks(Array.isArray(links) ? links : []);
+      } catch (err: any) {
+        // Social links endpoint might not exist yet, silently fail
+        console.log('Could not fetch social links:', err.response?.status || err.message);
+        setSocialLinks([]);
+      }
+    };
+
+    if (authUser) {
+      fetchSocialLinks();
+    }
   }, [authUser]);
 
   // Helper function to get image URL from item (handles different API response formats)
@@ -939,6 +1024,48 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               <MapPin size={14} />
               {user?.location || t.profile.locationNotSet}
             </div>
+
+            {/* Social Media Links */}
+            {socialLinks.length > 0 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginTop: '12px',
+              }}>
+                {socialLinks.map((link) => {
+                  const IconComponent = getSocialIcon(link.platform);
+                  const platformInfo = socialPlatformInfo[link.platform];
+                  if (!IconComponent) return null;
+                  
+                  return (
+                    <motion.a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      whileHover={{ scale: 1.15, y: -2 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '10px',
+                        backgroundColor: '#F5F2ED',
+                        color: platformInfo?.color || '#666',
+                        transition: 'all 0.2s ease',
+                        cursor: 'pointer',
+                      }}
+                      title={platformInfo?.name || 'Social'}
+                    >
+                      <IconComponent size={18} color={platformInfo?.color || '#666'} />
+                    </motion.a>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

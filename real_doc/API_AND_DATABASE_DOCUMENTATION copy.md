@@ -90,6 +90,10 @@ DELETE /api/sizes/{size}
 3. [Routes reference](#3-routes-reference)
 4. [Database schema and relations](#4-database-schema-and-relations)
 5. [ImageKit (images and files)](#5-imagekit-images-and-files)
+6. [Resource shapes (response types)](#6-resource-shapes-response-types)
+7. [Pagination](#7-pagination)
+8. [Errors](#8-errors)
+9. [Social Links (Backend Ready — Routes Pending)](#9-social-links-backend-ready--routes-pending)
 
 ---
 
@@ -234,6 +238,13 @@ Send and compare using the **integer** values in the API and in your types.
 - `2` — Buyer  
 - `3` — Seller  
 
+**SocialLinkPlatform** (social link platform):
+
+- `1` — Instagram  
+- `2` — Facebook  
+- `3` — TikTok  
+- `4` — X (Twitter)  
+
 ---
 
 ## 3. Routes reference
@@ -285,10 +296,10 @@ All require **Auth**.
 - `password` (string, optional; must satisfy password rules; use with `password_confirmation` if your backend expects it)
 - `phone` (string, optional, nullable; format like `+1 234 567 8900` or similar)
 - `city` (string, optional, nullable, min 3)
-- `bio` (string, optional, nullable, no minimum length, max 5000)
+- `bio` (string, optional, nullable, min 20, max 5000)
 - `profile_picture`: either  
   - a **file** (image; SVG only if your backend validates that), or  
-  - **string**: hex color `#RRGGBB`, a valid URL, or inline SVG markup (e.g. `<svg>…</svg>`) if the backend supports it  
+  - **string**: hex color `#RRGGBB` or a valid URL  
 - `role` (optional; only if allowed; use UserRole enum values)
 
 **Response (200):** UserResource of the updated user.
@@ -795,6 +806,15 @@ Use this to understand IDs and how to combine responses (e.g. `category_id` on i
 - `user_id` (the user who is followed), `follower_id` (the user who follows)
 - `timestamps`
 
+**social_links**
+
+- `id` (PK)
+- `user_id` (FK → users)
+- `platform` (tinyint unsigned) — SocialLinkPlatform enum value: 1 Instagram, 2 Facebook, 3 TikTok, 4 X
+- `url` (string, max 2048)
+- Unique `(user_id, platform)` — each user can have only one link per platform
+- `timestamps`
+
 ---
 
 ### 4.2 Entity relations (for frontend logic)
@@ -806,6 +826,11 @@ Use this to understand IDs and how to combine responses (e.g. `category_id` on i
 - **followers** — many-to-many via `user_user`: “users who follow this user” (`user_id` = this user, `follower_id` = follower)
 - **following** — many-to-many via `user_user`: “users this user follows” (`follower_id` = this user, `user_id` = followed)
 - **favorites** — many-to-many with Item via `item_user` (favourite items)
+- **socialLinks** — one-to-many (user's social media links)
+
+**SocialLink**
+
+- **user** — many-to-one (belongs to user)
 
 **Item**
 
@@ -939,8 +964,9 @@ Use these to type your frontend models and API clients.
 - `id`, `name`, `email`
 - `is_followed` (boolean, when in a context where the backend checks the current user)
 - `followers_count`, `following_count` (when loaded with counts)
-- `created_at`, `updated_at` (formatted strings in the current API)
+- `created_at`, `updated_at` (formatted strings, e.g. `"28/01/2026 14:30"`)
 - `items` (array of ItemResource when relation loaded)
+- `profile_picture` (string or null): can be a hex color (e.g. `"#FF5500"`), SVG data URI, SVG markup, or a Storage URL for uploaded SVG files
 
 **ItemResource**
 
@@ -982,6 +1008,12 @@ Use these to type your frontend models and API clients.
 - `id`, `name`, `slug`
 - `items` (array of ItemResource when loaded)
 
+**SocialLinkResource**
+
+- `id`
+- `platform` (SocialLinkPlatform enum value: 1 Instagram, 2 Facebook, 3 TikTok, 4 X)
+- `url` (string)
+
 ---
 
 ## 7. Pagination
@@ -1003,6 +1035,39 @@ Use query `per-page` to set page size (default 15).
 - **404 Not Found** — no resource for given id/slug.
 - **422 Unprocessable Entity** — validation errors; body has `message` and `errors` (object of field → array of messages).
 - **429 Too Many Requests** — rate limit (e.g. login); often includes retry-after or message.
+
+---
+
+## 9. Social Links (Backend Ready — Routes Pending)
+
+The backend has a complete implementation for **social links** (users can link their social media profiles), but the API routes are **not yet configured**. Once routes are added, the following endpoints will be available:
+
+### Expected Routes (Auth required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET    | `/api/me/social-links` | List current user's social links |
+| POST   | `/api/me/social-links` | Create a social link |
+| GET    | `/api/me/social-links/{link}` | Get one social link |
+| PUT    | `/api/me/social-links/{link}` | Update a social link |
+| DELETE | `/api/me/social-links/{link}` | Delete a social link |
+
+### Create/Update Social Link — Expected Request
+
+**Request (JSON):**
+
+- `platform` (required) — SocialLinkPlatform enum value: `1` (Instagram), `2` (Facebook), `3` (TikTok), `4` (X/Twitter)
+- `url` (required, valid URL) — the link to the social profile
+
+**Constraint:** Each user can have only one link per platform. Creating a second link for the same platform will fail.
+
+**Response:** Single **SocialLinkResource**.
+
+### SocialLinkResource Shape
+
+- `id`
+- `platform` (SocialLinkPlatform enum value)
+- `url` (string)
 
 ---
 

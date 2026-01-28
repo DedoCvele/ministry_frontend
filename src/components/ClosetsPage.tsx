@@ -26,11 +26,11 @@ interface Closet {
   category: string;
   avatar: string;
   user?: {
-    role?: string;
-    user_role?: string;
+    role?: string | number;
+    user_role?: string | number;
   };
-  role?: string;
-  user_role?: string;
+  role?: string | number;
+  user_role?: string | number;
 }
 
 interface ClosetsPageProps {
@@ -134,7 +134,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest',
           },
-          credentials: 'omit',
+          credentials: 'include',
         });
 
         const contentType = response.headers.get('content-type') || '';
@@ -156,7 +156,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
 
         if (Array.isArray(rawClosets)) {
           const normalizedClosets = rawClosets.map(normalizeCloset);
-          // Filter out admin profiles - only show users with user profiles
+          // Filter out admin profiles - only show seller closets
           const userClosets = normalizedClosets.filter((closet: Closet) => {
             // Check if username is 'admin' (exclude admin profile)
             if (closet.username?.toLowerCase() === 'admin') {
@@ -164,9 +164,17 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
             }
             
             // Check if there's a role field indicating admin
+            // Roles can be numbers (1=Admin, 2=Buyer, 3=Seller) or strings
             const role = closet.user?.role || closet.user?.user_role || closet.role || closet.user_role;
-            if (role && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'administrator')) {
-              return false;
+            if (role) {
+              // Handle numeric roles: 1 = Admin
+              if (role === 1 || role === '1') {
+                return false;
+              }
+              // Handle string roles
+              if (typeof role === 'string' && (role.toLowerCase() === 'admin' || role.toLowerCase() === 'administrator')) {
+                return false;
+              }
             }
             
             // Include all other closets (user profiles)

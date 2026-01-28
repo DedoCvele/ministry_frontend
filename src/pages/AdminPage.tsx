@@ -13,8 +13,6 @@ import {
   Loader2,
   Upload,
   Image as ImageIcon,
-  Star,
-  ArrowUp,
   ArrowDown,
   Mail,
   Users,
@@ -50,17 +48,25 @@ const DEFAULT_BLOG_CATEGORIES = [
 
 const STORAGE_KEY_CATEGORIES = 'ministry_blog_categories';
 
+// BlogResource shape per API documentation
+// BlogStatus: 1=Draft, 2=Published
 interface Blog {
   id: number;
   title: string;
   content: string;
   image: string | null;
-  image_url: string | null;
+  image_url?: string | null; // For backward compatibility
+  // BlogStatus per API documentation: 1=Draft, 2=Published
   status: number;
-  user_id: number;
+  user_id?: number;
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  } | null;
   created_at: string;
   updated_at: string;
-  // Optional fields that might be returned but not used in API requests
+  // Optional fields for backward compatibility
   category?: string;
   short_summary?: string;
   full_story?: string;
@@ -72,10 +78,39 @@ interface UserData {
   email: string;
   username?: string;
   created_at?: string;
+  // UserRole per API documentation: 1=Admin, 2=Buyer, 3=Seller
+  role?: number;
+  phone?: string;
+  city?: string;
+  bio?: string;
+  followers_count?: number;
+  following_count?: number;
 }
 
 const API_BASE_URL = 'http://localhost:8000/api';
 const BACKEND_BASE_URL = 'http://localhost:8000';
+
+// Helper to get user role label per API documentation
+// UserRole: 1=Admin, 2=Buyer, 3=Seller
+const getUserRoleLabel = (role?: number): string => {
+  switch (role) {
+    case 1: return 'Admin';
+    case 2: return 'Buyer';
+    case 3: return 'Seller';
+    default: return 'Unknown';
+  }
+};
+
+// Helper to get approval status label per API documentation
+// ItemApprovalStatus: 1=Pending, 2=Approved, 3=Rejected
+const getApprovalStatusLabel = (status?: number): string => {
+  switch (status) {
+    case 1: return 'Pending';
+    case 2: return 'Approved';
+    case 3: return 'Rejected';
+    default: return 'Unknown';
+  }
+};
 
 // Helper function to get auth token from localStorage
 const getAuthToken = (): string | null => {
@@ -132,11 +167,12 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
 };
 
 // Robust helper to safely extract numeric approval value from various response shapes
+// API uses approval_status: 1=Pending, 2=Approved, 3=Rejected (per API documentation)
 const getApprovalNumber = (item: any): number | null => {
   if (!item) return null;
 
-  // 1) Direct primitive values using nullish coalescing (??) to handle 0 correctly
-  const candidate = item.approved ?? item.approval_status ?? item.approval_state ?? item.status;
+  // 1) Prefer approval_status first (per API documentation), then fallback to other fields
+  const candidate = item.approval_status ?? item.approved ?? item.approval_state ?? item.status;
 
   if (candidate !== undefined && candidate !== null) {
     // If it's an object (e.g. { value: 3, type: 'number' }), try to extract known shapes
@@ -263,10 +299,11 @@ export function AdminPage() {
       let response: { data: any };
       try {
         // Prefer GET /api/admin/items (returns pending for admins). Fallback to /api/items if 404/405.
-        response = await axios.get(`${API_BASE_URL}/admin/items`, { params: { approved: approvalLevel }, ...cfg });
+        // Use approval_status parameter per API documentation (1=Pending, 2=Approved, 3=Rejected)
+        response = await axios.get(`${API_BASE_URL}/admin/items`, { params: { approval_status: approvalLevel }, ...cfg });
       } catch (e: any) {
         if (e?.response?.status === 404 || e?.response?.status === 405) {
-          response = await axios.get(`${API_BASE_URL}/items`, { params: { approved: approvalLevel }, ...cfg });
+          response = await axios.get(`${API_BASE_URL}/items`, { params: { approval_status: approvalLevel }, ...cfg });
         } else {
           throw e;
         }
@@ -381,9 +418,18 @@ export function AdminPage() {
   const fetchBlogs = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/blogs`);
-      // API returns { status: "success", data: [...] }
-      if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+      // GET /api/blogs returns paginated BlogResource with user per API documentation
+      const response = await axios.get(`${API_BASE_URL}/blogs`, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      
+      // Handle paginated response (data array in 'data' field per Laravel pagination)
+      if (response.data.data && Array.isArray(response.data.data)) {
+        setBlogs(response.data.data);
+      } else if (response.data.status === 'success' && Array.isArray(response.data.data)) {
+        // Legacy response format
         setBlogs(response.data.data);
       } else if (Array.isArray(response.data)) {
         // Fallback if response structure is different
@@ -408,23 +454,63 @@ export function AdminPage() {
     try {
       setLoadingUsers(true);
       
-      // Use the same endpoint as ClosetsPage: /api/closets
-      const response = await fetch(`${API_BASE_URL}/closets`);
+      // Use GET /api/users endpoint per API documentation
+      // Returns paginated UserResource (excludes Admin role users)
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
       const data = await response.json();
 
-      if (data.closets && Array.isArray(data.closets)) {
-        // Map closets to UserData format
+      // API returns paginated response with 'data' array per documentation
+      // UserResource shape includes: id, name, email, phone, city, bio, role, followers_count, following_count, created_at, updated_at
+      if (data.data && Array.isArray(data.data)) {
+        // Map users from UserResource format
+        const usersData: UserData[] = data.data.map((user: any) => ({
+          id: user.id,
+          name: user.name || 'Unknown',
+          email: user.email || '',
+          username: user.username || user.name || '',
+          created_at: user.created_at,
+          role: user.role,
+          phone: user.phone,
+          city: user.city,
+          bio: user.bio,
+          followers_count: user.followers_count,
+          following_count: user.following_count,
+        }));
+        
+        setUsers(usersData);
+      } else if (Array.isArray(data)) {
+        // Fallback for non-paginated response
+        const usersData: UserData[] = data.map((user: any) => ({
+          id: user.id,
+          name: user.name || 'Unknown',
+          email: user.email || '',
+          username: user.username || user.name || '',
+          created_at: user.created_at,
+          role: user.role,
+          phone: user.phone,
+          city: user.city,
+          bio: user.bio,
+          followers_count: user.followers_count,
+          following_count: user.following_count,
+        }));
+        setUsers(usersData);
+      } else if (data.closets && Array.isArray(data.closets)) {
+        // Fallback for closets response structure
         const usersData: UserData[] = data.closets.map((closet: any) => ({
           id: closet.id,
           name: closet.name || 'Unknown',
           email: closet.email || '',
           username: closet.username || '',
           created_at: closet.created_at,
+          role: closet.role,
         }));
-        
         setUsers(usersData);
       } else {
-        console.warn('Unexpected closets response structure:', data);
+        console.warn('Unexpected users response structure:', data);
         setUsers([]);
       }
     } catch (error) {
@@ -483,15 +569,21 @@ export function AdminPage() {
     );
   }, [users, userQuery]);
 
-  // Backend / APPROVAL_DOC compliance:
-  // - Never use GET /api/items/{id} in Admin; use GET /api/admin/items/{id} with Authorization + Accept: application/json.
-  // - PUT /api/items/{id}: send Content-Type: application/json, Authorization: Bearer <token>, and only { "approved": 1|2|3 } for approval-only.
+  // Backend / API documentation compliance:
+  // - ItemApprovalStatus (item approval): 1=Pending, 2=Approved, 3=Rejected
+  // - Use approval_status field per API documentation
+  // - PUT /api/me/items/{item}: send Content-Type: application/json, Authorization: Bearer <token>
   // - Do not send nested brand/category/user; use category_id / brand_id when updating those.
-  // - Prefer PUT /api/admin/approve/{id} and PUT /api/admin/decline/{id} for approve/decline.
+  // - Prefer PUT /api/admin/approve/{id} and PUT /api/admin/decline/{id} for approve/decline if available.
   const updateItemApproval = async (id: string, newApprovalLevel: number, successMessage: string) => {
     const config = getAuthConfig(); // Authorization: Bearer, Accept + Content-Type: application/json
 
-    const doPutItems = (payload: { approved: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
+    // Use approval_status per API documentation
+    const doPutItems = (payload: { approval_status: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
+      axios.put(`${API_BASE_URL}/me/items/${id}`, payload, config);
+
+    // Fallback to old endpoint
+    const doPutItemsFallback = (payload: { approval_status: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
       axios.put(`${API_BASE_URL}/items/${id}`, payload, config);
 
     const run = async (): Promise<void> => {
@@ -503,8 +595,16 @@ export function AdminPage() {
           return;
         } catch (e: any) {
           if (e?.response?.status === 404 || e?.response?.status === 405) {
-            await doPutItems({ approved: 2 });
-            return;
+            try {
+              await doPutItems({ approval_status: 2 });
+              return;
+            } catch (meError: any) {
+              if (meError?.response?.status === 404) {
+                await doPutItemsFallback({ approval_status: 2 });
+                return;
+              }
+              throw meError;
+            }
           }
           throw e;
         }
@@ -515,18 +615,35 @@ export function AdminPage() {
           return;
         } catch (e: any) {
           if (e?.response?.status === 404 || e?.response?.status === 405) {
-            await doPutItems({ approved: 1 });
-            return;
+            try {
+              await doPutItems({ approval_status: 1 });
+              return;
+            } catch (meError: any) {
+              if (meError?.response?.status === 404) {
+                await doPutItemsFallback({ approval_status: 1 });
+                return;
+              }
+              throw meError;
+            }
           }
           throw e;
         }
       }
 
-      // Featured (3) or demote to approved (2): PUT /api/items/{id} with only { "approved": N }
+      // Rejected (3) or demote to approved (2): PUT /api/me/items/{id} with only { "approval_status": N }
       try {
-        await doPutItems({ approved: newApprovalLevel });
+        await doPutItems({ approval_status: newApprovalLevel });
         return;
       } catch (e: any) {
+        if (e?.response?.status === 404) {
+          // Try fallback endpoint
+          try {
+            await doPutItemsFallback({ approval_status: newApprovalLevel });
+            return;
+          } catch (fallbackError: any) {
+            if (fallbackError?.response?.status !== 500) throw fallbackError;
+          }
+        }
         if (e?.response?.status !== 500) throw e;
         // 500 on minimal payload: fetch via GET /api/admin/items/{id} then retry with category_id/brand_id (no nested objects).
         const res = await axios.get(`${API_BASE_URL}/admin/items/${id}`, config);
@@ -534,14 +651,29 @@ export function AdminPage() {
         const name = raw?.name ?? raw?.title;
         const categoryId = raw?.category_id ?? raw?.category?.id;
         const brandId = raw?.brand_id ?? raw?.brand?.id;
-        await doPutItems({
-          approved: newApprovalLevel,
-          ...(name != null && name !== '' && { name }),
-          ...(raw?.description != null && { description: raw.description }),
-          ...(raw?.price != null && { price: Number(raw.price) }),
-          ...(categoryId != null && { category_id: Number(categoryId) }),
-          ...(brandId != null && { brand_id: Number(brandId) }),
-        });
+        try {
+          await doPutItems({
+            approval_status: newApprovalLevel,
+            ...(name != null && name !== '' && { name }),
+            ...(raw?.description != null && { description: raw.description }),
+            ...(raw?.price != null && { price: Number(raw.price) }),
+            ...(categoryId != null && { category_id: Number(categoryId) }),
+            ...(brandId != null && { brand_id: Number(brandId) }),
+          });
+        } catch (meError: any) {
+          if (meError?.response?.status === 404) {
+            await doPutItemsFallback({
+              approval_status: newApprovalLevel,
+              ...(name != null && name !== '' && { name }),
+              ...(raw?.description != null && { description: raw.description }),
+              ...(raw?.price != null && { price: Number(raw.price) }),
+              ...(categoryId != null && { category_id: Number(categoryId) }),
+              ...(brandId != null && { brand_id: Number(brandId) }),
+            });
+          } else {
+            throw meError;
+          }
+        }
       }
     };
 
@@ -598,8 +730,17 @@ export function AdminPage() {
         withCredentials: true,
       });
       
-      // Delete the item
-      await axios.delete(`${API_BASE_URL}/items/${deleteItemId}`, getAuthConfig());
+      // Delete the item - try /api/me/items/{item} first per API documentation
+      try {
+        await axios.delete(`${API_BASE_URL}/me/items/${deleteItemId}`, getAuthConfig());
+      } catch (deleteError: any) {
+        if (deleteError.response?.status === 404 || deleteError.response?.status === 403) {
+          // Fallback to old endpoint or admin endpoint
+          await axios.delete(`${API_BASE_URL}/items/${deleteItemId}`, getAuthConfig());
+        } else {
+          throw deleteError;
+        }
+      }
       
       toast.success(`Item deleted. Reason sent to ${deleteItemEmail}`, {
         style: {
@@ -724,6 +865,19 @@ export function AdminPage() {
       return;
     }
 
+    // Validate content length per API requirements (min 30 characters)
+    if (blogForm.content.trim().length < 30) {
+      toast.error('Content must be at least 30 characters', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
     setLoading(true);
 
     const useFormData = heroImageFile && imageUploadMode === 'upload';
@@ -731,6 +885,7 @@ export function AdminPage() {
     let payload: FormData | {
       title: string;
       content: string;
+      status: number;
     };
 
     try {
@@ -738,6 +893,8 @@ export function AdminPage() {
         const formData = new FormData();
         formData.append('title', blogForm.title);
         formData.append('content', blogForm.content);
+        // BlogStatus per API documentation: 1=Draft, 2=Published
+        formData.append('status', '2'); // Published by default
         
         if (heroImageFile) {
           formData.append('image', heroImageFile);
@@ -748,6 +905,8 @@ export function AdminPage() {
         payload = {
           title: blogForm.title,
           content: blogForm.content,
+          // BlogStatus per API documentation: 1=Draft, 2=Published
+          status: 2, // Published by default
         };
       }
 
@@ -770,16 +929,25 @@ export function AdminPage() {
           return config;
         };
 
+        // Use /api/me/blogs/{blog} for update per API documentation
         try {
-          await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
+          await axios.patch(`${API_BASE_URL}/me/blogs/${editingBlogId}`, payload, getAxiosConfig());
           updateSuccess = true;
         } catch (patchError: any) {
           if (patchError.response?.status === 405) {
             try {
-              await axios.put(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
+              await axios.put(`${API_BASE_URL}/me/blogs/${editingBlogId}`, payload, getAxiosConfig());
               updateSuccess = true;
             } catch (putError: any) {
               throw putError;
+            }
+          } else if (patchError.response?.status === 404) {
+            // Fallback to old endpoint if /me/blogs doesn't exist
+            try {
+              await axios.patch(`${API_BASE_URL}/blogs/${editingBlogId}`, payload, getAxiosConfig());
+              updateSuccess = true;
+            } catch (fallbackError: any) {
+              throw fallbackError;
             }
           } else {
             throw patchError;
@@ -810,7 +978,17 @@ export function AdminPage() {
           createConfig.headers['Content-Type'] = 'application/json';
         }
         
-        await axios.post(`${API_BASE_URL}/blogs`, payload, createConfig);
+        // Use /api/me/blogs for create per API documentation
+        try {
+          await axios.post(`${API_BASE_URL}/me/blogs`, payload, createConfig);
+        } catch (createError: any) {
+          if (createError.response?.status === 404) {
+            // Fallback to old endpoint if /me/blogs doesn't exist
+            await axios.post(`${API_BASE_URL}/blogs`, payload, createConfig);
+          } else {
+            throw createError;
+          }
+        }
         toast.success('Blog posted successfully ✨', {
           style: {
             background: '#FFFFFF',
@@ -901,7 +1079,17 @@ export function AdminPage() {
         console.warn('CSRF cookie fetch failed, continuing anyway:', csrfError);
       }
       
-      await axios.delete(`${API_BASE_URL}/blogs/${id}`, getAuthConfig());
+      // Use /api/me/blogs/{blog} for delete per API documentation
+      try {
+        await axios.delete(`${API_BASE_URL}/me/blogs/${id}`, getAuthConfig());
+      } catch (deleteError: any) {
+        if (deleteError.response?.status === 404) {
+          // Fallback to old endpoint if /me/blogs doesn't exist
+          await axios.delete(`${API_BASE_URL}/blogs/${id}`, getAuthConfig());
+        } else {
+          throw deleteError;
+        }
+      }
       
       toast.success('Blog deleted successfully', {
         style: {
@@ -1000,6 +1188,7 @@ export function AdminPage() {
   };
 
   // Render item card with actions based on approval level
+  // ItemApprovalStatus per API: 1=Pending, 2=Approved, 3=Rejected
   const renderItemCard = (item: ApprovalItem, approvalLevel: 1 | 2 | 3) => (
     <div key={item.id} className="admin-queue-card">
       {item.image ? (
@@ -1023,24 +1212,25 @@ export function AdminPage() {
         </div>
       </div>
       <div className="admin-queue-actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
+        {/* Pending items (status=1) - can be approved or rejected */}
         {approvalLevel === 1 && (
           <>
             <button
               className="approve"
-              onClick={() => updateItemApproval(item.id, 2, 'Item moved to Approved Items ✅')}
-              title="Move to Approved Items"
+              onClick={() => updateItemApproval(item.id, 2, 'Item approved ✅')}
+              title="Approve item"
             >
-              <ArrowUp size={18} />
-              Approve (2)
+              <Check size={18} />
+              Approve
             </button>
             <button
-              className="approve"
-              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Featured Items ⭐')}
-              title="Move to Featured Items"
-              style={{ background: '#9F8151' }}
+              className="reject"
+              onClick={() => updateItemApproval(item.id, 3, 'Item rejected ❌')}
+              title="Reject item"
+              style={{ background: '#DC2626' }}
             >
-              <Star size={18} />
-              Featured (3)
+              <X size={18} />
+              Reject
             </button>
             <button
               className="reject"
@@ -1052,6 +1242,7 @@ export function AdminPage() {
             </button>
           </>
         )}
+        {/* Approved items (status=2) - can be moved back to pending or rejected */}
         {approvalLevel === 2 && (
           <>
             <button
@@ -1060,28 +1251,39 @@ export function AdminPage() {
               title="Move back to Pending"
             >
               <ArrowDown size={18} />
-              Demote (1)
+              Back to Pending
             </button>
             <button
-              className="approve"
-              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Featured Items ⭐')}
-              title="Move to Featured Items"
-              style={{ background: '#9F8151' }}
+              className="reject"
+              onClick={() => updateItemApproval(item.id, 3, 'Item rejected ❌')}
+              title="Reject item"
+              style={{ background: '#DC2626' }}
             >
-              <Star size={18} />
-              Featured (3)
+              <X size={18} />
+              Reject
             </button>
           </>
         )}
+        {/* Rejected items (status=3) - can be moved back to approved or pending */}
         {approvalLevel === 3 && (
-          <button
-            className="reject"
-            onClick={() => updateItemApproval(item.id, 2, 'Item moved back to Approved ↩')}
-            title="Move back to Approved"
-          >
-            <ArrowDown size={18} />
-            Demote (2)
-          </button>
+          <>
+            <button
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 2, 'Item approved ✅')}
+              title="Approve item"
+            >
+              <Check size={18} />
+              Approve
+            </button>
+            <button
+              className="reject"
+              onClick={() => updateItemApproval(item.id, 1, 'Item moved back to Pending ↩')}
+              title="Move back to Pending"
+            >
+              <ArrowDown size={18} />
+              Back to Pending
+            </button>
+          </>
         )}
       </div>
     </div>
@@ -1132,7 +1334,7 @@ export function AdminPage() {
                   <strong>{approvedItems.length}</strong>
                 </div>
                 <div className="admin-stat-card">
-                  <span>Featured Items</span>
+                  <span>Rejected Items</span>
                   <strong>{featuredItems.length}</strong>
                 </div>
               </div>
@@ -1209,6 +1411,7 @@ export function AdminPage() {
               {activeTab === 'approve' ? (
                 <>
                   {/* Sub-tabs for Approve Items */}
+                  {/* ItemApprovalStatus per API: 1=Pending, 2=Approved, 3=Rejected */}
                   <div className="admin-sub-tabs">
                     <button
                       onClick={() => setApproveSubTab('pending')}
@@ -1219,7 +1422,7 @@ export function AdminPage() {
                       }}
                     >
                       <ShieldCheck size={18} />
-                      Approve ({pendingItems.length})
+                      Pending ({pendingItems.length})
                     </button>
                     <button
                       onClick={() => setApproveSubTab('approved')}
@@ -1230,26 +1433,26 @@ export function AdminPage() {
                       }}
                     >
                       <Check size={18} />
-                      Approved Items ({approvedItems.length})
+                      Approved ({approvedItems.length})
                     </button>
                     <button
                       onClick={() => setApproveSubTab('featured')}
                       className="admin-sub-tab-button"
                       style={{
-                        background: approveSubTab === 'featured' ? '#9F8151' : '#F0ECE3',
+                        background: approveSubTab === 'featured' ? '#DC2626' : '#F0ECE3',
                         color: approveSubTab === 'featured' ? '#FFFFFF' : '#0A4834',
                       }}
                     >
-                      <Star size={18} />
-                      Featured Items ({featuredItems.length})
+                      <X size={18} />
+                      Rejected ({featuredItems.length})
                     </button>
                   </div>
 
                   <div className="admin-content-header">
                     <h3>
-                      {approveSubTab === 'pending' && 'Submitters awaiting review'}
+                      {approveSubTab === 'pending' && 'Items awaiting review (Pending)'}
                       {approveSubTab === 'approved' && 'Approved Items'}
-                      {approveSubTab === 'featured' && 'Featured Items'}
+                      {approveSubTab === 'featured' && 'Rejected Items'}
                     </h3>
                     <div className="admin-search">
                       <Search />
@@ -1291,7 +1494,7 @@ export function AdminPage() {
                           <div className="admin-empty-state">
                             <Check size={40} />
                             <strong>No approved items.</strong>
-                            <span>There are no items with approved = 2 right now.</span>
+                            <span>There are no approved items right now.</span>
                           </div>
                         )
                       )}
@@ -1302,9 +1505,9 @@ export function AdminPage() {
                           </div>
                         ) : (
                           <div className="admin-empty-state">
-                            <Star size={40} />
-                            <strong>No featured items.</strong>
-                            <span>There are no items with approved = 3 right now.</span>
+                            <X size={40} />
+                            <strong>No rejected items.</strong>
+                            <span>There are no rejected items right now.</span>
                           </div>
                         )
                       )}
@@ -1636,7 +1839,8 @@ export function AdminPage() {
                             <h4>{blog.title}</h4>
                             <div className="admin-queue-meta">
                               <span>{blog.category || 'Uncategorized'}</span>
-                              <span>{blog.status || 'published'}</span>
+                              {/* BlogStatus per API: 1=Draft, 2=Published */}
+                              <span>{blog.status === 1 ? 'Draft' : blog.status === 2 ? 'Published' : 'Unknown'}</span>
                               <span>
                                 {new Date(blog.created_at).toLocaleDateString('en-US', {
                                   year: 'numeric',
@@ -1644,6 +1848,7 @@ export function AdminPage() {
                                   day: 'numeric',
                                 })}
                               </span>
+                              {blog.user && <span>by {blog.user.name}</span>}
                             </div>
                             {blog.short_summary && (
                               <p style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
@@ -1785,6 +1990,21 @@ export function AdminPage() {
                                   marginTop: '4px',
                                 }}>
                                   @{u.username}
+                                </p>
+                              )}
+                              {u.role && (
+                                <p style={{
+                                  fontFamily: 'Manrope, sans-serif',
+                                  fontSize: '12px',
+                                  color: '#666',
+                                  margin: 0,
+                                  marginTop: '4px',
+                                  padding: '2px 8px',
+                                  background: u.role === 3 ? 'rgba(159, 129, 81, 0.15)' : 'rgba(10, 72, 52, 0.1)',
+                                  borderRadius: '4px',
+                                  display: 'inline-block',
+                                }}>
+                                  {getUserRoleLabel(u.role)}
                                 </p>
                               )}
                             </div>
