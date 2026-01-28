@@ -4,10 +4,13 @@ const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
 
 export const apiClient = axios.create({
   baseURL: `${API_ROOT}/api`,
-  withCredentials: true,
+  withCredentials: true, // Required for Sanctum SPA authentication
+  withXSRFToken: true,   // Automatically send XSRF-TOKEN cookie as X-XSRF-TOKEN header
   headers: {
     Accept: 'application/json',
   },
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 });
 
 apiClient.interceptors.request.use((config) => {

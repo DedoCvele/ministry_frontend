@@ -358,7 +358,85 @@
   background-color: #9F815110;
 }
 
-/* Toast Notification */
+/* Success Toast Notification - Full Screen Overlay */
+.upload-toast-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.upload-toast-success {
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  padding: 48px 56px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 420px;
+  width: 90%;
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.upload-toast-icon {
+  width: 72px;
+  height: 72px;
+  background-color: #0A4834;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+  color: #FFFFFF;
+}
+
+.upload-toast-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: #0A4834;
+  margin: 0 0 16px 0;
+}
+
+.upload-toast-message {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #333333;
+  margin: 0 0 12px 0;
+  line-height: 1.5;
+}
+
+.upload-toast-submessage {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  color: #888888;
+  margin: 0;
+}
+
+/* Legacy toast styles (kept for backwards compatibility) */
 .upload-toast {
   position: fixed;
   bottom: 40px;
@@ -569,6 +647,26 @@
     right: 16px;
     transform: none;
     padding: 14px 24px;
+  }
+
+  .upload-toast-success {
+    padding: 32px 24px;
+    max-width: 340px;
+  }
+
+  .upload-toast-icon {
+    width: 60px;
+    height: 60px;
+    margin-bottom: 20px;
+  }
+
+  .upload-toast-title {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .upload-toast-message {
+    font-size: 15px;
   }
 }
 

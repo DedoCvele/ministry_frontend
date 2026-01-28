@@ -33,16 +33,29 @@ interface AuthContextValue {
 
 const BACKEND_BASE_URL = 'http://localhost:8000';
 
+// Backend uses Sanctum SPA authentication - requires cookies AND CSRF
 const api = axios.create({
   baseURL: BACKEND_BASE_URL,
-  withCredentials: true,
-  withXSRFToken: true,
+  withCredentials: true, // Required for Sanctum SPA authentication
+  withXSRFToken: true,   // Automatically send XSRF-TOKEN cookie as X-XSRF-TOKEN header
   headers: {
     'Accept': 'application/json',
     'Content-Type': 'application/json',
   },
   xsrfCookieName: 'XSRF-TOKEN',
   xsrfHeaderName: 'X-XSRF-TOKEN',
+});
+
+// Also add Bearer token for API routes that support it
+api.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = window.localStorage.getItem('auth_token');
+    if (token && !config.headers?.Authorization) {
+      config.headers = config.headers ?? {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+  return config;
 });
 
 const ADMIN_ACCOUNT = {
@@ -222,12 +235,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If we have a token and a stored user, refresh the profile to get accurate role
       if (token && storedUser) {
         try {
-          // Try to get CSRF cookie for Sanctum, but do not block token auth
-          try {
-            await api.get('/sanctum/csrf-cookie');
-          } catch (csrfError) {
-            console.warn('Could not fetch CSRF cookie, continuing with token auth:', csrfError);
-          }
+          // Note: NO CSRF cookie needed - we use Bearer token authentication
+          // The token is automatically added by the api interceptor
 
           let profileUser: any = null;
 
@@ -303,12 +312,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Authenticate with Laravel backend
       try {
-        // Try to get CSRF cookie first (for Sanctum SPA), but continue if it fails
-        try {
-          await api.get('/sanctum/csrf-cookie');
-        } catch (csrfError) {
-          console.warn('Could not fetch CSRF cookie, continuing with token auth:', csrfError);
-        }
+        // Get CSRF cookie first - required for Sanctum SPA authentication
+        await api.get('/sanctum/csrf-cookie');
 
         // Authenticate with Laravel
         const loginResponse = await api.post('/api/login', {
@@ -492,7 +497,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Register with Laravel backend
       try {
-        // Get CSRF cookie first (required for Sanctum SPA authentication)
+        // Get CSRF cookie first - required for Sanctum SPA authentication
         await api.get('/sanctum/csrf-cookie');
 
         // Register with Laravel

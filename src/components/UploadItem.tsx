@@ -41,19 +41,29 @@ export function UploadItem({ onClose }: UploadItemProps) {
   // Database-fetched options for dropdowns
   const [brands, setBrands] = useState<Array<{ id: number; name: string }>>([]);
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
-  const [sizes, setSizes] = useState<Array<{ id: number; name: string }>>([]);
-  const [conditions, setConditions] = useState<Array<{ id: number; name: string }>>([]);
+  const [sizes, setSizes] = useState<Array<{ id: number; label: string }>>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [isLoadingSizes, setIsLoadingSizes] = useState(false);
   const [showCustomSizeInput, setShowCustomSizeInput] = useState(false);
   const [customSizeValue, setCustomSizeValue] = useState('');
+  
+  // Conditions are enum values per API documentation (ItemCondition)
+  // 1=New, 2=Excellent, 3=Very Good, 4=Good, 5=Fair
+  const conditions = [
+    { id: 1, name: 'New' },
+    { id: 2, name: 'Excellent' },
+    { id: 3, name: 'Very Good' },
+    { id: 4, name: 'Good' },
+    { id: 5, name: 'Fair' },
+  ];
 
   // Form data
   const [formData, setFormData] = useState({
     title: '',
     brand: '',
     category: '',
-    size: '',
+    sizeId: '', // Store size ID (not name)
+    sizeQuantity: '1', // Quantity for the selected size
     condition: '',
     description: '',
     tags: '',
@@ -62,7 +72,8 @@ export function UploadItem({ onClose }: UploadItemProps) {
     autoExpire: true,
   });
 
-  // Fetch brands, categories, and conditions from database
+  // Fetch brands and categories from database
+  // Note: Conditions are hardcoded enum values per API docs, sizes are fetched per category
   useEffect(() => {
     let isMounted = true;
 
@@ -70,27 +81,39 @@ export function UploadItem({ onClose }: UploadItemProps) {
       try {
         setIsLoadingOptions(true);
         
-        // Fetch brands, categories, and conditions from API endpoints
+        // Fetch brands and categories from API endpoints
         // NOTE: Sizes are fetched separately when category is selected
-        const [brandsResponse, categoriesResponse, conditionsResponse] = await Promise.allSettled([
+        // NOTE: Conditions are enum values (1-5), not from API
+        const [brandsResponse, categoriesResponse] = await Promise.allSettled([
           apiClient.get('/brands'),
           apiClient.get('/categories'),
-          apiClient.get('/conditions'),
         ]);
 
         const brandMap = new Map<string, number>();
         const categoryMap = new Map<string, number>();
         let brandsCount = 0;
         let categoriesCount = 0;
-        let conditionsCount = 0;
 
         // Process brands
         if (brandsResponse.status === 'fulfilled' && brandsResponse.value?.data) {
-          const brandsData = Array.isArray(brandsResponse.value.data) 
-            ? brandsResponse.value.data 
-            : Array.isArray(brandsResponse.value.data?.data) 
-              ? brandsResponse.value.data.data 
-              : [];
+          console.log('🔍 Brands API Response:', brandsResponse.value.data);
+          
+          let brandsData: any[] = [];
+          
+          // Handle various response formats from the API
+          // API returns Collection of BrandResource (no pagination)
+          if (brandsResponse.value.data.status === 'success' && Array.isArray(brandsResponse.value.data.data)) {
+            brandsData = brandsResponse.value.data.data;
+            console.log('✅ Using brands from data.data array, count:', brandsData.length);
+          } else if (Array.isArray(brandsResponse.value.data)) {
+            brandsData = brandsResponse.value.data;
+            console.log('✅ Using brands from direct array, count:', brandsData.length);
+          } else if (Array.isArray(brandsResponse.value.data?.data)) {
+            brandsData = brandsResponse.value.data.data;
+            console.log('✅ Using brands from nested data property, count:', brandsData.length);
+          } else {
+            console.warn('⚠️ Brands response format not recognized:', brandsResponse.value.data);
+          }
           
           const formattedBrands = brandsData
             .filter((brand: any) => brand?.id && brand?.name)
@@ -101,10 +124,21 @@ export function UploadItem({ onClose }: UploadItemProps) {
             });
           
           brandsCount = formattedBrands.length;
+          console.log('✅ Formatted brands:', formattedBrands.length);
           
           if (isMounted) {
             setBrands(formattedBrands);
           }
+        } else if (brandsResponse.status === 'rejected') {
+          console.error('❌ Failed to fetch brands:', brandsResponse.reason);
+          // Check if it's a 500 error
+          const error = brandsResponse.reason as any;
+          if (error?.response?.status === 500) {
+            console.error('❌ Backend /api/brands returned 500 Internal Server Error');
+            console.error('❌ This is a backend issue. Check Laravel logs for details.');
+          }
+        } else {
+          console.warn('⚠️ Brands response is empty or invalid');
         }
 
         // Process categories
@@ -139,60 +173,6 @@ export function UploadItem({ onClose }: UploadItemProps) {
           if (isMounted) {
             setCategories(formattedCategories);
           }
-        }
-
-        // Process conditions
-        if (conditionsResponse.status === 'fulfilled' && conditionsResponse.value?.data) {
-          console.log('🔍 Conditions API Response:', conditionsResponse.value.data);
-          
-          const conditionsData = Array.isArray(conditionsResponse.value.data) 
-            ? conditionsResponse.value.data 
-            : Array.isArray(conditionsResponse.value.data?.data) 
-              ? conditionsResponse.value.data.data 
-              : [];
-          
-          console.log('🔍 Processed conditions data:', conditionsData);
-          
-          // Handle different response formats:
-          // 1. Array of objects with id and name: [{ id: 1, name: "New" }, ...]
-          // 2. Array of strings: ["New", "Excellent", ...]
-          // 3. Object with data property: { data: [...] }
-          const formattedConditions = conditionsData
-            .map((condition: any) => {
-              // If it's already an object with id and name (new format)
-              if (condition?.id && condition?.name) {
-                // Ensure ID is an integer (backend returns integers)
-                const id = typeof condition.id === 'number' ? condition.id : parseInt(condition.id, 10);
-                return { id, name: condition.name };
-              }
-              // If it's a string (old format - backward compatibility)
-              if (typeof condition === 'string') {
-                return { id: condition, name: condition };
-              }
-              // If it's an object but might have different structure
-              if (typeof condition === 'object' && condition !== null) {
-                // Try to find name or value property
-                const name = condition.name || condition.value || condition.condition || String(condition);
-                const id = condition.id || condition.value || name;
-                // Try to convert to integer if possible
-                const numericId = typeof id === 'number' ? id : (isNaN(parseInt(id, 10)) ? id : parseInt(id, 10));
-                return { id: numericId, name };
-              }
-              return null;
-            })
-            .filter((condition: any) => condition !== null && condition.name);
-          
-          conditionsCount = formattedConditions.length;
-          
-          console.log('✅ Formatted conditions:', formattedConditions);
-          
-          if (isMounted) {
-            setConditions(formattedConditions);
-          }
-        } else if (conditionsResponse.status === 'rejected') {
-          console.error('❌ Failed to fetch conditions:', conditionsResponse.reason);
-        } else {
-          console.warn('⚠️ Conditions response is not in expected format:', conditionsResponse);
         }
 
         // Also fetch items to build lookup maps as fallback
@@ -232,7 +212,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
           console.log('📋 Options loaded from database:', {
             brands: brandsCount,
             categories: categoriesCount,
-            conditions: conditionsCount,
+            conditions: '5 (hardcoded enum)',
             note: 'Sizes will be loaded when category is selected'
           });
         }
@@ -253,12 +233,13 @@ export function UploadItem({ onClose }: UploadItemProps) {
   }, []);
 
   // Fetch sizes when category is selected
+  // Per API docs: GET /api/categories/{category}/sizes
   useEffect(() => {
     let isMounted = true;
 
     const fetchSizesForCategory = async () => {
       // Reset size selection and custom input when category changes
-      setFormData(prev => ({ ...prev, size: '' }));
+      setFormData(prev => ({ ...prev, sizeId: '', sizeQuantity: '1' }));
       setShowCustomSizeInput(false);
       setCustomSizeValue('');
       setSizes([]);
@@ -288,72 +269,53 @@ export function UploadItem({ onClose }: UploadItemProps) {
       try {
         setIsLoadingSizes(true);
         
-        const response = await axios.get(`${API_BASE_URL}/sizes`, {
-          params: {
-            category_id: selectedCategory.id
-          }
-        });
+        // Use the correct API endpoint: GET /api/categories/{category}/sizes
+        console.log(`🔍 Fetching sizes for category ${selectedCategory.id}...`);
+        const response = await apiClient.get(`/categories/${selectedCategory.id}/sizes`);
 
-        // Handle response structure: { status: "success", count: 4, data: [...] }
-        // IMPORTANT: Backend returns { status: "success", count: X, data: [...] }
-        // We need to access response.data.data (not response.data)
+        // Handle response structure - API returns collection of SizeResource
+        // SizeResource has: id, label, category (optional)
         let sizesData: any[] = [];
         
-        // Prioritize the standard API format: { status: "success", count: 4, data: [...] }
-        if (response.data?.status === 'success' && Array.isArray(response.data.data)) {
-          sizesData = response.data.data;
-        } else if (Array.isArray(response.data)) {
+        // Check various response formats
+        if (Array.isArray(response.data)) {
           sizesData = response.data;
         } else if (Array.isArray(response.data?.data)) {
           sizesData = response.data.data;
-        } else {
-          // Try to extract data from any possible structure
-          if (response.data && typeof response.data === 'object') {
-            const possibleData = response.data.data || response.data.sizes || response.data.items || [];
-            if (Array.isArray(possibleData)) {
-              sizesData = possibleData;
-            }
+        } else if (response.data && typeof response.data === 'object') {
+          // Try to extract from any structure
+          const possibleData = response.data.data || response.data.sizes || [];
+          if (Array.isArray(possibleData)) {
+            sizesData = possibleData;
           }
         }
 
-        if (sizesData.length === 0) {
-          // Fallback: try fetching all sizes
-          try {
-            const allSizesResponse = await axios.get(`${API_BASE_URL}/sizes`);
-            if (allSizesResponse.data?.status === 'success' && Array.isArray(allSizesResponse.data.data)) {
-              // Filter by category_id manually
-              const filteredSizes = allSizesResponse.data.data.filter((size: any) => 
-                size?.category_id === selectedCategory.id
-              );
-              sizesData = filteredSizes;
-            }
-          } catch (fallbackError) {
-            // Silently fail fallback
-          }
-        }
+        console.log(`✅ Found ${sizesData.length} sizes for category ${selectedCategory.name}`);
 
-        // Remove duplicates by name (same labels appear multiple times)
-        // Handle both 'name' and 'label' fields (API returns 'name' but may have 'label' in response)
-        const uniqueSizesMap = new Map<string, { id: number; name: string }>();
+        // Remove duplicates by label (same labels may appear multiple times)
+        // Per API docs, SizeResource has: id, label
+        const uniqueSizesMap = new Map<string, { id: number; label: string }>();
         sizesData.forEach((size: any) => {
-          // The API returns 'name' (mapped from 'label'), but check both for compatibility
-          const sizeName = size?.name || size?.label;
+          // API returns 'label' field per SizeResource
+          const sizeLabel = size?.label || size?.name;
           
-          if (size?.id && sizeName) {
-            // Use name as key to deduplicate
-            if (!uniqueSizesMap.has(sizeName)) {
-              uniqueSizesMap.set(sizeName, { id: size.id, name: sizeName });
+          if (size?.id && sizeLabel) {
+            // Use label as key to deduplicate
+            if (!uniqueSizesMap.has(sizeLabel)) {
+              uniqueSizesMap.set(sizeLabel, { id: size.id, label: sizeLabel });
             }
           }
         });
 
         const formattedSizes = Array.from(uniqueSizesMap.values());
+        console.log('📏 Available sizes:', formattedSizes.map(s => s.label).join(', '));
 
         if (isMounted) {
           setSizes(formattedSizes);
         }
       } catch (error: any) {
         console.error('Failed to fetch sizes for category:', error);
+        console.error('Error response:', error?.response?.data);
         if (isMounted) {
           setSizes([]);
         }
@@ -436,7 +398,8 @@ export function UploadItem({ onClose }: UploadItemProps) {
       title: '',
       brand: '',
       category: '',
-      size: '',
+      sizeId: '',
+      sizeQuantity: '1',
       condition: '',
       description: '',
       tags: '',
@@ -488,10 +451,11 @@ export function UploadItem({ onClose }: UploadItemProps) {
     if (!formData.title.trim()) missingFields.push('title');
     if (!formData.brand.trim()) missingFields.push('brand');
     if (!formData.category.trim()) missingFields.push('category');
-    if (!formData.size.trim()) missingFields.push('size');
+    if (!formData.sizeId.trim()) missingFields.push('size');
     if (!formData.condition.trim()) missingFields.push('condition');
-    if (!formData.description.trim()) missingFields.push('description');
     if (!formData.sellingPrice.trim()) missingFields.push('selling price');
+    // Images are required per API docs
+    if (uploadedImages.length === 0) missingFields.push('at least one image');
 
     if (missingFields.length) {
       setSubmitError(t.upload.errors.missingFields.replace('{fields}', missingFields.join(', ')));
@@ -665,76 +629,89 @@ export function UploadItem({ onClose }: UploadItemProps) {
     }
 
     // Build FormData payload with all item fields
-    // All field names must match what the backend Item model expects
+    // Per API docs for POST /api/me/items
     const payload = new FormData();
     
-    // Required fields for Item model
-    // Database uses 'name' field - send 'name' to match database schema
-    // (Backend API docs say either 'title' or 'name' works, but database has 'name')
+    // Required fields per API documentation:
+    // - name (string, required, min 3, max 255)
+    // - price (number, required, min 1)
+    // - condition (required) — ItemCondition enum value: 1|2|3|4|5
+    // - approval_status (required) — ItemApprovalStatus: 1|2|3
+    // - category_id (integer, required)
+    // - brand_id (integer, required)
+    // - sizes (array, required, min 1 item) - each: { id, quantity }
+    // - images (array of files, required)
+    
     payload.append('name', formData.title.trim());
-    payload.append('description', formData.description.trim());
     payload.append('price', priceValue.toString());
     
-    // Handle brand_id: Optional - only send if we have an ID
-    // Don't send names to avoid backend mass assignment errors
+    // Handle brand_id: Required per API docs
     if (brandId) {
-      // Send ID if we found it
       payload.append('brand_id', String(brandId));
-    }
-    // If no brand ID found, don't send brand_id at all (backend will set it to null)
-    // Brand is optional, so this is acceptable
-
-    // Handle category_id: Required - MUST be an ID (never send names to avoid backend errors)
-    // We already tried to find/create it above, so categoryId should exist
-    if (categoryId && typeof categoryId === 'number') {
-      // Send ID as string - this is what backend expects
-      payload.append('category_id', String(categoryId));
-      console.log('📤 Sending category_id as ID:', categoryId);
     } else {
-      // This should not happen - we already checked above and showed error
-      // But add a final safety check to prevent sending names
-      console.error('❌ CRITICAL: Attempted to send category without valid ID!', {
-        categoryId,
-        categoryName: formData.category,
-        type: typeof categoryId
-      });
-      setSubmitError(`Critical error: Could not resolve category "${formData.category}" to a valid ID. Please try again or contact support.`);
+      // Brand is required - show error
+      setSubmitError('Brand must be selected. Please choose a brand from the list.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Handle category_id: Required - MUST be an ID
+    if (categoryId && typeof categoryId === 'number') {
+      payload.append('category_id', String(categoryId));
+      console.log('📤 Sending category_id:', categoryId);
+    } else {
+      console.error('❌ CRITICAL: No valid category_id!', { categoryId, categoryName: formData.category });
+      setSubmitError(`Critical error: Could not resolve category "${formData.category}" to a valid ID.`);
       setIsSubmitting(false);
       return;
     }
     
-    // Optional fields for Item model (only send if they have values)
-    if (formData.size.trim()) {
-      payload.append('size', formData.size.trim());
-    }
-    
-    // Handle condition: Backend expects an integer ID
-    // formData.condition now stores the ID directly, so we can use it directly
-    if (conditionId !== null && !isNaN(conditionId)) {
-      // Send as 'condition' field with integer value (backend enum will cast it)
+    // Handle condition: Required, must be integer 1-5 (ItemCondition enum)
+    if (conditionId !== null && !isNaN(conditionId) && conditionId >= 1 && conditionId <= 5) {
       payload.append('condition', String(conditionId));
-      console.log('📤 Sending condition as integer ID:', conditionId);
-    } else if (formData.condition.trim()) {
-      // Fallback: if condition is set but ID is invalid, show error
-      console.error('❌ Invalid condition ID:', formData.condition);
-      setSubmitError(`Invalid condition selected. Please try selecting a different condition.`);
+      console.log('📤 Sending condition:', conditionId);
+    } else {
+      console.error('❌ Invalid condition:', formData.condition);
+      setSubmitError('Please select a valid condition.');
       setIsSubmitting(false);
       return;
+    }
+    
+    // approval_status: Required per API docs
+    // 1 = Pending, 2 = Approved, 3 = Rejected
+    // New items should be Pending (1)
+    payload.append('approval_status', '1');
+    console.log('📤 Sending approval_status: 1 (Pending)');
+    
+    // sizes: Required array with { id, quantity }
+    // Per API docs: sizes (array, required, min 1 item). Each element: { id, quantity }
+    const sizeId = parseInt(formData.sizeId, 10);
+    const sizeQuantity = parseInt(formData.sizeQuantity, 10) || 1;
+    
+    if (!sizeId || isNaN(sizeId)) {
+      setSubmitError('Please select a valid size.');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Send sizes as array - backend expects sizes[0][id] and sizes[0][quantity] format for FormData
+    payload.append('sizes[0][id]', String(sizeId));
+    payload.append('sizes[0][quantity]', String(sizeQuantity));
+    console.log('📤 Sending sizes:', [{ id: sizeId, quantity: sizeQuantity }]);
+    
+    // Optional fields
+    if (formData.description.trim()) {
+      payload.append('description', formData.description.trim());
     }
     
     if (formData.material.trim()) {
       payload.append('material', formData.material.trim());
     }
     
-    // Location field: Database requires it (NOT NULL constraint)
-    // Send empty string if not provided (backend can handle this)
-    payload.append('location', ''); // Required by database schema
-    
-    // Note: auto_expire is not in the database schema, so we don't send it
-    // If you need this feature, add it to the database schema first
+    // Location field (optional per docs)
+    // payload.append('location', '');
 
-    // Tags array (only send if there are tags)
-    // Backend should handle tags[] array
+    // Tags array (optional)
     if (tagsPayload.length > 0) {
       tagsPayload.forEach((tag) => {
         if (tag.trim()) {
@@ -743,17 +720,12 @@ export function UploadItem({ onClose }: UploadItemProps) {
       });
     }
     
-    // Image uploads - per API docs (RECOMMENDED WAY):
-    // - 'images[]' (array) = all images - the first image is automatically set as the main image
-    // This is the recommended approach per API documentation
-    if (uploadedImages.length > 0) {
-      // Send all images via images[] array - recommended way per API docs
-      // The first image will automatically be set as the main image (is_main = true)
-      uploadedImages.forEach((img, index) => {
-        payload.append('images[]', img.file);
-        console.log(`📤 Sending image ${index + 1}${index === 0 ? ' (main)' : ''}:`, img.file.name);
-      });
-    }
+    // Images: Required array of files
+    // Per API docs: images (array of files, required). Each file: image, mimes: jpg, webp, jpeg, png
+    uploadedImages.forEach((img, index) => {
+      payload.append('images[]', img.file);
+      console.log(`📤 Sending image ${index + 1}:`, img.file.name);
+    });
 
     // Final validation: Ensure category_id is a valid number
     if (!categoryId || typeof categoryId !== 'number' || isNaN(categoryId)) {
@@ -771,18 +743,19 @@ export function UploadItem({ onClose }: UploadItemProps) {
     const conditionName = conditionId 
       ? conditions.find(c => c.id === conditionId)?.name || 'Unknown'
       : null;
+    const selectedSizeLabel = sizes.find(s => s.id === sizeId)?.label || 'Unknown';
     console.log('📤 Sending item data to backend:', {
-      name: formData.title, // Database uses 'name' field
-      description: formData.description.substring(0, 50) + '...',
+      name: formData.title,
+      description: formData.description ? formData.description.substring(0, 50) + '...' : '(not set)',
       price: priceValue,
-      brand_id: brandId ? String(brandId) : '(not sending - optional)',
-      category_id: String(categoryId), // Must be a number
-      size: formData.size || '(not set)',
-      condition: conditionId !== null ? `${conditionId} (${conditionName})` : '(not set)',
+      brand_id: brandId,
+      category_id: categoryId,
+      sizes: [{ id: sizeId, quantity: sizeQuantity, label: selectedSizeLabel }],
+      condition: `${conditionId} (${conditionName})`,
+      approval_status: '1 (Pending)',
       material: formData.material || '(not set)',
       tags_count: tagsPayload.length,
-      main_image: uploadedImages.length > 0 ? uploadedImages[0].file.name : '(no image)',
-      additional_images_count: uploadedImages.length > 1 ? uploadedImages.length - 1 : 0,
+      images_count: uploadedImages.length,
     });
     
     // Log FormData contents for debugging
@@ -813,7 +786,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
     setSubmitError(null);
 
     try {
-      // Get CSRF cookie for SPA authentication (if using cookie-based auth)
+      // Get CSRF cookie first - required for Sanctum SPA authentication
       console.log('🔐 Getting CSRF cookie...');
       await axios.get(`${API_ROOT}/sanctum/csrf-cookie`, {
         withCredentials: true,
@@ -944,7 +917,7 @@ export function UploadItem({ onClose }: UploadItemProps) {
       setTimeout(() => {
         setShowToast(false);
         handleRedirectAfterPublish();
-      }, 2000);
+      }, 4000);
     } catch (error: any) {
       console.error('❌ Failed to publish item');
       console.error('Error object:', error);
@@ -1155,19 +1128,27 @@ export function UploadItem({ onClose }: UploadItemProps) {
             <div>
               <label className="upload-form-label">
                 {t.upload.brand} *
+                {!isLoadingOptions && brands.length === 0 && (
+                  <span style={{ color: '#dc2626', fontSize: '12px', marginLeft: '8px' }}>
+                    (Failed to load - check backend)
+                  </span>
+                )}
               </label>
               <select
                 value={formData.brand}
                 onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                 className="upload-form-select"
+                disabled={isLoadingOptions}
               >
                 <option value="">{t.upload.brandPlaceholder}</option>
                 {isLoadingOptions ? (
-                  <option value="">{t.upload.loadingBrands}</option>
-                ) : (
+                  <option value="" disabled>{t.upload.loadingBrands}</option>
+                ) : brands.length > 0 ? (
                   brands.map(brand => (
                     <option key={brand.id} value={brand.name}>{brand.name}</option>
                   ))
+                ) : (
+                  <option value="" disabled>Error loading brands - backend returned 500</option>
                 )}
               </select>
             </div>
@@ -1197,35 +1178,23 @@ export function UploadItem({ onClose }: UploadItemProps) {
             <div>
               <label className="upload-form-label">
                 {t.upload.size} *
-                {process.env.NODE_ENV === 'development' && (
-                  <span style={{ fontSize: '12px', color: '#666', marginLeft: '8px' }}>
-                    (Debug: {sizes.length} sizes, loading: {isLoadingSizes ? 'yes' : 'no'}, category: {formData.category || 'none'})
-                  </span>
-                )}
               </label>
               {!formData.category ? (
                 <select
                   className="upload-form-select"
                   disabled
                 >
-                  <option value="">Please select a category</option>
+                  <option value="">Please select a category first</option>
                 </select>
               ) : (
-                <>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                   <select
-                    value={formData.size}
+                    value={formData.sizeId}
                     onChange={(e) => {
-                      const selectedSize = e.target.value;
-                      if (selectedSize === 'Enter size') {
-                        setShowCustomSizeInput(true);
-                        setFormData({ ...formData, size: '' });
-                      } else {
-                        setShowCustomSizeInput(false);
-                        setCustomSizeValue('');
-                        setFormData({ ...formData, size: selectedSize });
-                      }
+                      setFormData({ ...formData, sizeId: e.target.value });
                     }}
                     className="upload-form-select"
+                    style={{ flex: 1 }}
                     disabled={isLoadingSizes}
                   >
                     <option value="">{t.upload.sizePlaceholder}</option>
@@ -1233,26 +1202,26 @@ export function UploadItem({ onClose }: UploadItemProps) {
                       <option value="" disabled>{t.upload.loadingSizes}</option>
                     ) : sizes.length > 0 ? (
                       sizes.map(size => (
-                        <option key={size.id} value={size.name}>{size.name}</option>
+                        <option key={size.id} value={String(size.id)}>{size.label}</option>
                       ))
                     ) : (
-                      <option value="" disabled>No sizes available (check console for details)</option>
+                      <option value="" disabled>No sizes available for this category</option>
                     )}
                   </select>
-                  {showCustomSizeInput && (
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <label className="upload-form-label" style={{ fontSize: '12px', marginBottom: '4px' }}>
+                      Qty
+                    </label>
                     <input
-                      type="text"
-                      value={customSizeValue}
-                      onChange={(e) => {
-                        setCustomSizeValue(e.target.value);
-                        setFormData({ ...formData, size: e.target.value });
-                      }}
-                      placeholder="Enter custom size"
+                      type="number"
+                      min="1"
+                      value={formData.sizeQuantity}
+                      onChange={(e) => setFormData({ ...formData, sizeQuantity: e.target.value })}
                       className="upload-form-input"
-                      style={{ marginTop: '8px' }}
+                      style={{ width: '70px' }}
                     />
-                  )}
-                </>
+                  </div>
+                </div>
               )}
             </div>
 
@@ -1433,13 +1402,25 @@ export function UploadItem({ onClose }: UploadItemProps) {
 
       <FooterAlt />
 
-      {/* Toast Notification */}
+      {/* Success Toast Notification */}
       {showToast && (
-        <div className="upload-toast">
-          <Check size={20} />
-          <span className="upload-toast-text">
-            {t.upload.itemSavedSuccess}
-          </span>
+        <div className="upload-toast-overlay">
+          <div className="upload-toast-success">
+            <div className="upload-toast-icon">
+              <Check size={32} />
+            </div>
+            <h3 className="upload-toast-title">
+              {language === 'mk' ? 'Успешно!' : 'Success!'}
+            </h3>
+            <p className="upload-toast-message">
+              {t.upload.itemSavedSuccess}
+            </p>
+            <p className="upload-toast-submessage">
+              {language === 'mk' 
+                ? 'Ве пренасочуваме...' 
+                : 'Redirecting you now...'}
+            </p>
+          </div>
         </div>
       )}
     </div>
