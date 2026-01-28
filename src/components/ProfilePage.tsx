@@ -62,15 +62,97 @@ const isSvgMarkup = (value?: string) => {
   return typeof value === 'string' && value.trim().startsWith('<svg');
 };
 
+const isSvgDataUri = (value?: string) => {
+  return typeof value === 'string' && value.trim().startsWith('data:image/svg+xml');
+};
+
+const isSvgAny = (value?: string) => {
+  return isSvgMarkup(value) || isSvgDataUri(value);
+};
+
+// Check if a value is a valid hex color
+const isHexColor = (value?: string): boolean => {
+  if (!value) return false;
+  return /^#[0-9a-fA-F]{6}$/.test(value.trim());
+};
+
+// Extract hex color from various formats:
+// - Direct hex: "#4f8151"
+// - URL with hash: "http://localhost:8000/storage/#4f8151"
+// - Any string ending with hex: "something#4f8151"
+const extractHexColor = (value?: string): string | null => {
+  if (!value) return null;
+  
+  // Direct hex color
+  if (isHexColor(value)) {
+    return value.trim();
+  }
+  
+  // Check if the value contains a hex color (e.g., URL ending with #RRGGBB)
+  const hexMatch = value.match(/#[0-9a-fA-F]{6}(?:\b|$)/);
+  if (hexMatch) {
+    return hexMatch[0];
+  }
+  
+  return null;
+};
+
+// Resolve avatar value - returns the proper format for display
+const resolveAvatarValue = (value?: string): { type: 'hex' | 'svg' | 'svgDataUri' | 'svgKey' | 'url' | 'none'; value: string } => {
+  if (!value) {
+    return { type: 'none', value: '' };
+  }
+  
+  // IMPORTANT: Check for SVG formats FIRST, before hex colors
+  // Because SVG markup contains hex colors in attributes like fill="#F0ECE3"
+  
+  // Check for SVG data URI (base64 encoded SVG)
+  if (isSvgDataUri(value)) {
+    return { type: 'svgDataUri', value: value };
+  }
+  
+  // Check for raw SVG markup
+  if (isSvgMarkup(value)) {
+    return { type: 'svg', value: value };
+  }
+  
+  // Check for default avatar key
+  if (defaultAvatarSvgs[value]) {
+    return { type: 'svgKey', value: value };
+  }
+  
+  // Check for hex color (direct or embedded in URL like "http://localhost:8000/storage/#4f8151")
+  // Only check this AFTER ruling out SVG formats
+  const hexColor = extractHexColor(value);
+  if (hexColor) {
+    return { type: 'hex', value: hexColor };
+  }
+  
+  // Otherwise treat as URL
+  return { type: 'url', value: value };
+};
+
 const resolveAvatarForModal = (avatar?: string) => {
   if (!avatar) {
     return '';
   }
 
-  if (avatar.startsWith('#') || defaultAvatarSvgs[avatar]) {
-    return avatar;
+  // IMPORTANT: Check for SVG formats FIRST, before hex colors
+  // Because SVG markup contains hex colors in attributes like fill="#F0ECE3"
+  
+  // Check for base64 SVG data URI
+  if (avatar.startsWith('data:image/svg+xml;base64,')) {
+    try {
+      const base64 = avatar.slice('data:image/svg+xml;base64,'.length);
+      const svg = decodeURIComponent(escape(atob(base64)));
+      const match = Object.entries(defaultAvatarSvgs).find(([, s]) => s === svg);
+      return match ? match[0] : avatar;
+    } catch {
+      return avatar;
+    }
   }
-
+  
+  // Check for URL-encoded SVG data URI
   if (avatar.startsWith('data:image/svg+xml,')) {
     try {
       const svg = decodeURIComponent(avatar.slice('data:image/svg+xml,'.length));
@@ -80,42 +162,34 @@ const resolveAvatarForModal = (avatar?: string) => {
       return avatar;
     }
   }
-
+  
+  // Check for raw SVG markup
   if (isSvgMarkup(avatar)) {
     const match = Object.entries(defaultAvatarSvgs).find(([, svg]) => svg === avatar);
     return match ? match[0] : avatar;
   }
 
+  if (defaultAvatarSvgs[avatar]) {
+    return avatar;
+  }
+
+  // Check for hex color (direct or embedded in URL like "http://localhost:8000/storage/#4f8151")
+  // Only check this AFTER ruling out SVG formats
+  const hexColor = extractHexColor(avatar);
+  if (hexColor) {
+    return hexColor;
+  }
+
   return avatar;
 };
 
-// Default avatar SVGs (matching EditProfileModal)
+// Default avatar SVGs (matching EditProfileModal) - compact format
 const defaultAvatarSvgs: Record<string, string> = {
-  'avatar1': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="#F0ECE3"/>
-    <circle cx="50" cy="35" r="12" fill="#0A4834"/>
-    <path d="M 20 70 Q 50 50 80 70" stroke="#0A4834" stroke-width="4" fill="none" stroke-linecap="round"/>
-  </svg>`,
-  'avatar2': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="#DCD6C9"/>
-    <circle cx="50" cy="35" r="12" fill="#9F8151"/>
-    <ellipse cx="50" cy="70" rx="20" ry="15" fill="#0A4834"/>
-  </svg>`,
-  'avatar3': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="#9F8151"/>
-    <circle cx="50" cy="35" r="12" fill="#FFFFFF"/>
-    <path d="M 25 75 Q 50 55 75 75" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/>
-  </svg>`,
-  'avatar4': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="#0A4834"/>
-    <circle cx="50" cy="35" r="12" fill="#F0ECE3"/>
-    <ellipse cx="50" cy="70" rx="20" ry="15" fill="#9F8151"/>
-  </svg>`,
-  'avatar5': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="50" fill="#3B7059"/>
-    <circle cx="50" cy="35" r="12" fill="#DCD6C9"/>
-    <path d="M 20 70 Q 50 50 80 70" stroke="#DCD6C9" stroke-width="4" fill="none" stroke-linecap="round"/>
-  </svg>`,
+  'avatar1': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#F0ECE3"/><circle cx="50" cy="35" r="12" fill="#0A4834"/><path d="M 20 70 Q 50 50 80 70" stroke="#0A4834" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`,
+  'avatar2': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#DCD6C9"/><circle cx="50" cy="35" r="12" fill="#9F8151"/><ellipse cx="50" cy="70" rx="20" ry="15" fill="#0A4834"/></svg>`,
+  'avatar3': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#9F8151"/><circle cx="50" cy="35" r="12" fill="#FFFFFF"/><path d="M 25 75 Q 50 55 75 75" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`,
+  'avatar4': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#0A4834"/><circle cx="50" cy="35" r="12" fill="#F0ECE3"/><ellipse cx="50" cy="70" rx="20" ry="15" fill="#9F8151"/></svg>`,
+  'avatar5': `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#3B7059"/><circle cx="50" cy="35" r="12" fill="#DCD6C9"/><path d="M 20 70 Q 50 50 80 70" stroke="#DCD6C9" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`,
 };
 
 interface ProfilePageProps {
@@ -212,9 +286,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     // Try multiple endpoints to get user data
     const tryUserEndpoints = async () => {
       const endpoints = [
-        `${API_ROOT}/profile`, // Authenticated user's profile (preferred)
-        `${API_ROOT}/user`, // Authenticated user's profile (legacy)
-        `${API_ROOT}/users/1`, // Fallback
+        `${API_ROOT}/user`, // Authenticated user's profile (correct endpoint per backend routes)
       ];
 
       for (const endpoint of endpoints) {
@@ -501,13 +573,21 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   };
 
   const isValidHexColor = (value: string) => /^#[0-9a-fA-F]{6}$/.test(value.trim());
-  const isSvgDataUri = (value: string) => {
-    const trimmed = value.trim();
-    return trimmed.startsWith('data:image/svg+xml');
-  };
-  const isSvgMarkupOrDataUri = (value: string) => isSvgMarkup(value) || isSvgDataUri(value);
+  // Use global isSvgAny function for validation
 
   const handleSaveProfile = async (bio: string, profilePicture: string | File | null | undefined) => {
+    console.log('🚀 handleSaveProfile called with:');
+    console.log('   bio:', bio);
+    console.log('   profilePicture type:', typeof profilePicture);
+    console.log('   profilePicture instanceof File:', profilePicture instanceof File);
+    if (typeof profilePicture === 'string') {
+      console.log('   profilePicture length:', profilePicture.length);
+      console.log('   profilePicture first 100 chars:', profilePicture.substring(0, 100));
+      console.log('   isValidHexColor:', isValidHexColor(profilePicture));
+      console.log('   isSvgMarkup:', isSvgMarkup(profilePicture));
+      console.log('   isSvgAny:', isSvgAny(profilePicture));
+    }
+    
     try {
       // Get auth token from localStorage
       const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
@@ -526,32 +606,22 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
       const xsrfHeader = getXsrfHeader();
       const refreshUserProfile = async () => {
-        const endpoints = [
-          `${API_ROOT}/profile`,
-          `${API_ROOT}/user`,
-        ];
-
-        for (const endpoint of endpoints) {
-          try {
-            const userResponse = await axios.get(endpoint, {
-              headers: {
-                'Authorization': token ? `Bearer ${token}` : undefined,
-                'Accept': 'application/json',
-                ...xsrfHeader,
-              },
-              withCredentials: true,
-            });
-            return extractUserData(userResponse.data);
-          } catch (refreshError: any) {
-            const status = refreshError?.response?.status;
-            if (status === 404 || status === 405) {
-              continue;
-            }
-            throw refreshError;
-          }
+        // Only use /api/user - this is the correct endpoint per backend routes
+        try {
+          const userResponse = await axios.get(`${API_ROOT}/user`, {
+            headers: {
+              'Authorization': token ? `Bearer ${token}` : undefined,
+              'Accept': 'application/json',
+              ...xsrfHeader,
+            },
+            withCredentials: true,
+          });
+          console.log('📥 Refreshed user profile response:', userResponse.data);
+          return extractUserData(userResponse.data);
+        } catch (refreshError: any) {
+          console.error('❌ Failed to refresh user profile:', refreshError);
+          throw refreshError;
         }
-
-        return null;
       };
 
       // Handle file upload (avatar image) or JSON request (bio and/or color)
@@ -564,6 +634,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           return;
         }
         // Upload avatar image file
+        console.log('📤 PATCH /api/me - Uploading SVG file:', profilePicture.name, profilePicture.type, profilePicture.size, 'bytes');
         const formData = new FormData();
         formData.append('profile_picture', profilePicture);
         if (bio !== undefined && bio !== null) {
@@ -579,6 +650,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           },
           withCredentials: true,
         });
+        console.log('📥 PATCH /api/me (file upload) - Response:', JSON.stringify(response.data, null, 2));
       } else {
         // PATCH /api/me: "profile_picture" = hex or SVG (markup or data URI)
         const payload: Record<string, unknown> = {};
@@ -590,7 +662,7 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
             profilePicture !== null &&
             typeof profilePicture === 'string' &&
             !isValidHexColor(profilePicture) &&
-            !isSvgMarkupOrDataUri(profilePicture)
+            !isSvgAny(profilePicture)
           ) {
             alert('Profile picture must be a hex color or SVG.');
             return;
@@ -598,7 +670,17 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           payload.profile_picture = profilePicture; // hex, inline SVG string, or null to clear
         }
         if (Object.keys(payload).length === 0) {
+          console.log('⚠️ No data to update - payload is empty');
           return; // nothing to update
+        }
+
+        // DEBUG: Log what we're sending to the backend
+        console.log('📤 PATCH /api/me - Sending payload:', JSON.stringify(payload, null, 2));
+        console.log('📤 profile_picture value:', payload.profile_picture);
+        console.log('📤 profile_picture type:', typeof payload.profile_picture);
+        if (typeof payload.profile_picture === 'string') {
+          console.log('📤 profile_picture length:', payload.profile_picture.length);
+          console.log('📤 profile_picture first 100 chars:', payload.profile_picture.substring(0, 100));
         }
 
         response = await axios.patch(updateEndpoint, payload, {
@@ -610,22 +692,41 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
           },
           withCredentials: true,
         });
+
+        // DEBUG: Log what the backend returned
+        console.log('📥 PATCH /api/me - Response status:', response.status);
+        console.log('📥 PATCH /api/me - Response data:', JSON.stringify(response.data, null, 2));
+        console.log('📥 Response profile_picture:', response.data?.data?.profile_picture || response.data?.profile_picture || 'NOT IN RESPONSE');
       }
 
-      // Reload user data from API
-      const userData = await refreshUserProfile();
-      if (userData) {
-        setUser({
-          name: userData.name || user?.name || '',
-          username: userData.username || `@${userData.email?.split('@')[0] || ''}` || user?.username || '',
-          bio: userData.bio || '',
-          location: userData.city || userData.location || user?.location || '',
-          avatar: userData.profile_picture_url || userData.profile_picture || user?.avatar || '',
-          memberSince: user?.memberSince || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-        });
-      }
+      // Extract response data - try different possible structures
+      const responseUserData = response.data?.data || response.data?.user || response.data;
+      console.log('📥 Extracted response user data:', responseUserData);
 
-      console.log('Profile updated successfully:', response.data);
+      // Update UI immediately with the values we just sent
+      // The PATCH was successful (no error thrown), so we know the database was updated
+      // Use the response data if available, otherwise use the values we sent
+      const newBio = responseUserData?.bio ?? bio ?? user?.bio ?? '';
+      const newAvatar = responseUserData?.profile_picture_url || 
+                        responseUserData?.profile_picture || 
+                        (typeof profilePicture === 'string' ? profilePicture : null) || 
+                        user?.avatar || '';
+      
+      console.log('📥 New bio value:', newBio);
+      console.log('📥 New avatar value:', newAvatar);
+      console.log('📥 profilePicture param was:', profilePicture);
+
+      setUser({
+        name: responseUserData?.name || user?.name || '',
+        username: responseUserData?.username || `@${responseUserData?.email?.split('@')[0] || ''}` || user?.username || '',
+        bio: newBio,
+        location: responseUserData?.city || responseUserData?.location || user?.location || '',
+        avatar: newAvatar,
+        memberSince: user?.memberSince || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+      });
+
+      console.log('✅ Profile updated successfully:', response.data);
+      console.log('✅ UI state updated with bio:', newBio, 'and avatar:', newAvatar);
     } catch (error: any) {
       console.error('Error updating profile:', error);
       if (error?.response?.status === 500) {
@@ -706,47 +807,76 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
         <div className="profile-summary-content">
           {/* Profile Photo */}
           <div className="profile-avatar-container">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              style={{
-                width: '120px',
-                height: '120px',
-                borderRadius: '50%',
-                overflow: 'hidden',
-                boxShadow: '0px 8px 24px rgba(0,0,0,0.12)',
-                border: '3px solid #FFFFFF',
-                backgroundColor: user?.avatar?.startsWith('#') ? user.avatar : 'transparent',
-              }}
-            >
-              {user?.avatar?.startsWith('#') ? (
-                // Color-based avatar
-                <div style={{ width: '100%', height: '100%', backgroundColor: user.avatar }} />
-              ) : isSvgMarkup(user?.avatar) ? (
-                <div
-                  style={{ width: '100%', height: '100%' }}
-                  dangerouslySetInnerHTML={{ __html: user?.avatar || '' }}
-                />
-              ) : user?.avatar && defaultAvatarSvgs[user.avatar] ? (
-                // Default SVG avatar (legacy support)
-                <div 
-                  style={{ width: '100%', height: '100%' }}
-                  dangerouslySetInnerHTML={{ __html: defaultAvatarSvgs[user.avatar] }}
-                />
-              ) : (
-                // Image-based avatar (URL or storage path)
-                <ImageWithFallback
-                  src={
-                    user?.avatar?.startsWith('http://') || user?.avatar?.startsWith('https://')
-                      ? user.avatar // Full URL
-                      : user?.avatar?.startsWith('storage/') || user?.avatar?.startsWith('/storage/')
-                      ? `${BACKEND_BASE_URL}/${user.avatar.replace(/^\//, '')}` // Storage path
-                      : user?.avatar || '' // Fallback
-                  }
-                  alt={user?.name || ''}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              )}
-            </motion.div>
+            {(() => {
+              const resolved = resolveAvatarValue(user?.avatar);
+              return (
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  style={{
+                    width: '120px',
+                    height: '120px',
+                    borderRadius: '50%',
+                    overflow: 'hidden',
+                    boxShadow: '0px 8px 24px rgba(0,0,0,0.12)',
+                    border: '3px solid #FFFFFF',
+                    backgroundColor: resolved.type === 'hex' ? resolved.value : 'transparent',
+                  }}
+                >
+                  {resolved.type === 'hex' ? (
+                    // Color-based avatar - just show the color
+                    <div style={{ width: '100%', height: '100%', backgroundColor: resolved.value }} />
+                  ) : resolved.type === 'svgDataUri' ? (
+                    // SVG data URI - use as img src
+                    <img
+                      src={resolved.value}
+                      alt={user?.name || 'Avatar'}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : resolved.type === 'svg' ? (
+                    // Inline SVG markup
+                    <div
+                      style={{ width: '100%', height: '100%' }}
+                      dangerouslySetInnerHTML={{ __html: resolved.value }}
+                    />
+                  ) : resolved.type === 'svgKey' ? (
+                    // Default SVG avatar by key
+                    <div 
+                      style={{ width: '100%', height: '100%' }}
+                      dangerouslySetInnerHTML={{ __html: defaultAvatarSvgs[resolved.value] }}
+                    />
+                  ) : resolved.type === 'url' && resolved.value ? (
+                    // Image-based avatar (URL or storage path)
+                    <ImageWithFallback
+                      src={
+                        resolved.value.startsWith('http://') || resolved.value.startsWith('https://')
+                          ? resolved.value
+                          : resolved.value.startsWith('storage/') || resolved.value.startsWith('/storage/')
+                          ? `${BACKEND_BASE_URL}/${resolved.value.replace(/^\//, '')}`
+                          : resolved.value
+                      }
+                      alt={user?.name || ''}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    // Fallback placeholder
+                    <div style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      backgroundColor: '#DCD6C9',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#9F8151',
+                      fontSize: '48px',
+                      fontWeight: 600,
+                      fontFamily: 'Cormorant Garamond, serif',
+                    }}>
+                      {user?.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })()}
             <motion.button
               whileHover={{ scale: 1.1, backgroundColor: '#9F8151' }}
               onClick={() => setEditProfileModalOpen(true)}

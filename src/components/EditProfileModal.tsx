@@ -12,55 +12,35 @@ interface EditProfileModalProps {
   onClose: () => void;
   currentBio?: string;
   currentAvatar?: string;
-  onSave: (bio: string, profilePicture: string | File | null | undefined) => void;
+  onSave: (bio: string, profilePicture: string | File | null | undefined) => void | Promise<void>;
 }
 
-// Default avatar options (placeholder avatars)
+// Default avatar options (placeholder avatars) - compact SVGs without whitespace
 const defaultAvatars = [
   { 
     id: 'avatar1', 
     name: 'Avatar 1', 
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="50" fill="#F0ECE3"/>
-      <circle cx="50" cy="35" r="12" fill="#0A4834"/>
-      <path d="M 20 70 Q 50 50 80 70" stroke="#0A4834" stroke-width="4" fill="none" stroke-linecap="round"/>
-    </svg>`
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#F0ECE3"/><circle cx="50" cy="35" r="12" fill="#0A4834"/><path d="M 20 70 Q 50 50 80 70" stroke="#0A4834" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`
   },
   { 
     id: 'avatar2', 
     name: 'Avatar 2', 
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="50" fill="#DCD6C9"/>
-      <circle cx="50" cy="35" r="12" fill="#9F8151"/>
-      <ellipse cx="50" cy="70" rx="20" ry="15" fill="#0A4834"/>
-    </svg>`
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#DCD6C9"/><circle cx="50" cy="35" r="12" fill="#9F8151"/><ellipse cx="50" cy="70" rx="20" ry="15" fill="#0A4834"/></svg>`
   },
   { 
     id: 'avatar3', 
     name: 'Avatar 3', 
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="50" fill="#9F8151"/>
-      <circle cx="50" cy="35" r="12" fill="#FFFFFF"/>
-      <path d="M 25 75 Q 50 55 75 75" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/>
-    </svg>`
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#9F8151"/><circle cx="50" cy="35" r="12" fill="#FFFFFF"/><path d="M 25 75 Q 50 55 75 75" stroke="#FFFFFF" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`
   },
   { 
     id: 'avatar4', 
     name: 'Avatar 4', 
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="50" fill="#0A4834"/>
-      <circle cx="50" cy="35" r="12" fill="#F0ECE3"/>
-      <ellipse cx="50" cy="70" rx="20" ry="15" fill="#9F8151"/>
-    </svg>`
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#0A4834"/><circle cx="50" cy="35" r="12" fill="#F0ECE3"/><ellipse cx="50" cy="70" rx="20" ry="15" fill="#9F8151"/></svg>`
   },
   { 
     id: 'avatar5', 
     name: 'Avatar 5', 
-    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="50" fill="#3B7059"/>
-      <circle cx="50" cy="35" r="12" fill="#DCD6C9"/>
-      <path d="M 20 70 Q 50 50 80 70" stroke="#DCD6C9" stroke-width="4" fill="none" stroke-linecap="round"/>
-    </svg>`
+    svg: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#3B7059"/><circle cx="50" cy="35" r="12" fill="#DCD6C9"/><path d="M 20 70 Q 50 50 80 70" stroke="#DCD6C9" stroke-width="4" fill="none" stroke-linecap="round"/></svg>`
   },
 ];
 
@@ -100,18 +80,42 @@ export function EditProfileModal({
     }
   }, [isOpen, currentBio, currentAvatar]);
 
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Convert SVG string to base64 data URI
+  const svgToDataUri = (svg: string): string => {
+    // Encode the SVG as base64
+    const base64 = btoa(unescape(encodeURIComponent(svg)));
+    return `data:image/svg+xml;base64,${base64}`;
+  };
+
   const handleSave = async () => {
-    // Send current selection: hex for color, raw SVG string for default avatars (backend accepts SVG markup)
+    // Send current selection: hex for color, base64 data URI for SVG avatars
     let profilePictureValue: string | File | null | undefined;
     if (selectedAvatarType === 'color') {
       const hex = `#${selectedColor.r.toString(16).padStart(2, '0')}${selectedColor.g.toString(16).padStart(2, '0')}${selectedColor.b.toString(16).padStart(2, '0')}`;
       profilePictureValue = hex;
     } else {
       const selectedAvatar = defaultAvatars.find(a => a.id === selectedDefaultAvatar) ?? defaultAvatars[0];
-      profilePictureValue = selectedAvatar.svg; // send inline SVG markup so backend can store it
+      // Convert SVG to base64 data URI for better backend compatibility
+      profilePictureValue = svgToDataUri(selectedAvatar.svg);
     }
-    onSave(bio, profilePictureValue);
-    onClose();
+    
+    console.log('🔄 EditProfileModal: Saving with bio:', bio);
+    console.log('🔄 EditProfileModal: Saving with profilePicture type:', selectedAvatarType);
+    console.log('🔄 EditProfileModal: Saving with profilePicture:', profilePictureValue?.substring?.(0, 100) || profilePictureValue);
+    console.log('🔄 EditProfileModal: profilePicture length:', profilePictureValue?.length);
+    
+    setIsSaving(true);
+    try {
+      await onSave(bio, profilePictureValue);
+      console.log('✅ EditProfileModal: Save completed');
+      onClose();
+    } catch (error) {
+      console.error('❌ EditProfileModal: Save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const rgbToHex = (r: number, g: number, b: number) => {
@@ -448,6 +452,7 @@ export function EditProfileModal({
                 <Button
                   onClick={onClose}
                   variant="outline"
+                  disabled={isSaving}
                   className="flex-1 rounded-xl border-2 border-[#9F8151] text-[#9F8151] hover:bg-[#9F8151]/5"
                   style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
@@ -455,10 +460,11 @@ export function EditProfileModal({
                 </Button>
                 <Button
                   onClick={handleSave}
-                  className="flex-1 rounded-xl bg-[#0A4834] text-white hover:bg-[#0A4834]/90"
+                  disabled={isSaving}
+                  className="flex-1 rounded-xl bg-[#0A4834] text-white hover:bg-[#0A4834]/90 disabled:opacity-50"
                   style={{ fontFamily: 'Manrope, sans-serif' }}
                 >
-                  {t.profile.editProfileModal.saveChanges}
+                  {isSaving ? 'Saving...' : t.profile.editProfileModal.saveChanges}
                 </Button>
               </div>
             </div>
