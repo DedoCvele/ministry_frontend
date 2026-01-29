@@ -476,6 +476,14 @@ export const translations = {
       cancel: 'Cancel',
       messageSent: 'Message sent!',
     },
+
+    // Contact options (Viber/WhatsApp popup - shared by profile & product page)
+    contactOptions: {
+      title: 'Contact Seller',
+      chooseMethod: 'Choose how you\'d like to contact {name}',
+      noPhone: 'Seller has not added a phone number yet',
+      whatsappMessage: 'Hi! I\'m contacting you through Ministry of Second Hand.',
+    },
     
     // Closet Page
     closet: {
@@ -1179,6 +1187,14 @@ export const translations = {
       send: 'Испрати порака',
       cancel: 'Откажи',
       messageSent: 'Пораката е испратена!',
+    },
+
+    // Contact options (Viber/WhatsApp popup - shared by profile & product page)
+    contactOptions: {
+      title: 'Контактирај продавач',
+      chooseMethod: 'Изберете како сакате да контактирате со {name}',
+      noPhone: 'Продавачот сеуште нема додадено телефонски број',
+      whatsappMessage: 'Здраво! Ве контактирам преку Ministry of Second Hand.',
     },
     
     // Closet Page

@@ -52,7 +52,7 @@ This document provides a detailed breakdown of every API route, explaining what 
 |------|--------|
 | `UserRole` | 1=Admin, 2=Buyer, 3=Seller |
 | `ItemCondition` | 1=New, 2=Excellent, 3=VeryGood, 4=Good, 5=Fair |
-| `ItemApprovalStatus` | 1=Pending, 2=Approved, 3=Rejected |
+| `ItemApprovalStatus` | 1=Pending, 2=Approved, 3=SpecialistApproved (special/featured on main page) |
 | `BlogStatus` | 1=Draft, 2=Published |
 
 ---
@@ -293,11 +293,12 @@ users:
 **Database Operations:**
 | Operation | Table | Description |
 |-----------|-------|-------------|
-| **READ** | `items` | Returns paginated list of all items |
+| **READ** | `items` | Returns paginated list of all items (or only specialist-approved when `special=1`) |
 | **READ** | `users`, `tags`, `item_images`, `brands`, `categories`, `sizes` | Eager loads relationships |
 
 **Query Parameters:**
 - `per-page` (default: 15)
+- `special` (optional): set to `1` or `true` to return only items with `approval_status = 3` (Specialist Approved) for the main-page “special” / featured section
 
 ---
 

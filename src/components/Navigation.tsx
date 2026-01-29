@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { User } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { getTranslation } from '../translations';
 import './styles/Navigation.css';
 
@@ -15,6 +16,7 @@ export function Navigation({ onProfileClick }: NavigationProps) {
   const ticking = useRef(false);
   const location = useLocation();
   const { language, toggleLanguage } = useLanguage();
+  const { isAdmin } = useAuth();
   const t = getTranslation(language);
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function Navigation({ onProfileClick }: NavigationProps) {
     { id: 'shop', labelKey: 'shop' as const },
     { id: 'closets', labelKey: 'closets' as const },
     { id: 'blog', labelKey: 'journal' as const },
-    { id: 'become-seller', labelKey: 'becomeSeller' as const },
+    ...(!isAdmin ? [{ id: 'become-seller' as const, labelKey: 'becomeSeller' as const }] : []),
   ];
 
   return (

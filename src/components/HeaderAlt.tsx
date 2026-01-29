@@ -216,15 +216,17 @@ export function HeaderAlt({
                       {t.nav.journal}
                     </Link>
                   </li>
-                  <li>
-                    <Link
-                      to="/become-seller"
-                      className="nav-link-alt-becomeseller"
-                      onClick={handleBecomeSellerClick}
-                    >
-                      {t.nav.becomeSeller}
-                    </Link>
-                  </li>
+                  {!isAdmin && (
+                    <li>
+                      <Link
+                        to="/become-seller"
+                        className="nav-link-alt-becomeseller"
+                        onClick={handleBecomeSellerClick}
+                      >
+                        {t.nav.becomeSeller}
+                      </Link>
+                    </li>
+                  )}
                 </ul>
               </div>
 
@@ -302,16 +304,18 @@ export function HeaderAlt({
             >
               {t.nav.journal}
             </Link>
-            <Link
-              to="/become-seller"
-              className="nav-link-alt-becomeseller"
-              onClick={() => {
-                handleBecomeSellerClick();
-                setMobileMenuOpen(false);
-              }}
-            >
-              {t.nav.becomeSeller}
-            </Link>
+            {!isAdmin && (
+              <Link
+                to="/become-seller"
+                className="nav-link-alt-becomeseller"
+                onClick={() => {
+                  handleBecomeSellerClick();
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t.nav.becomeSeller}
+              </Link>
+            )}
             <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid rgba(10, 72, 52, 0.1)' }}>
               <button
                 onClick={() => {

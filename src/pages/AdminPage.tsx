@@ -13,6 +13,8 @@ import {
   Loader2,
   Upload,
   Image as ImageIcon,
+  Star,
+  ArrowUp,
   ArrowDown,
   Mail,
   Users,
@@ -102,12 +104,12 @@ const getUserRoleLabel = (role?: number): string => {
 };
 
 // Helper to get approval status label per API documentation
-// ItemApprovalStatus: 1=Pending, 2=Approved, 3=Rejected
+// ItemApprovalStatus: 1=Pending, 2=Approved, 3=Specialist Approved (special/featured on main page)
 const getApprovalStatusLabel = (status?: number): string => {
   switch (status) {
     case 1: return 'Pending';
     case 2: return 'Approved';
-    case 3: return 'Rejected';
+    case 3: return 'Specialist Approved';
     default: return 'Unknown';
   }
 };
@@ -137,14 +139,44 @@ const getAuthConfig = () => {
   return config;
 };
 
-// Helper function to normalize image URLs
+// Normalize a raw blog from API so we always have image from image or image_url (per BLOG_DOCUMENTATION)
+function normalizeBlogFromApi(raw: Record<string, unknown>): Blog {
+  const image = (raw.image ?? raw.image_url ?? null) as string | null | undefined;
+  const imageStr = image && typeof image === 'string' ? image : null;
+  return {
+    id: Number(raw.id),
+    title: String(raw.title ?? ''),
+    content: String(raw.content ?? ''),
+    image: imageStr,
+    image_url: imageStr ?? undefined,
+    status: Number(raw.status ?? 2),
+    user_id: raw.user_id != null ? Number(raw.user_id) : undefined,
+    user: raw.user as Blog['user'],
+    created_at: String(raw.created_at ?? ''),
+    updated_at: String(raw.updated_at ?? ''),
+    category: raw.category as string | undefined,
+    short_summary: raw.short_summary as string | undefined,
+    full_story: raw.full_story as string | undefined,
+  };
+}
+
+// Do not use these as img src (broken/unwanted per backend)
+const SKIP_IMAGE_DOMAINS = ['via.placeholder.com', 'placehold.it', 'placeholder.com', 'dummyimage.com'];
+
+const isUsableImageUrl = (url: string): boolean => {
+  if (!url || !url.trim()) return false;
+  const lower = url.trim().toLowerCase();
+  return !SKIP_IMAGE_DOMAINS.some((d) => lower.includes(d));
+};
+
+// Helper function to normalize image URLs (build full URL for relative paths; pass through full URLs)
 const normalizeImageUrl = (url: string | null | undefined): string => {
   if (!url || url.trim() === '') {
     return '';
   }
-  
+
   const trimmedUrl = url.trim();
-  
+
   // If it's already a full URL (http:// or https://), return as is
   if (trimmedUrl.match(/^https?:\/\//i)) {
     return trimmedUrl;
@@ -166,8 +198,22 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
   return `${BACKEND_BASE_URL}${cleanPath}`;
 };
 
+// Blog card image: only show image from API; no placeholder when missing or on error
+function BlogCardImage({ src, alt }: { src: string; alt: string }) {
+  const [errored, setErrored] = useState(false);
+  if (!src || errored) return null;
+  return (
+    <img
+      className="admin-queue-image"
+      src={src}
+      alt={alt}
+      onError={() => setErrored(true)}
+    />
+  );
+}
+
 // Robust helper to safely extract numeric approval value from various response shapes
-// API uses approval_status: 1=Pending, 2=Approved, 3=Rejected (per API documentation)
+// API uses approval_status: 1=Pending, 2=Approved, 3=Specialist Approved (per API documentation)
 const getApprovalNumber = (item: any): number | null => {
   if (!item) return null;
 
@@ -236,6 +282,8 @@ export function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [editingBlogId, setEditingBlogId] = useState<number | null>(null);
   const [blogQuery, setBlogQuery] = useState('');
+  const [blogPage, setBlogPage] = useState(1);
+  const BLOGS_PER_PAGE = 10;
   const [categories, setCategories] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_CATEGORIES);
@@ -297,13 +345,16 @@ export function AdminPage() {
       
       const cfg = getAuthConfig(); // Authorization: Bearer <token>, Accept: application/json
       let response: { data: any };
+      const params: Record<string, string | number | boolean> =
+        approvalLevel === 3
+          ? { special: 1 }
+          : { approval_status: approvalLevel };
       try {
-        // Prefer GET /api/admin/items (returns pending for admins). Fallback to /api/items if 404/405.
-        // Use approval_status parameter per API documentation (1=Pending, 2=Approved, 3=Rejected)
-        response = await axios.get(`${API_BASE_URL}/admin/items`, { params: { approval_status: approvalLevel }, ...cfg });
+        // Prefer GET /api/admin/items. Fallback to /api/items. Per API doc: special=1 returns only Specialist Approved (3).
+        response = await axios.get(`${API_BASE_URL}/admin/items`, { params, ...cfg });
       } catch (e: any) {
         if (e?.response?.status === 404 || e?.response?.status === 405) {
-          response = await axios.get(`${API_BASE_URL}/items`, { params: { approval_status: approvalLevel }, ...cfg });
+          response = await axios.get(`${API_BASE_URL}/items`, { params, ...cfg });
         } else {
           throw e;
         }
@@ -418,23 +469,107 @@ export function AdminPage() {
   const fetchBlogs = async () => {
     try {
       setLoading(true);
-      // GET /api/blogs returns paginated BlogResource with user per API documentation
-      const response = await axios.get(`${API_BASE_URL}/blogs`, {
-        headers: {
-          'Accept': 'application/json',
-        },
-      });
-      
-      // Handle paginated response (data array in 'data' field per Laravel pagination)
-      if (response.data.data && Array.isArray(response.data.data)) {
-        setBlogs(response.data.data);
-      } else if (response.data.status === 'success' && Array.isArray(response.data.data)) {
-        // Legacy response format
-        setBlogs(response.data.data);
-      } else if (Array.isArray(response.data)) {
-        // Fallback if response structure is different
-        setBlogs(response.data);
+      const allBlogs: Blog[] = [];
+      let page = 1;
+      let hasMore = true;
+      const perPage = 50;
+
+      // GET /api/blogs — use per-page (hyphen) per BLOG_DOCUMENTATION. Fetch all pages.
+      while (hasMore) {
+        const response = await axios.get(`${API_BASE_URL}/blogs`, {
+          headers: { 'Accept': 'application/json' },
+          params: { page, 'per-page': perPage },
+        });
+
+        // Debug: what we pull from the blog API (first page only)
+        if (page === 1) {
+          console.group('[Blog API] GET /api/blogs response');
+          console.log('Full response.data keys:', response.data ? Object.keys(response.data) : 'no data');
+          console.log('Pagination meta:', response.data?.meta);
+          const firstPageRaw = response.data?.data ?? response.data;
+          const rawItems = Array.isArray(firstPageRaw) ? firstPageRaw : [];
+          console.log('First page item count:', rawItems.length);
+          rawItems.forEach((item: any, i: number) => {
+            console.log(`  Blog ${i + 1} (id=${item?.id}) raw keys:`, item ? Object.keys(item) : []);
+            console.log(`    title:`, item?.title);
+            console.log(`    image:`, item?.image);
+            console.log(`    image_url:`, item?.image_url);
+          });
+          console.groupEnd();
+        }
+
+        let rawPage: unknown[] = [];
+        if (response.data?.data && Array.isArray(response.data.data)) {
+          rawPage = response.data.data;
+        } else if (Array.isArray(response.data)) {
+          rawPage = response.data;
+        }
+
+        const pageData = rawPage.map((item) => normalizeBlogFromApi(item as Record<string, unknown>));
+        if (page === 1 && pageData.length > 0) {
+          console.log('[Blog API] After normalizeBlogFromApi (first page), image on each blog:', pageData.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
+        }
+        allBlogs.push(...pageData);
+
+        const lastPage = response.data?.meta?.last_page ?? response.data?.last_page;
+        if (rawPage.length === 0 || (lastPage != null && page >= lastPage)) {
+          hasMore = false;
+        } else if (rawPage.length < perPage) {
+          hasMore = false;
+        } else {
+          page += 1;
+        }
       }
+
+      // Also fetch GET /api/me/blogs when authenticated so newly created blogs and latest image appear
+      const token = getAuthToken();
+      if (token) {
+        const myBlogs: Blog[] = [];
+        let mePage = 1;
+        let meHasMore = true;
+        try {
+          while (meHasMore) {
+            const meRes = await axios.get(`${API_BASE_URL}/me/blogs`, {
+              ...getAuthConfig(),
+              params: { page: mePage, 'per-page': perPage },
+            });
+            let rawMe: unknown[] = [];
+            if (meRes.data?.data && Array.isArray(meRes.data.data)) {
+              rawMe = meRes.data.data;
+            } else if (Array.isArray(meRes.data)) {
+              rawMe = meRes.data;
+            }
+            if (mePage === 1 && rawMe.length > 0) {
+              console.group('[Blog API] GET /api/me/blogs response (first page)');
+              console.log('Raw items image/image_url:', rawMe.map((item: any) => ({ id: item?.id, title: item?.title, image: item?.image, image_url: item?.image_url })));
+              console.groupEnd();
+            }
+            const mePageData = rawMe.map((item) => normalizeBlogFromApi(item as Record<string, unknown>));
+            myBlogs.push(...mePageData);
+            const meLast = meRes.data?.meta?.last_page ?? meRes.data?.last_page;
+            if (rawMe.length === 0 || (meLast != null && mePage >= meLast)) {
+              meHasMore = false;
+            } else if (rawMe.length < perPage) {
+              meHasMore = false;
+            } else {
+              mePage += 1;
+            }
+          }
+          // Merge by id: my blogs overwrite or get added so we never miss newly created ones
+          const byId = new Map<number, Blog>();
+          allBlogs.forEach((b) => byId.set(b.id, b));
+          myBlogs.forEach((b) => byId.set(b.id, b));
+          const merged = Array.from(byId.values());
+          console.log('[Blog API] Final merged list (id, title, image) for display:', merged.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
+          setBlogs(merged);
+          return;
+        } catch (meErr) {
+          console.warn('GET /api/me/blogs failed, using public list only:', meErr);
+        }
+      }
+
+      console.log('[Blog API] Final list (no /me merge) — id, title, image:', allBlogs.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
+      setBlogs(allBlogs);
     } catch (error) {
       console.error('Error fetching blogs:', error);
       toast.error('Failed to load blogs', {
@@ -556,6 +691,30 @@ export function AdminPage() {
     );
   }, [blogs, blogQuery]);
 
+  // Sort by newest first, then paginate (10 per page)
+  const { sortedAndPaginatedBlogs, totalBlogPages } = useMemo(() => {
+    const sorted = [...filteredBlogs].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    const totalPages = Math.max(1, Math.ceil(sorted.length / BLOGS_PER_PAGE));
+    const effectivePage = Math.min(blogPage, totalPages);
+    const start = (effectivePage - 1) * BLOGS_PER_PAGE;
+    const paginated = sorted.slice(start, start + BLOGS_PER_PAGE);
+    return { sortedAndPaginatedBlogs: paginated, totalBlogPages: totalPages };
+  }, [filteredBlogs, blogPage]);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setBlogPage(1);
+  }, [blogQuery]);
+
+  // Clamp page when total pages shrinks (e.g. after delete or filter)
+  useEffect(() => {
+    if (blogPage > totalBlogPages && totalBlogPages >= 1) {
+      setBlogPage(totalBlogPages);
+    }
+  }, [blogPage, totalBlogPages]);
+
   const filteredUsers = useMemo(() => {
     if (!userQuery.trim()) {
       return users;
@@ -570,19 +729,15 @@ export function AdminPage() {
   }, [users, userQuery]);
 
   // Backend / API documentation compliance:
-  // - ItemApprovalStatus (item approval): 1=Pending, 2=Approved, 3=Rejected
-  // - Use approval_status field per API documentation
-  // - PUT /api/me/items/{item}: send Content-Type: application/json, Authorization: Bearer <token>
-  // - Do not send nested brand/category/user; use category_id / brand_id when updating those.
-  // - Prefer PUT /api/admin/approve/{id} and PUT /api/admin/decline/{id} for approve/decline if available.
+  // - ItemApprovalStatus: 1=Pending, 2=Approved, 3=Specialist Approved (special/featured on main page)
+  // - Use approval_status field. PUT /api/me/items/{item} or /api/items/{item} with { approval_status: N }.
+  // - Prefer PUT /api/admin/approve/{id} when upgrading to 2. Demote to pending (1) or set special (3) via PUT.
   const updateItemApproval = async (id: string, newApprovalLevel: number, successMessage: string) => {
     const config = getAuthConfig(); // Authorization: Bearer, Accept + Content-Type: application/json
 
-    // Use approval_status per API documentation
     const doPutItems = (payload: { approval_status: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
       axios.put(`${API_BASE_URL}/me/items/${id}`, payload, config);
 
-    // Fallback to old endpoint
     const doPutItemsFallback = (payload: { approval_status: number; name?: string; description?: string; price?: number; category_id?: number; brand_id?: number | null }) =>
       axios.put(`${API_BASE_URL}/items/${id}`, payload, config);
 
@@ -609,28 +764,22 @@ export function AdminPage() {
           throw e;
         }
       }
+
+      // Demote to pending (1), or set Specialist Approved (3): PUT with { approval_status: N }
       if (newApprovalLevel === 1) {
         try {
-          await axios.put(`${API_BASE_URL}/admin/decline/${id}`, {}, config);
+          await doPutItems({ approval_status: 1 });
           return;
-        } catch (e: any) {
-          if (e?.response?.status === 404 || e?.response?.status === 405) {
-            try {
-              await doPutItems({ approval_status: 1 });
-              return;
-            } catch (meError: any) {
-              if (meError?.response?.status === 404) {
-                await doPutItemsFallback({ approval_status: 1 });
-                return;
-              }
-              throw meError;
-            }
+        } catch (meError: any) {
+          if (meError?.response?.status === 404) {
+            await doPutItemsFallback({ approval_status: 1 });
+            return;
           }
-          throw e;
+          throw meError;
         }
       }
 
-      // Rejected (3) or demote to approved (2): PUT /api/me/items/{id} with only { "approval_status": N }
+      // Upgrade to Specialist Approved (3) or demote to Approved (2)
       try {
         await doPutItems({ approval_status: newApprovalLevel });
         return;
@@ -886,6 +1035,7 @@ export function AdminPage() {
       title: string;
       content: string;
       status: number;
+      image_url?: string;
     };
 
     try {
@@ -907,6 +1057,7 @@ export function AdminPage() {
           content: blogForm.content,
           // BlogStatus per API documentation: 1=Draft, 2=Published
           status: 2, // Published by default
+          ...(blogForm.heroImage?.trim() && { image_url: blogForm.heroImage.trim() }),
         };
       }
 
@@ -1055,7 +1206,7 @@ export function AdminPage() {
       category: blog.category || (categories[0] ?? ''),
       summary: blog.short_summary || '',
       content: blog.content || blog.full_story || '', // Use content field from API, fallback to full_story for compatibility
-      heroImage: blog.image_url || '',
+      heroImage: blog.image ?? blog.image_url ?? '',
     });
     handleRemoveImage();
     setImageUploadMode('url');
@@ -1188,7 +1339,7 @@ export function AdminPage() {
   };
 
   // Render item card with actions based on approval level
-  // ItemApprovalStatus per API: 1=Pending, 2=Approved, 3=Rejected
+  // ItemApprovalStatus: 1=Pending, 2=Approved, 3=Specialist Approved (special/featured on main page)
   const renderItemCard = (item: ApprovalItem, approvalLevel: 1 | 2 | 3) => (
     <div key={item.id} className="admin-queue-card">
       {item.image ? (
@@ -1212,25 +1363,25 @@ export function AdminPage() {
         </div>
       </div>
       <div className="admin-queue-actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
-        {/* Pending items (status=1) - can be approved or rejected */}
+        {/* Pending (1): upgrade to Approved (2) or Special (3), or delete */}
         {approvalLevel === 1 && (
           <>
             <button
               className="approve"
-              onClick={() => updateItemApproval(item.id, 2, 'Item approved ✅')}
-              title="Approve item"
+              onClick={() => updateItemApproval(item.id, 2, 'Item moved to Approved ✅')}
+              title="Move to Approved"
             >
-              <Check size={18} />
-              Approve
+              <ArrowUp size={18} />
+              Approve (2)
             </button>
             <button
-              className="reject"
-              onClick={() => updateItemApproval(item.id, 3, 'Item rejected ❌')}
-              title="Reject item"
-              style={{ background: '#DC2626' }}
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Special Items ⭐')}
+              title="Move to Special Items"
+              style={{ background: '#9F8151' }}
             >
-              <X size={18} />
-              Reject
+              <Star size={18} />
+              Special (3)
             </button>
             <button
               className="reject"
@@ -1242,7 +1393,7 @@ export function AdminPage() {
             </button>
           </>
         )}
-        {/* Approved items (status=2) - can be moved back to pending or rejected */}
+        {/* Approved (2): demote to Pending (1) or upgrade to Special (3) */}
         {approvalLevel === 2 && (
           <>
             <button
@@ -1251,39 +1402,29 @@ export function AdminPage() {
               title="Move back to Pending"
             >
               <ArrowDown size={18} />
-              Back to Pending
+              Demote (1)
             </button>
             <button
-              className="reject"
-              onClick={() => updateItemApproval(item.id, 3, 'Item rejected ❌')}
-              title="Reject item"
-              style={{ background: '#DC2626' }}
+              className="approve"
+              onClick={() => updateItemApproval(item.id, 3, 'Item moved to Special Items ⭐')}
+              title="Move to Special Items"
+              style={{ background: '#9F8151' }}
             >
-              <X size={18} />
-              Reject
+              <Star size={18} />
+              Special (3)
             </button>
           </>
         )}
-        {/* Rejected items (status=3) - can be moved back to approved or pending */}
+        {/* Specialist Approved (3): demote to Approved (2) only */}
         {approvalLevel === 3 && (
-          <>
-            <button
-              className="approve"
-              onClick={() => updateItemApproval(item.id, 2, 'Item approved ✅')}
-              title="Approve item"
-            >
-              <Check size={18} />
-              Approve
-            </button>
-            <button
-              className="reject"
-              onClick={() => updateItemApproval(item.id, 1, 'Item moved back to Pending ↩')}
-              title="Move back to Pending"
-            >
-              <ArrowDown size={18} />
-              Back to Pending
-            </button>
-          </>
+          <button
+            className="reject"
+            onClick={() => updateItemApproval(item.id, 2, 'Item moved back to Approved ↩')}
+            title="Move back to Approved"
+          >
+            <ArrowDown size={18} />
+            Demote (2)
+          </button>
         )}
       </div>
     </div>
@@ -1334,7 +1475,7 @@ export function AdminPage() {
                   <strong>{approvedItems.length}</strong>
                 </div>
                 <div className="admin-stat-card">
-                  <span>Rejected Items</span>
+                  <span>Special Items</span>
                   <strong>{featuredItems.length}</strong>
                 </div>
               </div>
@@ -1411,7 +1552,7 @@ export function AdminPage() {
               {activeTab === 'approve' ? (
                 <>
                   {/* Sub-tabs for Approve Items */}
-                  {/* ItemApprovalStatus per API: 1=Pending, 2=Approved, 3=Rejected */}
+                  {/* ItemApprovalStatus: 1=Pending, 2=Approved, 3=Specialist Approved (special/featured) */}
                   <div className="admin-sub-tabs">
                     <button
                       onClick={() => setApproveSubTab('pending')}
@@ -1422,7 +1563,7 @@ export function AdminPage() {
                       }}
                     >
                       <ShieldCheck size={18} />
-                      Pending ({pendingItems.length})
+                      Approve ({pendingItems.length})
                     </button>
                     <button
                       onClick={() => setApproveSubTab('approved')}
@@ -1433,26 +1574,26 @@ export function AdminPage() {
                       }}
                     >
                       <Check size={18} />
-                      Approved ({approvedItems.length})
+                      Approved Items ({approvedItems.length})
                     </button>
                     <button
                       onClick={() => setApproveSubTab('featured')}
                       className="admin-sub-tab-button"
                       style={{
-                        background: approveSubTab === 'featured' ? '#DC2626' : '#F0ECE3',
+                        background: approveSubTab === 'featured' ? '#9F8151' : '#F0ECE3',
                         color: approveSubTab === 'featured' ? '#FFFFFF' : '#0A4834',
                       }}
                     >
-                      <X size={18} />
-                      Rejected ({featuredItems.length})
+                      <Star size={18} />
+                      Special Items ({featuredItems.length})
                     </button>
                   </div>
 
                   <div className="admin-content-header">
                     <h3>
-                      {approveSubTab === 'pending' && 'Items awaiting review (Pending)'}
+                      {approveSubTab === 'pending' && 'Submitters awaiting review'}
                       {approveSubTab === 'approved' && 'Approved Items'}
-                      {approveSubTab === 'featured' && 'Rejected Items'}
+                      {approveSubTab === 'featured' && 'Special Items'}
                     </h3>
                     <div className="admin-search">
                       <Search />
@@ -1505,9 +1646,9 @@ export function AdminPage() {
                           </div>
                         ) : (
                           <div className="admin-empty-state">
-                            <X size={40} />
-                            <strong>No rejected items.</strong>
-                            <span>There are no rejected items right now.</span>
+                            <Star size={40} />
+                            <strong>No special items.</strong>
+                            <span>There are no specialist-approved items right now.</span>
                           </div>
                         )
                       )}
@@ -1815,26 +1956,18 @@ export function AdminPage() {
                       <strong>Loading blogs...</strong>
                     </div>
                   ) : filteredBlogs.length > 0 ? (
+                    <>
                     <div className="admin-queue">
-                      {filteredBlogs.map((blog) => (
+                      {sortedAndPaginatedBlogs.map((blog) => {
+                        // Only show image from blog API response; no placeholder when missing/null or skipped
+                        const imageFromDb = (blog.image ?? blog.image_url ?? '').trim();
+                        const hasUsableImage = imageFromDb !== '' && isUsableImageUrl(imageFromDb);
+                        const blogImageUrl = hasUsableImage ? normalizeImageUrl(imageFromDb) : '';
+                        return (
                         <div key={blog.id} className="admin-queue-card">
-                          {blog.image_url ? (
-                            <img
-                              className="admin-queue-image"
-                              src={normalizeImageUrl(blog.image_url)}
-                              alt={blog.title}
-                              onError={(e) => {
-                                e.currentTarget.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="admin-queue-image"
-                              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            >
-                              <ImageOff size={32} color="#9F8151" />
-                            </div>
-                          )}
+                          {hasUsableImage && blogImageUrl ? (
+                            <BlogCardImage src={blogImageUrl} alt={blog.title} />
+                          ) : null}
                           <div className="admin-queue-details">
                             <h4>{blog.title}</h4>
                             <div className="admin-queue-meta">
@@ -1883,8 +2016,50 @@ export function AdminPage() {
                             </button>
                           </div>
                         </div>
-                      ))}
+                      ); })}
                     </div>
+                    {totalBlogPages > 1 && (
+                      <div
+                        className="admin-pagination"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '16px',
+                          marginTop: '24px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          className="admin-submit"
+                          style={{ padding: '8px 16px' }}
+                          disabled={blogPage <= 1}
+                          onClick={() => setBlogPage((p) => Math.max(1, p - 1))}
+                        >
+                          Previous
+                        </button>
+                        <span
+                          style={{
+                            fontFamily: 'Manrope, sans-serif',
+                            fontSize: '14px',
+                            color: '#0A4834',
+                          }}
+                        >
+                          Page {blogPage} of {totalBlogPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="admin-submit"
+                          style={{ padding: '8px 16px' }}
+                          disabled={blogPage >= totalBlogPages}
+                          onClick={() => setBlogPage((p) => Math.min(totalBlogPages, p + 1))}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="admin-empty-state">
                       <FilePlus2 size={40} />

@@ -40,6 +40,58 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const API_ROOT = `${API_BASE_URL}/api`;
 const BACKEND_BASE_URL = API_BASE_URL;
 
+/** Normalize image URL (relative → absolute, protocol-less → https). */
+const normalizeImageUrl = (url?: string | null): string => {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
+  if (trimmed.match(/^https?:\/\//i)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  if (!trimmed.startsWith('/') && trimmed.includes('.')) {
+    return `https://${trimmed}`;
+  }
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) {
+    return `${BACKEND_BASE_URL}${cleanPath}`;
+  }
+  if (
+    trimmed.startsWith('items/') ||
+    trimmed.startsWith('/items/') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('/images/')
+  ) {
+    return `${BACKEND_BASE_URL}/storage${cleanPath}`;
+  }
+  return `${BACKEND_BASE_URL}${cleanPath}`;
+};
+
+/** Extract first image URL from an item (mainImage, images, item_images, itemImages, etc.). */
+const getFirstImageUrl = (item: any): string => {
+  if (!item) return '';
+  const asStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const fromObj = (o: any) =>
+    asStr(o?.url ?? o?.image_url ?? o?.src ?? o?.path ?? o?.file_url);
+  const fromArr = (arr: any[]): string => {
+    if (!Array.isArray(arr) || arr.length === 0) return '';
+    const first = arr[0];
+    return fromObj(first) || asStr(first);
+  };
+  return (
+    fromObj(item.mainImage) ||
+    fromObj(item.main_image) ||
+    asStr(item.mainImage) ||
+    asStr(item.main_image) ||
+    fromArr(item.item_images) ||
+    fromArr(item.itemImages) ||
+    fromArr(item.images) ||
+    asStr(item.first_image_url) ||
+    asStr(item.thumbnail) ||
+    asStr(item.image_url) ||
+    asStr(item.image) ||
+    ''
+  );
+};
+
 const getCookieValue = (name: string): string | null => {
   if (typeof document === 'undefined') {
     return null;
@@ -437,42 +489,9 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
     }
   }, [authUser]);
 
-  // Helper function to get image URL from item (handles different API response formats)
+  // Get image URL for item (uses mainImage, images, item_images, etc. + normalized URL)
   const getItemImageUrl = (item: any): string => {
-    if (!item) return '';
-    
-    // If item has images array, get first image
-    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
-      const firstImage = item.images[0];
-      if (typeof firstImage === 'string') {
-        return firstImage.startsWith('http') ? firstImage : `${BACKEND_BASE_URL}/${firstImage.replace(/^\//, '')}`;
-      }
-      if (typeof firstImage === 'object' && firstImage !== null) {
-        const url = firstImage.url || firstImage.image_url || firstImage.path || firstImage.image;
-        if (url) {
-          if (typeof url === 'string' && (url.startsWith('http://') || url.startsWith('https://'))) {
-            return url;
-          }
-          const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-          if (cleanPath.startsWith('storage/')) {
-            return `${BACKEND_BASE_URL}/${cleanPath}`;
-          }
-          return `${BACKEND_BASE_URL}/storage/${cleanPath}`;
-        }
-      }
-    }
-    
-    // Try direct image fields
-    if (item.image_url) {
-      return item.image_url.startsWith('http') ? item.image_url : `${BACKEND_BASE_URL}/${item.image_url.replace(/^\//, '')}`;
-    }
-    if (item.image) {
-      if (typeof item.image === 'string') {
-        return item.image.startsWith('http') ? item.image : `${BACKEND_BASE_URL}/${item.image.replace(/^\//, '')}`;
-      }
-    }
-    
-    return '';
+    return normalizeImageUrl(getFirstImageUrl(item));
   };
 
   // Load user orders - DISABLED: Orders are not displayed in the UI, so no need to fetch them

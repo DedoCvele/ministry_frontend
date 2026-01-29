@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Search, SlidersHorizontal, X, Heart, ChevronDown, Info } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Heart, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
@@ -51,6 +51,10 @@ const normalizeImageUrl = (url?: string | null): string => {
   if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
   if (trimmed.match(/^https?:\/\//i)) return trimmed;
   if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  // Protocol-less URL (e.g. picsum.photos/seed/... or ik.imagekit.io/...)
+  if (!trimmed.startsWith('/') && trimmed.includes('.')) {
+    return `https://${trimmed}`;
+  }
 
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) {
@@ -67,6 +71,33 @@ const normalizeImageUrl = (url?: string | null): string => {
 
   return `${API_ROOT}${cleanPath}`;
 };
+
+/** Extract first image URL from an item. Tries all known API shapes (mainImage, images, item_images, itemImages, etc.). */
+function getFirstImageUrl(item: any): string {
+  if (!item) return '';
+  const asStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const fromObj = (o: any) =>
+    asStr(o?.url ?? o?.image_url ?? o?.src ?? o?.path ?? o?.file_url);
+  const fromArr = (arr: any[]): string => {
+    if (!Array.isArray(arr) || arr.length === 0) return '';
+    const first = arr[0];
+    return fromObj(first) || asStr(first);
+  };
+  return (
+    fromObj(item.mainImage) ||
+    fromObj(item.main_image) ||
+    asStr(item.mainImage) ||
+    asStr(item.main_image) ||
+    fromArr(item.item_images) ||
+    fromArr(item.itemImages) ||
+    fromArr(item.images) ||
+    asStr(item.first_image_url) ||
+    asStr(item.thumbnail) ||
+    asStr(item.image_url) ||
+    asStr(item.image) ||
+    ''
+  );
+}
 
 const CONDITION_LABELS: Record<number, string> = {
   1: 'New',
@@ -106,91 +137,18 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [apiProducts, setApiProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showAdditionalInfo, setShowAdditionalInfo] = useState(false);
   const [selectedProductDetails, setSelectedProductDetails] = useState<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
-  // Mock products as fallback
+  // Mock products as fallback (used for filter options when API returns empty)
   const mockProducts: Product[] = [
-    {
-      id: 1,
-      title: 'Vintage Leather Blazer',
-      price: 285,
-      seller: 'TanjaVintage',
-      sellerAvatar: 'T',
-      image: 'https://images.unsplash.com/photo-1744743128385-990e02da095f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwbGVhdGhlciUyMGphY2tldHxlbnwxfHx8fDE3NjE1NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['StreetStyle', 'Vintage'],
-      category: 'Outerwear',
-      brand: 'Unknown',
-      size: 'M',
-      condition: 'Excellent',
-    },
-    {
-      id: 2,
-      title: 'Designer Silk Dress',
-      price: 395,
-      seller: 'SofiaCloset',
-      sellerAvatar: 'S',
-      image: 'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZHJlc3MlMjBlbGVnYW50fGVufDF8fHx8MTc2MTU4MTUxOXww&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['Evening', 'Designer'],
-      category: 'Dresses',
-      brand: 'Dior',
-      size: 'S',
-      condition: 'Like New',
-    },
-    {
-      id: 3,
-      title: 'Classic Structured Bag',
-      price: 445,
-      seller: 'LuxeFinds',
-      sellerAvatar: 'L',
-      image: 'https://images.unsplash.com/photo-1758171692659-024183c2c272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMGhhbmRiYWclMjBsdXh1cnl8ZW58MXx8fHwxNzYxNTc1MjkzfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['Timeless', 'Investment'],
-      category: 'Bags',
-      brand: 'Hermès',
-      size: 'One Size',
-      condition: 'Very Good',
-    },
-    {
-      id: 4,
-      title: 'Vintage Denim Jacket',
-      price: 165,
-      seller: 'EmmaArchive',
-      sellerAvatar: 'E',
-      image: 'https://images.unsplash.com/photo-1716307961085-6a7006f28685?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZGVzaWduZXIlMjBjbG90aGluZ3xlbnwxfHx8fDE3NjE1ODE1MTh8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['90sVintage', 'Casual'],
-      category: 'Outerwear',
-      brand: "Levi's",
-      size: 'L',
-      condition: 'Good',
-    },
-    {
-      id: 5,
-      title: 'Statement Leather Boots',
-      price: 225,
-      seller: 'IsabellaStyle',
-      sellerAvatar: 'I',
-      image: 'https://images.unsplash.com/photo-1759563874692-d556321d7c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwaXRlbXN8ZW58MXx8fHwxNzYxNTgxNTE4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['EdgyLuxe', 'Vintage'],
-      category: 'Shoes',
-      brand: 'YSL',
-      size: '38',
-      condition: 'Excellent',
-    },
-    {
-      id: 6,
-      title: 'Tailored Wool Trousers',
-      price: 145,
-      seller: 'MinimalWardrobe',
-      sellerAvatar: 'M',
-      image: 'https://images.unsplash.com/photo-1609709295948-17d77cb2a69b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwd2FyZHJvYmUlMjBjb2xsZWN0aW9ufGVufDF8fHx8MTc2MTU4MTUyMHww&ixlib=rb-4.1.0&q=80&w=1080',
-      tags: ['Minimalist', 'Professional'],
-      category: 'Bottoms',
-      brand: 'MaxMara',
-      size: 'M',
-      condition: 'Excellent',
-    },
+    { id: 1, title: 'Vintage Leather Blazer', price: 285, seller: 'TanjaVintage', sellerAvatar: 'T', image: 'https://images.unsplash.com/photo-1744743128385-990e02da095f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwbGVhdGhlciUyMGphY2tldHxlbnwxfHx8fDE3NjE1NzgwOTZ8MA&ixlib=rb-4.1.0&q=80&w=1080', tags: ['StreetStyle', 'Vintage'], category: 'Outerwear', brand: 'Unknown', size: 'M', condition: 'Excellent' },
+    { id: 2, title: 'Designer Silk Dress', price: 395, seller: 'SofiaCloset', sellerAvatar: 'S', image: 'https://images.unsplash.com/photo-1759893362613-8bb8bb057af1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZHJlc3MlMjBlbGVnYW50fGVufDF8fHx8MTc2MTU4MTUxOXww&ixlib=rb-4.1.0&q=80&w=1080', tags: ['Evening', 'Designer'], category: 'Dresses', brand: 'Dior', size: 'S', condition: 'Like New' },
+    { id: 3, title: 'Classic Structured Bag', price: 445, seller: 'LuxeFinds', sellerAvatar: 'L', image: 'https://images.unsplash.com/photo-1758171692659-024183c2c272?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkZXNpZ25lciUyMGhhbmRiYWclMjBsdXh1cnl8ZW58MXx8fHwxNzYxNTc1MjkzfDA&ixlib=rb-4.1.0&q=80&w=1080', tags: ['Timeless', 'Investment'], category: 'Bags', brand: 'Hermès', size: 'One Size', condition: 'Very Good' },
+    { id: 4, title: 'Vintage Denim Jacket', price: 165, seller: 'EmmaArchive', sellerAvatar: 'E', image: 'https://images.unsplash.com/photo-1716307961085-6a7006f28685?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwZGVzaWduZXIlMjBjbG90aGluZ3xlbnwxfHx8fDE3NjE1ODE1MTh8MA&ixlib=rb-4.1.0&q=80&w=1080', tags: ['90sVintage', 'Casual'], category: 'Outerwear', brand: "Levi's", size: 'L', condition: 'Good' },
+    { id: 5, title: 'Statement Leather Boots', price: 225, seller: 'IsabellaStyle', sellerAvatar: 'I', image: 'https://images.unsplash.com/photo-1759563874692-d556321d7c3b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBmYXNoaW9uJTIwaXRlbXN8ZW58MXx8fHwxNzYxNTgxNTE4fDA&ixlib=rb-4.1.0&q=80&w=1080', tags: ['EdgyLuxe', 'Vintage'], category: 'Shoes', brand: 'YSL', size: '38', condition: 'Excellent' },
+    { id: 6, title: 'Tailored Wool Trousers', price: 145, seller: 'MinimalWardrobe', sellerAvatar: 'M', image: 'https://images.unsplash.com/photo-1609709295948-17d77cb2a69b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aW50YWdlJTIwd2FyZHJvYmUlMjBjb2xsZWN0aW9ufGVufDF8fHx8MTc2MTU4MTUyMHww&ixlib=rb-4.1.0&q=80&w=1080', tags: ['Minimalist', 'Professional'], category: 'Bottoms', brand: 'MaxMara', size: 'M', condition: 'Excellent' },
   ];
 
   // Dynamically generate filter options from actual products
@@ -245,22 +203,17 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
         } else {
           items = [];
         }
-        
 
-        // Filter items for shop page: show items with approval_status === 2 (Approved)
+        // Filter items for shop page: show items with approval_status 2 (Approved) or 3 (Specialist Approved)
         const approvedItems = Array.isArray(items)
-          ? items.filter((item: any) => item?.approval_status === 2)
+          ? items.filter((item: any) => item?.approval_status === 2 || item?.approval_status === 3)
           : [];
 
+        // ========== WHERE WE CONVERT JSON RESPONSE TO CARD ==========
+        // Each API item (ItemResource) is mapped to a Product; image comes from item_images / images / mainImage
         const mappedProducts: Product[] = approvedItems.map((item: any) => {
-          const rawImageUrl =
-            item?.mainImage?.url ??
-            item?.main_image?.url ??
-            (Array.isArray(item?.images) && item.images.length > 0 ? item.images[0]?.url : '') ??
-            item?.image_url ??
-            item?.image ??
-            '';
-          const imageUrl = normalizeImageUrl(rawImageUrl);
+          const firstImageUrl = getFirstImageUrl(item);
+          const imageUrl = normalizeImageUrl(firstImageUrl);
 
           const sizeLabel =
             Array.isArray(item?.sizes) && item.sizes.length > 0
@@ -697,112 +650,6 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
             )}
           </>
         )}
-
-        {/* Load More / Show Additional Info Button */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }} className="load-more-wrap">
-          <motion.button onClick={() => { setShowAdditionalInfo(!showAdditionalInfo); }} whileHover={{ backgroundColor: '#0A4834', color: '#FFFFFF' }} whileTap={{ scale: 0.98 }} className="toggle-info-btn">
-            <Info size={18} />
-            {showAdditionalInfo ? t.shop.hideAdditionalInfo : t.shop.showAdditionalInfo}
-          </motion.button>
-
-          {/* Additional Info Cards Display */}
-          {showAdditionalInfo && products.length > 0 && (
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="additional-info-wrap">
-              <h3 className="additional-info-title">{t.shop.additionalProductInfo}</h3>
-
-              {/* Grid of Additional Info Cards */}
-              <div className="additional-info-grid">
-                {products.filter(p => p.apiData).map((product) => (
-                  <motion.div key={`info-${product.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="info-card">
-                    <div className="info-meta" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 16, borderBottom: '1px solid rgba(159,129,81,0.2)' }}>
-                      <div className="info-image" style={{ width: 48, height: 48 }}>
-                        <img src={product.image} alt={product.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      </div>
-                      <div>
-                        <h4 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 18, color: '#0A4834', margin: 0 }}>{product.title}</h4>
-                        <p style={{ fontFamily: 'Manrope, sans-serif', fontSize: 14, color: '#9F8151', margin: '4px 0 0 0' }}>{t.shop.additionalInfo.id}: {product.id}</p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontFamily: 'Manrope, sans-serif', fontSize: 13 }}>
-                      {product.apiData.description && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.description}:</strong>
-                          <span style={{ color: '#0A4834' }}>{product.apiData.description}</span>
-                        </div>
-                      )}
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        {product.apiData.brand_id && (
-                          <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.brandId}:</strong>
-                            <span style={{ color: '#0A4834' }}>{product.apiData.brand_id}</span>
-                          </div>
-                        )}
-                        {product.apiData.category_id && (
-                          <div>
-                            <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.categoryId}:</strong>
-                            <span style={{ color: '#0A4834' }}>{product.apiData.category_id}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {product.apiData.approval_status && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.approvalStatus}:</strong>
-                          <span style={{ color: '#0A4834', backgroundColor: product.apiData.approval_status === 2 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', padding: '4px 8px', borderRadius: 6, display: 'inline-block' }}>
-                            {product.apiData.approval_status === 2 ? t.shop.approvalStatus.approved : t.shop.approvalStatus.pending}
-                          </span>
-                        </div>
-                      )}
-
-                      {product.apiData.brand && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.brand}:</strong>
-                          <span style={{ color: '#0A4834' }}>{product.apiData.brand.name}</span>
-                        </div>
-                      )}
-
-                      {product.apiData.category && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.category}:</strong>
-                          <span style={{ color: '#0A4834' }}>{product.apiData.category.name}</span>
-                        </div>
-                      )}
-
-                      {product.apiData.user && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.seller}:</strong>
-                          <span style={{ color: '#0A4834' }}>{product.apiData.user.name || product.apiData.user.email}</span>
-                        </div>
-                      )}
-
-                      {product.apiData.created_at && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 4 }}>{t.shop.additionalInfo.created}:</strong>
-                          <span style={{ color: '#0A4834' }}>{new Date(product.apiData.created_at).toLocaleDateString()}</span>
-                        </div>
-                      )}
-
-                      {product.image && (
-                        <div>
-                          <strong style={{ color: '#9F8151', display: 'block', marginBottom: 8 }}>{t.shop.additionalInfo.image}:</strong>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <img 
-                              src={product.image} 
-                              alt="Product image" 
-                              style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(159,129,81,0.2)' }} 
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
 
         {/* Bottom CTA Strip */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }} className="bottom-cta">

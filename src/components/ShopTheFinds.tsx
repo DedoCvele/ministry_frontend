@@ -28,6 +28,10 @@ const normalizeImageUrl = (url?: string | null): string => {
   if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
   if (trimmed.match(/^https?:\/\//i)) return trimmed;
   if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  // Protocol-less URL (e.g. picsum.photos/seed/... or ik.imagekit.io/...)
+  if (!trimmed.startsWith('/') && trimmed.includes('.')) {
+    return `https://${trimmed}`;
+  }
 
   const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
   if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) {
@@ -44,6 +48,33 @@ const normalizeImageUrl = (url?: string | null): string => {
 
   return `${API_ROOT}${cleanPath}`;
 };
+
+/** Same as ShopPage: extract first image URL from an item (all known API shapes). */
+function getFirstImageUrl(item: any): string {
+  if (!item) return '';
+  const asStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const fromObj = (o: any) =>
+    asStr(o?.url ?? o?.image_url ?? o?.src ?? o?.path ?? o?.file_url);
+  const fromArr = (arr: any[]): string => {
+    if (!Array.isArray(arr) || arr.length === 0) return '';
+    const first = arr[0];
+    return fromObj(first) || asStr(first);
+  };
+  return (
+    fromObj(item.mainImage) ||
+    fromObj(item.main_image) ||
+    asStr(item.mainImage) ||
+    asStr(item.main_image) ||
+    fromArr(item.item_images) ||
+    fromArr(item.itemImages) ||
+    fromArr(item.images) ||
+    asStr(item.first_image_url) ||
+    asStr(item.thumbnail) ||
+    asStr(item.image_url) ||
+    asStr(item.image) ||
+    ''
+  );
+}
 
 const CONDITION_LABELS: Record<number, string> = {
   1: 'New',
@@ -79,15 +110,10 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
           items = [];
         }
 
-        // console.log('=== SHOP THE FINDS - API RESPONSE (approved=3) ===');
-        // console.log('Full response:', response);
-        // console.log('Response.data:', response.data);
-        // console.log('Processed items:', items);
-        // console.log('Items count:', Array.isArray(items) ? items.length : 0);
-
-        // Map items to product format and filter by approved status (2 = Approved)
+        // ========== WHERE WE CONVERT JSON RESPONSE TO CARD ==========
+        // Map items to product format and filter by approval_status 2 (Approved) or 3 (Specialist Approved)
         const approvedProducts: Product[] = items
-          .filter((item: any) => item?.approval_status === 2)
+          .filter((item: any) => item?.approval_status === 2 || item?.approval_status === 3)
           .map((item: any) => {
             const itemTitle = item.name || 'Untitled Item';
             
@@ -98,26 +124,11 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
               maximumFractionDigits: 0,
             });
 
-            const rawImageUrl =
-              item?.mainImage?.url ??
-              item?.main_image?.url ??
-              (Array.isArray(item?.images) && item.images.length > 0 ? item.images[0]?.url : '') ??
-              item?.image_url ??
-              item?.image ??
-              '';
-            const imageUrl = normalizeImageUrl(rawImageUrl);
+            const firstImageUrl = getFirstImageUrl(item);
+            const imageUrl = normalizeImageUrl(firstImageUrl);
 
             // Get seller name
             const sellerName = item.user?.name || item.user?.email || 'Unknown Seller';
-
-            // console.log('Mapping item:', {
-            //   id: item.id,
-            //   title: itemTitle,
-            //   originalTitle: item.title,
-            //   originalName: item.name,
-            //   price: item.price,
-            //   seller: sellerName,
-            // });
 
             return {
               id: item.id,
@@ -129,7 +140,6 @@ export function ShopTheFinds({}: ShopTheFindsProps = {}) {
             };
           });
 
-        // console.log('Approved products (approved=3):', approvedProducts);
         setProducts(approvedProducts);
       } catch (error) {
         console.error('Error fetching approved items:', error);

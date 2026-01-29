@@ -78,7 +78,11 @@ CREATE TABLE personal_access_tokens (
 **Endpoint:** `POST /api/register`
 
 ```json
-// Request
+// Request Headers
+Content-Type: application/json
+Accept: application/json
+
+// Request Body
 {
     "name": "John Doe",
     "email": "john@example.com",
@@ -86,14 +90,28 @@ CREATE TABLE personal_access_tokens (
     "password_confirmation": "password123"
 }
 
-// Response: 204 No Content (success, but no token returned)
+// Response (200 OK)
+{
+    "user": {
+        "id": 1,
+        "name": "John Doe",
+        "email": "john@example.com",
+        "phone": null,
+        "city": null,
+        "bio": null,
+        "profile_picture": null,
+        "role": "user",
+        "created_at": "2026-01-28T10:00:00.000000Z"
+    },
+    "token": "1|abc123xyz456..."  // <-- SAVE THIS TOKEN!
+}
 ```
 
-> ⚠️ **Note**: Registration does NOT return a token. After registration, redirect user to login.
+> ✅ **Note**: Registration returns a token immediately, so users can be logged in automatically after registering.
 
 ---
 
-### Step 2: User Login (GET YOUR TOKEN HERE!)
+### Step 2: User Login
 
 **Endpoint:** `POST /api/login`
 
@@ -248,7 +266,49 @@ async function apiRequest(endpoint, options = {}) {
 
 ---
 
-### Example 1: Login and Get Token
+### Example 1: Register and Get Token
+
+```javascript
+async function register(name, email, password, passwordConfirmation) {
+    const response = await fetch(`${API_BASE_URL}/register`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({ 
+            name, 
+            email, 
+            password, 
+            password_confirmation: passwordConfirmation 
+        }),
+    });
+    
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Registration failed');
+    }
+    
+    const data = await response.json();
+    
+    // IMPORTANT: Save the token!
+    saveToken(data.token);
+    
+    return data.user;
+}
+
+// Usage
+try {
+    const user = await register('John Doe', 'john@example.com', 'password123', 'password123');
+    console.log('Registered and logged in as:', user.name);
+} catch (error) {
+    console.error('Registration failed:', error.message);
+}
+```
+
+---
+
+### Example 2: Login and Get Token
 
 ```javascript
 async function login(email, password) {
@@ -285,7 +345,7 @@ try {
 
 ---
 
-### Example 2: Create an Item (POST with Token)
+### Example 3: Create an Item (POST with Token)
 
 ```javascript
 async function createItem(itemData) {
@@ -296,7 +356,7 @@ async function createItem(itemData) {
     formData.append('description', itemData.description || '');
     formData.append('price', itemData.price);
     formData.append('condition', itemData.condition); // 'new', 'like_new', 'good', 'fair'
-    formData.append('approval_status', 'pending'); // 'pending', 'approved', 'rejected'
+    formData.append('approval_status', '1'); // ItemApprovalStatus: 1=Pending, 2=Approved, 3=SpecialistApproved (special on main page)
     formData.append('category_id', itemData.categoryId);
     formData.append('brand_id', itemData.brandId);
     
@@ -357,7 +417,7 @@ const newItem = await createItem({
 
 ---
 
-### Example 3: Update an Item (PUT with Token)
+### Example 4: Update an Item (PUT with Token)
 
 ```javascript
 async function updateItem(itemId, updateData) {
@@ -400,7 +460,7 @@ const updated = await updateItem(123, {
 
 ---
 
-### Example 4: Delete an Item (DELETE with Token)
+### Example 5: Delete an Item (DELETE with Token)
 
 ```javascript
 async function deleteItem(itemId) {
@@ -430,7 +490,7 @@ console.log('Item deleted!');
 
 ---
 
-### Example 5: Update User Profile
+### Example 6: Update User Profile
 
 ```javascript
 async function updateProfile(profileData) {
@@ -462,7 +522,7 @@ async function updateProfile(profileData) {
 
 ---
 
-### Example 6: Logout
+### Example 7: Logout
 
 ```javascript
 async function logout() {
@@ -533,6 +593,35 @@ export function AuthProvider({ children }) {
         } finally {
             setLoading(false);
         }
+    }
+
+    async function register(name, email, password, passwordConfirmation) {
+        const response = await fetch(`${API_BASE_URL}/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ 
+                name, 
+                email, 
+                password, 
+                password_confirmation: passwordConfirmation 
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Registration failed');
+        }
+
+        const data = await response.json();
+        
+        localStorage.setItem('auth_token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        
+        return data.user;
     }
 
     async function login(email, password) {
@@ -614,6 +703,7 @@ export function AuthProvider({ children }) {
             token,
             loading,
             isAuthenticated: !!token,
+            register,
             login,
             logout,
             authFetch,

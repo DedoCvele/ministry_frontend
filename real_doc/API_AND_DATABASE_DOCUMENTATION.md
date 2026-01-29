@@ -41,6 +41,12 @@ GET    /api/me/blogs/{blog}
 PUT    /api/me/blogs/{blog}
 PATCH  /api/me/blogs/{blog}
 DELETE /api/me/blogs/{blog}
+GET    /api/me/social-links
+POST   /api/me/social-links
+GET    /api/me/social-links/{link}
+PUT    /api/me/social-links/{link}
+PATCH  /api/me/social-links/{link}
+DELETE /api/me/social-links/{link}
 GET    /api/me/followers
 GET    /api/me/following
 POST   /api/me/users/{user}/follow
@@ -93,7 +99,9 @@ DELETE /api/sizes/{size}
 6. [Resource shapes (response types)](#6-resource-shapes-response-types)
 7. [Pagination](#7-pagination)
 8. [Errors](#8-errors)
-9. [Social Links (Backend Ready — Routes Pending)](#9-social-links-backend-ready--routes-pending)
+9. [Phone Number Format](#9-phone-number-format)
+10. [Social Links](#10-social-links)
+11. [Changelog](#changelog)
 
 ---
 
@@ -223,9 +231,11 @@ Send and compare using the **integer** values in the API and in your types.
 
 **ItemApprovalStatus** (item approval):
 
-- `1` — Pending  
-- `2` — Approved  
-- `3` — Rejected  
+- `1` — Pending (awaiting review)
+- `2` — Approved (approved for listing)
+- `3` — Specialist Approved (approved by specialist; show on main page as **special** / featured)
+
+**Item approval and “special” items:** Items with `approval_status === 3` (Specialist Approved) are intended to appear on the main page as “special” or featured. Use **GET `/api/items?special=1`** to fetch only specialist-approved items for that section; **GET `/api/items`** returns all items (each includes `approval_status` so the frontend can also filter or highlight).
 
 **BlogStatus** (blog post):
 
@@ -276,6 +286,12 @@ All require **Auth**.
 | PUT    | `/api/me/blogs/{blog}` | Update blog |
 | PATCH  | `/api/me/blogs/{blog}` | Same as PUT |
 | DELETE | `/api/me/blogs/{blog}` | Delete blog |
+| GET    | `/api/me/social-links` | List current user's social links |
+| POST   | `/api/me/social-links` | Create a social link |
+| GET    | `/api/me/social-links/{link}` | Get one social link |
+| PUT    | `/api/me/social-links/{link}` | Update a social link |
+| PATCH  | `/api/me/social-links/{link}` | Same as PUT |
+| DELETE | `/api/me/social-links/{link}` | Delete a social link |
 | POST   | `/api/me/items/{item}/images` | Add images to item |
 | DELETE | `/api/me/items/{item}/images/{image}` | Delete one item image |
 | GET    | `/api/me/followers` | Paginated list of followers |
@@ -294,9 +310,9 @@ All require **Auth**.
 
 - `name` (string, optional, min 3, max 255)
 - `password` (string, optional; must satisfy password rules; use with `password_confirmation` if your backend expects it)
-- `phone` (string, optional, nullable; format like `+1 234 567 8900` or similar)
+- `phone` (string, optional, nullable; see [Phone Number Format](#9-phone-number-format) for valid formats)
 - `city` (string, optional, nullable, min 3)
-- `bio` (string, optional, nullable, min 20, max 5000)
+- `bio` (string, optional, nullable, min 4, max 5000)
 - `profile_picture`: either  
   - a **file** (image; SVG only if your backend validates that), or  
   - **string**: hex color `#RRGGBB` or a valid URL  
@@ -527,9 +543,12 @@ Same fields as create; all optional with `sometimes`.
 
 #### GET `/api/items` — All items
 
-**Query:** `per-page` (optional, default 15).
+**Query:**
 
-**Response (200):** Paginated **ItemResource** with `user`, `tags`, `mainImage`, `brand`, `category`, `sizes`.
+- `per-page` (optional, default 15)
+- `special` (optional): set to `1` or `true` to return only items with `approval_status === 3` (Specialist Approved), for the main-page “special” / featured section.
+
+**Response (200):** Paginated **ItemResource** with `user`, `tags`, `mainImage`, `brand`, `category`, `sizes`. Each item includes `approval_status` (1 Pending, 2 Approved, 3 Specialist Approved).
 
 ---
 
@@ -734,7 +753,7 @@ Use this to understand IDs and how to combine responses (e.g. `category_id` on i
 - `id` (PK)
 - `name`, `description`, `material`, `price`, `condition`, `location`
 - `user_id` (FK → users), `category_id` (FK → categories), `brand_id` (FK → brands)
-- `approval_status` (tinyint, default 1)
+- `approval_status` (tinyint, default 1): 1 Pending, 2 Approved, 3 Specialist Approved (special/featured on main page)
 - `timestamps`
 
 **item_images**
@@ -962,11 +981,16 @@ Use these to type your frontend models and API clients.
 **UserResource**
 
 - `id`, `name`, `email`
+- `phone` (string or null)
+- `city` (string or null)
+- `bio` (string or null)
+- `role` (integer: 1=Admin, 2=Buyer, 3=Seller)
 - `is_followed` (boolean, when in a context where the backend checks the current user)
 - `followers_count`, `following_count` (when loaded with counts)
 - `created_at`, `updated_at` (formatted strings, e.g. `"28/01/2026 14:30"`)
 - `items` (array of ItemResource when relation loaded)
 - `profile_picture` (string or null): can be a hex color (e.g. `"#FF5500"`), SVG data URI, SVG markup, or a Storage URL for uploaded SVG files
+- `social_links` (array of SocialLinkResource when relation loaded)
 
 **ItemResource**
 
@@ -1038,11 +1062,53 @@ Use query `per-page` to set page size (default 15).
 
 ---
 
-## 9. Social Links (Backend Ready — Routes Pending)
+## 9. Phone Number Format
 
-The backend has a complete implementation for **social links** (users can link their social media profiles), but the API routes are **not yet configured**. Once routes are added, the following endpoints will be available:
+The `phone` field on user profiles accepts various international phone number formats. The validation regex is:
 
-### Expected Routes (Auth required)
+```
+/^(\+?\d{1,4})?[-.\s]?\(?\d{2,3}\)?[-.\s]?\d{2,3}[-.\s]?\d{3,4}$/
+```
+
+### Valid Phone Number Examples
+
+| Country | Format | Example |
+|---------|--------|---------|
+| North Macedonia 🇲🇰 | +3 digits, 2+3+3 | `+389 70 123 456` |
+| Serbia 🇷🇸 | +3 digits, 2+3+4 | `+381 64 123 4567` |
+| Bosnia & Herzegovina 🇧🇦 | +3 digits, 2+3+3 | `+387 61 123 456` |
+| Slovenia 🇸🇮 | +3 digits, 2+3+3 | `+386 40 123 456` |
+| Croatia 🇭🇷 | +3 digits, 2+3+4 | `+385 91 123 4567` |
+| USA 🇺🇸 | +1 digit, 3+3+4 | `+1 234 567 8900` |
+| UK 🇬🇧 | +2 digits, 3+3+4 | `+44 234 567 8900` |
+| With dashes | — | `+381-64-123-4567` |
+| With dots | — | `+381.64.123.4567` |
+| With parentheses | — | `+381 (64) 123 4567` |
+| No separators | — | `+38164123456` |
+| Local (no country code) | — | `064 123 4567` |
+
+### Format Rules
+
+1. **Country code** (optional): `+` followed by 1-4 digits (e.g., `+1`, `+44`, `+381`, `+1234`)
+2. **Area/mobile code**: 2-3 digits, optionally wrapped in parentheses (e.g., `64`, `234`, `(70)`)
+3. **Middle part**: 2-3 digits
+4. **Last part**: 3-4 digits
+5. **Separators** (optional): dash `-`, dot `.`, or space ` ` between parts
+
+### Invalid Formats
+
+- Too few digits: `12-34-56`
+- Letters: `+381-ABC-1234`
+- Country code too long: `+12345 67 890 1234`
+- Missing required parts: `+381 64`
+
+---
+
+## 10. Social Links
+
+Users can link their social media profiles. Each user can have **one link per platform**.
+
+### Routes (Auth required)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -1050,24 +1116,103 @@ The backend has a complete implementation for **social links** (users can link t
 | POST   | `/api/me/social-links` | Create a social link |
 | GET    | `/api/me/social-links/{link}` | Get one social link |
 | PUT    | `/api/me/social-links/{link}` | Update a social link |
+| PATCH  | `/api/me/social-links/{link}` | Same as PUT |
 | DELETE | `/api/me/social-links/{link}` | Delete a social link |
 
-### Create/Update Social Link — Expected Request
+---
+
+#### GET `/api/me/social-links` — List social links
+
+**Response (200):** Collection of **SocialLinkResource** for the current user.
+
+---
+
+#### POST `/api/me/social-links` — Create social link
 
 **Request (JSON):**
 
 - `platform` (required) — SocialLinkPlatform enum value: `1` (Instagram), `2` (Facebook), `3` (TikTok), `4` (X/Twitter)
-- `url` (required, valid URL) — the link to the social profile
+- `url` (required, valid URL, max 2048 characters) — the link to the social profile
 
-**Constraint:** Each user can have only one link per platform. Creating a second link for the same platform will fail.
+**Constraint:** Each user can have only one link per platform. Attempting to create a second link for the same platform returns `422`.
 
-**Response:** Single **SocialLinkResource**.
+**Response (200):** Single **SocialLinkResource**.
+
+**Error (422):**
+```json
+{
+  "message": "You already have a link for this platform.",
+  "errors": { "platform": ["You already have a link for this platform."] }
+}
+```
+
+---
+
+#### GET `/api/me/social-links/{link}` — Get one social link
+
+**Response (200):** Single **SocialLinkResource**.  
+**Error (404):** If the link doesn't exist or doesn't belong to the current user.
+
+---
+
+#### PUT/PATCH `/api/me/social-links/{link}` — Update social link
+
+**Request (JSON):**
+
+- `platform` (optional) — SocialLinkPlatform enum value
+- `url` (optional, valid URL, max 2048 characters)
+
+**Response (200):** Single **SocialLinkResource**.  
+**Error (422):** If changing platform to one that already has a link.  
+**Error (404):** If the link doesn't belong to the current user.
+
+---
+
+#### DELETE `/api/me/social-links/{link}` — Delete social link
+
+**Response:** `204 No Content`.  
+**Error (404):** If the link doesn't belong to the current user.
+
+---
 
 ### SocialLinkResource Shape
 
-- `id`
-- `platform` (SocialLinkPlatform enum value)
+- `id` (integer)
+- `platform` (integer: 1=Instagram, 2=Facebook, 3=TikTok, 4=X)
 - `url` (string)
+
+---
+
+## Changelog
+
+### 2026-01-29 — Item approval status & special items
+
+**What changed:**
+
+1. **ItemApprovalStatus** — Value `3` is now **Specialist Approved** (not Rejected). Items with `approval_status === 3` are intended to be shown on the main page as “special” / featured.
+2. **GET `/api/items`** — New optional query param **`special`**: set to `1` or `true` to return only specialist-approved items (for the main-page “special” section). All items in the response include `approval_status` (1 Pending, 2 Approved, 3 Specialist Approved).
+3. **Backend logic** — The enum, validation, and public items endpoint support the “special” flow: use `GET /api/items?special=1` for the special section, or `GET /api/items` and filter/highlight by `approval_status === 3` on the frontend.
+
+---
+
+### 2026-01-28 — Social Links & UserResource Update
+
+**What changed:**
+
+1. **Social Links routes are now active** — Full CRUD at `/api/me/social-links`
+2. **UserResource now includes additional fields:**
+   - `phone` — user's phone number
+   - `city` — user's city
+   - `bio` — user's biography
+   - `role` — user role (1=Admin, 2=Buyer, 3=Seller)
+   - `social_links` — array of social links (when loaded)
+3. **Fixed SocialLinkResource** — `platform` now returns the actual enum value instead of class name
+4. **Fixed SocialLinkController** — Now properly scoped to current user with authorization checks
+5. **GET `/api/user`** — Now loads `socialLinks` relation automatically
+6. **Updated phone validation** — Now supports Balkan phone formats (Serbia, Croatia, Bosnia, Slovenia, North Macedonia) with 2-digit area codes
+7. **Fixed 500 error on `/api/users/{user}`** — Removed invalid `tags` relation that doesn't exist on User model
+8. **Added `socialLinks` to closet endpoints** — `/api/closets` and `/api/closets/{id}` now include social links
+9. **Enhanced closet responses** — Now includes `followers_count`, `following_count`, and full item details
 
 ---
 

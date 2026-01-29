@@ -13,7 +13,7 @@ import {
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from './ui/dialog';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
-import { ContactSellerPopup } from './ContactSellerPopup';
+import { ContactOptionsPopup } from './ContactOptionsPopup';
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -1057,11 +1057,13 @@ export function ProductPage({ onBack, onCheckout, language: languageProp }: Prod
         </div>
       </motion.div>
 
-      {/* Contact Seller Popup */}
-      <ContactSellerPopup
+      {/* Contact Seller Popup (Viber/WhatsApp - same as profile) */}
+      <ContactOptionsPopup
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
         sellerName={sellerName}
+        phone={product?.user?.phone}
+        language={language}
       />
       
       <FooterAlt />
