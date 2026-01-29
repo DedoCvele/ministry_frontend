@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Check,
@@ -50,14 +50,14 @@ const DEFAULT_BLOG_CATEGORIES = [
 
 const STORAGE_KEY_CATEGORIES = 'ministry_blog_categories';
 
-// BlogResource shape per API documentation
+// BlogResource shape per API documentation — API only sends image (no image_url)
 // BlogStatus: 1=Draft, 2=Published
 interface Blog {
   id: number;
   title: string;
   content: string;
-  image: string | null;
-  image_url?: string | null; // For backward compatibility
+  image: string | null; // ImageKit CDN URL or null; API only exposes this field
+  image_url?: string | null; // Not sent by API; kept for type compat
   // BlogStatus per API documentation: 1=Draft, 2=Published
   status: number;
   user_id?: number;
@@ -139,9 +139,9 @@ const getAuthConfig = () => {
   return config;
 };
 
-// Normalize a raw blog from API so we always have image from image or image_url (per BLOG_DOCUMENTATION)
+// Normalize a raw blog from API; use image (not image_url) per API response
 function normalizeBlogFromApi(raw: Record<string, unknown>): Blog {
-  const image = (raw.image ?? raw.image_url ?? null) as string | null | undefined;
+  const image = raw.image as string | null | undefined;
   const imageStr = image && typeof image === 'string' ? image : null;
   return {
     id: Number(raw.id),
@@ -160,7 +160,7 @@ function normalizeBlogFromApi(raw: Record<string, unknown>): Blog {
   };
 }
 
-// Do not use these as img src (broken/unwanted per backend)
+// Do not use these as img src (broken/unwanted per backend); show local placeholder instead
 const SKIP_IMAGE_DOMAINS = ['via.placeholder.com', 'placehold.it', 'placeholder.com', 'dummyimage.com'];
 
 const isUsableImageUrl = (url: string): boolean => {
@@ -198,17 +198,47 @@ const normalizeImageUrl = (url: string | null | undefined): string => {
   return `${BACKEND_BASE_URL}${cleanPath}`;
 };
 
-// Blog card image: only show image from API; no placeholder when missing or on error
-function BlogCardImage({ src, alt }: { src: string; alt: string }) {
-  const [errored, setErrored] = useState(false);
-  if (!src || errored) return null;
+// Admin blog card: only show image from API; no placeholder on missing or on error
+function AdminBlogImage({ src, alt }: { src: string; alt: string }) {
+  const [hidden, setHidden] = useState(false);
+  if (!src || hidden) {
+    return <div className="admin-queue-image" aria-hidden />;
+  }
   return (
     <img
       className="admin-queue-image"
       src={src}
       alt={alt}
-      onError={() => setErrored(true)}
+      onError={() => setHidden(true)}
     />
+  );
+}
+
+function formatBlogDate(s: string): string {
+  if (!s || typeof s !== 'string') return '—';
+  const d = new Date(s.trim());
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Blog card image: use only blog.image from API response. No fallbacks.
+function AdminBlogCardImage({ src, alt }: { src: string; alt: string }) {
+  if (!src || !src.trim()) {
+    return <div className="admin-blog-card-image-wrap" />;
+  }
+  const url = src.trim();
+  return (
+    <div className="admin-blog-card-image-wrap">
+      <img
+        src={url}
+        alt={alt}
+        width={160}
+        height={120}
+        decoding="async"
+        referrerPolicy="no-referrer"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', verticalAlign: 'middle' }}
+      />
+    </div>
   );
 }
 
@@ -481,21 +511,8 @@ export function AdminPage() {
           params: { page, 'per-page': perPage },
         });
 
-        // Debug: what we pull from the blog API (first page only)
         if (page === 1) {
-          console.group('[Blog API] GET /api/blogs response');
-          console.log('Full response.data keys:', response.data ? Object.keys(response.data) : 'no data');
-          console.log('Pagination meta:', response.data?.meta);
-          const firstPageRaw = response.data?.data ?? response.data;
-          const rawItems = Array.isArray(firstPageRaw) ? firstPageRaw : [];
-          console.log('First page item count:', rawItems.length);
-          rawItems.forEach((item: any, i: number) => {
-            console.log(`  Blog ${i + 1} (id=${item?.id}) raw keys:`, item ? Object.keys(item) : []);
-            console.log(`    title:`, item?.title);
-            console.log(`    image:`, item?.image);
-            console.log(`    image_url:`, item?.image_url);
-          });
-          console.groupEnd();
+          console.log('[GET /api/blogs] raw response:', JSON.stringify(response.data, null, 2));
         }
 
         let rawPage: unknown[] = [];
@@ -506,9 +523,6 @@ export function AdminPage() {
         }
 
         const pageData = rawPage.map((item) => normalizeBlogFromApi(item as Record<string, unknown>));
-        if (page === 1 && pageData.length > 0) {
-          console.log('[Blog API] After normalizeBlogFromApi (first page), image on each blog:', pageData.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
-        }
         allBlogs.push(...pageData);
 
         const lastPage = response.data?.meta?.last_page ?? response.data?.last_page;
@@ -533,16 +547,14 @@ export function AdminPage() {
               ...getAuthConfig(),
               params: { page: mePage, 'per-page': perPage },
             });
+            if (mePage === 1) {
+              console.log('[GET /api/me/blogs] raw response:', JSON.stringify(meRes.data, null, 2));
+            }
             let rawMe: unknown[] = [];
             if (meRes.data?.data && Array.isArray(meRes.data.data)) {
               rawMe = meRes.data.data;
             } else if (Array.isArray(meRes.data)) {
               rawMe = meRes.data;
-            }
-            if (mePage === 1 && rawMe.length > 0) {
-              console.group('[Blog API] GET /api/me/blogs response (first page)');
-              console.log('Raw items image/image_url:', rawMe.map((item: any) => ({ id: item?.id, title: item?.title, image: item?.image, image_url: item?.image_url })));
-              console.groupEnd();
             }
             const mePageData = rawMe.map((item) => normalizeBlogFromApi(item as Record<string, unknown>));
             myBlogs.push(...mePageData);
@@ -560,7 +572,6 @@ export function AdminPage() {
           allBlogs.forEach((b) => byId.set(b.id, b));
           myBlogs.forEach((b) => byId.set(b.id, b));
           const merged = Array.from(byId.values());
-          console.log('[Blog API] Final merged list (id, title, image) for display:', merged.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
           setBlogs(merged);
           return;
         } catch (meErr) {
@@ -568,7 +579,6 @@ export function AdminPage() {
         }
       }
 
-      console.log('[Blog API] Final list (no /me merge) — id, title, image:', allBlogs.map((b) => ({ id: b.id, title: b.title, image: b.image, image_url: b.image_url })));
       setBlogs(allBlogs);
     } catch (error) {
       console.error('Error fetching blogs:', error);
@@ -1106,14 +1116,19 @@ export function AdminPage() {
         }
         
         if (updateSuccess) {
-          toast.success('Blog updated successfully ✨', {
-            style: {
-              background: '#FFFFFF',
-              color: '#0A4834',
-              border: '1px solid #9F8151',
-              fontFamily: 'Manrope, sans-serif',
-            },
-          });
+          toast.success(
+            useFormData && heroImageFile
+              ? 'Blog updated. New image will appear shortly (processed in background).'
+              : 'Blog updated successfully ✨',
+            {
+              style: {
+                background: '#FFFFFF',
+                color: '#0A4834',
+                border: '1px solid #9F8151',
+                fontFamily: 'Manrope, sans-serif',
+              },
+            }
+          );
           setEditingBlogId(null);
         }
       } else {
@@ -1206,7 +1221,7 @@ export function AdminPage() {
       category: blog.category || (categories[0] ?? ''),
       summary: blog.short_summary || '',
       content: blog.content || blog.full_story || '', // Use content field from API, fallback to full_story for compatibility
-      heroImage: blog.image ?? blog.image_url ?? '',
+      heroImage: blog.image ?? '',
     });
     handleRemoveImage();
     setImageUploadMode('url');
@@ -1957,43 +1972,28 @@ export function AdminPage() {
                     </div>
                   ) : filteredBlogs.length > 0 ? (
                     <>
-                    <div className="admin-queue">
+                    <div className="admin-blog-list">
                       {sortedAndPaginatedBlogs.map((blog) => {
-                        // Only show image from blog API response; no placeholder when missing/null or skipped
-                        const imageFromDb = (blog.image ?? blog.image_url ?? '').trim();
-                        const hasUsableImage = imageFromDb !== '' && isUsableImageUrl(imageFromDb);
-                        const blogImageUrl = hasUsableImage ? normalizeImageUrl(imageFromDb) : '';
+                        const statusLabel = blog.status === 1 ? 'Draft' : blog.status === 2 ? 'Published' : 'Unknown';
+                        const imageUrl = (blog.image && typeof blog.image === 'string') ? blog.image.trim() : '';
                         return (
-                        <div key={blog.id} className="admin-queue-card">
-                          {hasUsableImage && blogImageUrl ? (
-                            <BlogCardImage src={blogImageUrl} alt={blog.title} />
-                          ) : null}
-                          <div className="admin-queue-details">
-                            <h4>{blog.title}</h4>
-                            <div className="admin-queue-meta">
-                              <span>{blog.category || 'Uncategorized'}</span>
-                              {/* BlogStatus per API: 1=Draft, 2=Published */}
-                              <span>{blog.status === 1 ? 'Draft' : blog.status === 2 ? 'Published' : 'Unknown'}</span>
-                              <span>
-                                {new Date(blog.created_at).toLocaleDateString('en-US', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric',
-                                })}
-                              </span>
-                              {blog.user && <span>by {blog.user.name}</span>}
+                        <article key={blog.id} className="admin-blog-card">
+                          <div className="admin-blog-card-left">
+                            <AdminBlogCardImage src={imageUrl} alt={blog.title} />
+                            <div className="admin-blog-card-content">
+                              <h4>{blog.title}</h4>
+                              <div className="admin-blog-card-meta">
+                                <span>{blog.category || 'Uncategorized'}</span>
+                                <span>{statusLabel}</span>
+                                <span>{formatBlogDate(blog.created_at)}</span>
+                                {blog.user && <span>by {blog.user.name}</span>}
+                              </div>
                             </div>
-                            {blog.short_summary && (
-                              <p style={{ marginTop: '8px', color: '#666', fontSize: '14px' }}>
-                                {blog.short_summary.length > 150
-                                  ? `${blog.short_summary.substring(0, 150)}...`
-                                  : blog.short_summary}
-                              </p>
-                            )}
                           </div>
-                          <div className="admin-queue-actions">
+                          <div className="admin-blog-card-actions">
                             <button
-                              className="approve"
+                              type="button"
+                              className="admin-blog-edit"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleEditBlog(blog);
@@ -2004,7 +2004,8 @@ export function AdminPage() {
                               Edit
                             </button>
                             <button
-                              className="reject"
+                              type="button"
+                              className="admin-blog-delete"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteBlog(blog.id);
@@ -2015,7 +2016,7 @@ export function AdminPage() {
                               Delete
                             </button>
                           </div>
-                        </div>
+                        </article>
                       ); })}
                     </div>
                     {totalBlogPages > 1 && (
