@@ -339,6 +339,27 @@
   pointer-events: none;
 }
 
+/* Preview button on queue cards */
+.admin-queue-actions button.preview {
+  background: #9f8151;
+  color: #ffffff;
+}
+.admin-queue-actions button.preview:hover:not(:disabled) {
+  background: #8a7047;
+}
+
+/* Admin Item Preview page (tags) */
+.admin-preview-tag {
+  font-family: "Manrope", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0a4834;
+  background-color: #f0ece3;
+  padding: 8px 16px;
+  border-radius: 16px;
+  letter-spacing: 0.02em;
+}
+
 /* ——— Manage Blogs: horizontal cards (image rightmost, actions right) ——— */
 .admin-blog-list {
   display: flex;

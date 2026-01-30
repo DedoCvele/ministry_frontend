@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import {
   Check,
   Edit3,
+  Eye,
   FilePlus2,
   ImageOff,
   LogOut,
@@ -169,34 +170,54 @@ const isUsableImageUrl = (url: string): boolean => {
   return !SKIP_IMAGE_DOMAINS.some((d) => lower.includes(d));
 };
 
-// Helper function to normalize image URLs (build full URL for relative paths; pass through full URLs)
+// Helper function to normalize image URLs (build full URL for relative paths; pass through full URLs).
+// Matches ShopPage / ItemResource usage: mainImage, images[].url, storage paths, ImageKit protocol-less URLs.
 const normalizeImageUrl = (url: string | null | undefined): string => {
-  if (!url || url.trim() === '') {
-    return '';
+  if (!url || url.trim() === '') return '';
+  const trimmed = url.trim();
+  if (trimmed.includes('via.placeholder.com')) return '';
+  if (trimmed.match(/^https?:\/\//i)) return trimmed;
+  if (trimmed.startsWith('//')) return `https:${trimmed}`;
+  // Protocol-less URL (e.g. ik.imagekit.io/... per ImageKit docs)
+  if (!trimmed.startsWith('/') && trimmed.includes('.')) return `https://${trimmed}`;
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  if (trimmed.startsWith('storage/') || trimmed.startsWith('/storage/')) return `${BACKEND_BASE_URL}${cleanPath}`;
+  if (
+    trimmed.startsWith('items/') ||
+    trimmed.startsWith('/items/') ||
+    trimmed.startsWith('images/') ||
+    trimmed.startsWith('/images/')
+  ) {
+    return `${BACKEND_BASE_URL}/storage${cleanPath}`;
   }
-
-  const trimmedUrl = url.trim();
-
-  // If it's already a full URL (http:// or https://), return as is
-  if (trimmedUrl.match(/^https?:\/\//i)) {
-    return trimmedUrl;
-  }
-  
-  // If it starts with storage/ or is a relative path, prepend backend URL
-  if (trimmedUrl.startsWith('storage/') || trimmedUrl.startsWith('/storage/')) {
-    const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
-    return `${BACKEND_BASE_URL}${cleanPath}`;
-  }
-  
-  // If it starts with //, add https:
-  if (trimmedUrl.startsWith('//')) {
-    return `https:${trimmedUrl}`;
-  }
-  
-  // Otherwise, assume it's a relative path and prepend backend URL
-  const cleanPath = trimmedUrl.startsWith('/') ? trimmedUrl : `/${trimmedUrl}`;
   return `${BACKEND_BASE_URL}${cleanPath}`;
 };
+
+/** Extract first image URL from an item. Tries mainImage, images, item_images, etc. (per API ItemResource). */
+function getFirstImageUrl(item: any): string {
+  if (!item) return '';
+  const asStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
+  const fromObj = (o: any) => asStr(o?.url ?? o?.image_url ?? o?.src ?? o?.path ?? o?.file_url);
+  const fromArr = (arr: any[]): string => {
+    if (!Array.isArray(arr) || arr.length === 0) return '';
+    const first = arr[0];
+    return fromObj(first) || asStr(first);
+  };
+  return (
+    fromObj(item.mainImage) ||
+    fromObj(item.main_image) ||
+    asStr(item.mainImage) ||
+    asStr(item.main_image) ||
+    fromArr(item.item_images) ||
+    fromArr(item.itemImages) ||
+    fromArr(item.images) ||
+    asStr(item.first_image_url) ||
+    asStr(item.thumbnail) ||
+    asStr(item.image_url) ||
+    asStr(item.image) ||
+    ''
+  );
+}
 
 // Admin blog card: only show image from API; no placeholder on missing or on error
 function AdminBlogImage({ src, alt }: { src: string; alt: string }) {
@@ -407,41 +428,10 @@ export function AdminPage() {
           })
         : [];
       
-      // Map to ApprovalItem format
+      // Map to ApprovalItem format. Image from mainImage / images (per API ItemResource); same logic as ShopPage.
       const mappedItems: ApprovalItem[] = filteredItems.map((item: any) => {
-        const API_ROOT_FOR_IMAGES = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
-        
-        const getImageUrl = (item: any): string => {
-          if (item?.images && Array.isArray(item.images) && item.images.length > 0) {
-            const mainImage = item.images[0];
-            if (mainImage?.url) return mainImage.url;
-            if (mainImage?.path) {
-              const img = mainImage.path;
-              if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-                return img;
-              }
-              const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-              if (cleanPath.startsWith('storage/')) {
-                return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-              }
-              return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-            }
-          }
-          if (item?.image_url) return item.image_url;
-          if (item?.image) {
-            const img = item.image;
-            if (typeof img === 'string' && (img.startsWith('http://') || img.startsWith('https://'))) {
-              return img;
-            }
-            const cleanPath = img.startsWith('/') ? img.substring(1) : img;
-            if (cleanPath.startsWith('storage/')) {
-              return `${API_ROOT_FOR_IMAGES}/${cleanPath}`;
-            }
-            return `${API_ROOT_FOR_IMAGES}/storage/${cleanPath}`;
-          }
-          return '';
-        };
-        
+        const rawImage = getFirstImageUrl(item);
+        const image = normalizeImageUrl(rawImage) || undefined;
         return {
           id: String(item.id),
           title: item.title || item.name || 'Untitled Item',
@@ -450,7 +440,7 @@ export function AdminPage() {
           category: item.category?.name || 'Uncategorized',
           price: parseFloat(item.price) || 0,
           submittedAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
-          image: getImageUrl(item),
+          image,
         };
       });
       
@@ -1357,27 +1347,53 @@ export function AdminPage() {
   // ItemApprovalStatus: 1=Pending, 2=Approved, 3=Specialist Approved (special/featured on main page)
   const renderItemCard = (item: ApprovalItem, approvalLevel: 1 | 2 | 3) => (
     <div key={item.id} className="admin-queue-card">
-      {item.image ? (
-        <img
-          className="admin-queue-image"
-          src={item.image}
-          alt={item.title}
-        />
-      ) : (
-        <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <ImageOff size={32} color="#9F8151" />
-        </div>
-      )}
-      <div className="admin-queue-details">
-        <h4>{item.title}</h4>
-        <div className="admin-queue-meta">
-          <span>@{item.seller.replace(/^@/, '')}</span>
-          <span>{item.category}</span>
-          <span>${item.price.toLocaleString()}</span>
-          <span>Submitted {item.submittedAt}</span>
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => navigate(`/admin/preview/${item.id}`)}
+        onKeyDown={(e) => e.key === 'Enter' && navigate(`/admin/preview/${item.id}`)}
+        style={{
+          cursor: 'pointer',
+          gridColumn: '1 / span 2',
+          display: 'grid',
+          gridTemplateColumns: '120px 1fr',
+          gap: '16px',
+          alignItems: 'center',
+          minWidth: 0,
+        }}
+        aria-label={`Preview ${item.title}`}
+      >
+        {item.image ? (
+          <img
+            className="admin-queue-image"
+            src={item.image}
+            alt={item.title}
+          />
+        ) : (
+          <div className="admin-queue-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ImageOff size={32} color="#9F8151" />
+          </div>
+        )}
+        <div className="admin-queue-details">
+          <h4>{item.title}</h4>
+          <div className="admin-queue-meta">
+            <span>@{item.seller.replace(/^@/, '')}</span>
+            <span>{item.category}</span>
+            <span>${item.price.toLocaleString()}</span>
+            <span>Submitted {item.submittedAt}</span>
+          </div>
         </div>
       </div>
       <div className="admin-queue-actions" style={{ flexWrap: 'wrap', gap: '8px' }}>
+        <button
+          type="button"
+          className="preview"
+          onClick={(e) => { e.stopPropagation(); navigate(`/admin/preview/${item.id}`); }}
+          title="Preview as published"
+        >
+          <Eye size={18} />
+          Preview
+        </button>
         {/* Pending (1): upgrade to Approved (2) or Special (3), or delete */}
         {approvalLevel === 1 && (
           <>

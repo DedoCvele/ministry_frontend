@@ -4,6 +4,7 @@ import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
 import { RegisterPage } from '../pages/RegisterPage';
 import { AdminPage } from '../pages/AdminPage';
+import { AdminItemPreviewPage } from '../pages/AdminItemPreviewPage';
 import { ShopPage } from '../components/ShopPage';
 import { ClosetsPage } from '../components/ClosetsPage';
 import { JournalHomepage } from '../components/JournalHomepage';
@@ -114,6 +115,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireAdmin>
             <AdminPage />
+          </RequireAdmin>
+        ),
+      },
+      {
+        path: 'admin/preview/:itemId',
+        element: (
+          <RequireAdmin>
+            <AdminItemPreviewPage />
           </RequireAdmin>
         ),
       },
