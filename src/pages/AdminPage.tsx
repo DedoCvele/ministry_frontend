@@ -51,15 +51,15 @@ const DEFAULT_BLOG_CATEGORIES = [
 
 const STORAGE_KEY_CATEGORIES = 'ministry_blog_categories';
 
-// BlogResource shape per API documentation — API only sends image (no image_url)
-// BlogStatus: 1=Draft, 2=Published
+// BlogResource shape per API documentation — id, title, content, short_content, image, status, user
+// BlogStatus: 1=Draft, 2=Published. Image is file-only on create/update; API returns image URL.
 interface Blog {
   id: number;
   title: string;
   content: string;
-  image: string | null; // ImageKit CDN URL or null; API only exposes this field
-  image_url?: string | null; // Not sent by API; kept for type compat
-  // BlogStatus per API documentation: 1=Draft, 2=Published
+  short_content?: string; // API field (required on create, min 10 max 400)
+  image: string | null;
+  image_url?: string | null; // type compat
   status: number;
   user_id?: number;
   user?: {
@@ -69,9 +69,8 @@ interface Blog {
   } | null;
   created_at: string;
   updated_at: string;
-  // Optional fields for backward compatibility
-  category?: string;
-  short_summary?: string;
+  category?: string; // optional; not in current API create/update
+  short_summary?: string; // display alias for short_content
   full_story?: string;
 }
 
@@ -140,14 +139,16 @@ const getAuthConfig = () => {
   return config;
 };
 
-// Normalize a raw blog from API; use image (not image_url) per API response
+// Normalize a raw blog from API (BlogResource: id, title, content, short_content, image, status, user)
 function normalizeBlogFromApi(raw: Record<string, unknown>): Blog {
   const image = raw.image as string | null | undefined;
   const imageStr = image && typeof image === 'string' ? image : null;
+  const shortContent = (raw.short_content ?? raw.short_summary) as string | undefined;
   return {
     id: Number(raw.id),
     title: String(raw.title ?? ''),
     content: String(raw.content ?? ''),
+    short_content: shortContent,
     image: imageStr,
     image_url: imageStr ?? undefined,
     status: Number(raw.status ?? 2),
@@ -156,7 +157,7 @@ function normalizeBlogFromApi(raw: Record<string, unknown>): Blog {
     created_at: String(raw.created_at ?? ''),
     updated_at: String(raw.updated_at ?? ''),
     category: raw.category as string | undefined,
-    short_summary: raw.short_summary as string | undefined,
+    short_summary: shortContent,
     full_story: raw.full_story as string | undefined,
   };
 }
@@ -682,20 +683,24 @@ export function AdminPage() {
       return blogs;
     }
     const lowered = blogQuery.toLowerCase();
+    const shortText = (b: Blog) => b.short_content ?? b.short_summary ?? '';
     return blogs.filter(
       (blog) =>
         blog.title.toLowerCase().includes(lowered) ||
         (blog.category && blog.category.toLowerCase().includes(lowered)) ||
-        (blog.short_summary && blog.short_summary.toLowerCase().includes(lowered)) ||
+        shortText(blog).toLowerCase().includes(lowered) ||
         (blog.content && blog.content.toLowerCase().includes(lowered))
     );
   }, [blogs, blogQuery]);
 
-  // Sort by newest first, then paginate (10 per page)
+  // Sort by newest first (created_at, fallback updated_at; invalid/missing = treat as newest), then paginate (10 per page)
   const { sortedAndPaginatedBlogs, totalBlogPages } = useMemo(() => {
-    const sorted = [...filteredBlogs].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    const ts = (b: Blog) => {
+      const raw = b.created_at || b.updated_at || '';
+      const t = new Date(raw).getTime();
+      return Number.isNaN(t) ? Number.MAX_SAFE_INTEGER : t; // invalid/missing = newest
+    };
+    const sorted = [...filteredBlogs].sort((a, b) => ts(b) - ts(a));
     const totalPages = Math.max(1, Math.ceil(sorted.length / BLOGS_PER_PAGE));
     const effectivePage = Math.min(blogPage, totalPages);
     const start = (effectivePage - 1) * BLOGS_PER_PAGE;
@@ -1014,7 +1019,7 @@ export function AdminPage() {
       return;
     }
 
-    // Validate content length per API requirements (min 30 characters)
+    // API: content min 30, max 5000
     if (blogForm.content.trim().length < 30) {
       toast.error('Content must be at least 30 characters', {
         style: {
@@ -1027,15 +1032,41 @@ export function AdminPage() {
       return;
     }
 
+    // API: short_content required, min 10, max 400
+    const shortContent = blogForm.summary.trim();
+    if (shortContent.length < 10) {
+      toast.error('Short summary must be at least 10 characters', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+    if (shortContent.length > 400) {
+      toast.error('Short summary must be at most 400 characters', {
+        style: {
+          background: '#FFFFFF',
+          color: '#0A4834',
+          border: '1px solid #9F8151',
+          fontFamily: 'Manrope, sans-serif',
+        },
+      });
+      return;
+    }
+
     setLoading(true);
 
+    // API accepts image only as file (multipart/form-data); no image_url in JSON
     const useFormData = heroImageFile && imageUploadMode === 'upload';
     
     let payload: FormData | {
       title: string;
       content: string;
+      short_content: string;
       status: number;
-      image_url?: string;
     };
 
     try {
@@ -1043,7 +1074,7 @@ export function AdminPage() {
         const formData = new FormData();
         formData.append('title', blogForm.title);
         formData.append('content', blogForm.content);
-        // BlogStatus per API documentation: 1=Draft, 2=Published
+        formData.append('short_content', shortContent);
         formData.append('status', '2'); // Published by default
         
         if (heroImageFile) {
@@ -1055,9 +1086,8 @@ export function AdminPage() {
         payload = {
           title: blogForm.title,
           content: blogForm.content,
-          // BlogStatus per API documentation: 1=Draft, 2=Published
+          short_content: shortContent,
           status: 2, // Published by default
-          ...(blogForm.heroImage?.trim() && { image_url: blogForm.heroImage.trim() }),
         };
       }
 
@@ -1167,9 +1197,9 @@ export function AdminPage() {
       handleRemoveImage();
       setImageUploadMode('url');
 
-      if (activeTab === 'manage-blogs') {
-        fetchBlogs();
-      }
+      // Always refetch and switch to Manage Blogs so the new post appears at the top
+      setActiveTab('manage-blogs');
+      await fetchBlogs();
     } catch (error: any) {
       console.error('Error posting blog:', error);
       let errorMessage = 'Failed to post blog';
@@ -1209,8 +1239,8 @@ export function AdminPage() {
     setBlogForm({
       title: blog.title,
       category: blog.category || (categories[0] ?? ''),
-      summary: blog.short_summary || '',
-      content: blog.content || blog.full_story || '', // Use content field from API, fallback to full_story for compatibility
+      summary: blog.short_content ?? blog.short_summary ?? '',
+      content: blog.content || blog.full_story || '',
       heroImage: blog.image ?? '',
     });
     handleRemoveImage();
@@ -1974,7 +2004,7 @@ export function AdminPage() {
                       <Search />
                       <input
                         type="text"
-                        placeholder="Search blogs by title, category, or summary"
+                        placeholder="Search blogs by title, category, or short summary"
                         value={blogQuery}
                         onChange={(event) => setBlogQuery(event.target.value)}
                       />

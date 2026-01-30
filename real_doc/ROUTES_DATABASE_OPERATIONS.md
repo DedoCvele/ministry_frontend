@@ -462,6 +462,7 @@ blogs:
   - id (auto-generated)
   - title (required, min:4, max:255)
   - content (required, min:30, max:5000)
+  - short_content (required, min:10, max:400)
   - status (required, 1=Draft or 2=Published)
   - user_id (authenticated user)
   - image (nullable, via async job)
@@ -486,6 +487,7 @@ blogs:
 blogs:
   - title
   - content
+  - short_content
   - status
   - image (async via job)
   - image_kit_id (async via job)
