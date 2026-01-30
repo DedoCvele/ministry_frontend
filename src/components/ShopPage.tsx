@@ -10,6 +10,8 @@ import { NewsletterPopup } from './NewsletterPopup';
 import { type Language, getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useFavourites } from '../hooks/useFavourites';
+import { toast } from 'sonner';
 import {
   Pagination,
   PaginationContent,
@@ -123,7 +125,7 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
     }
   };
   const t = getTranslation(language);
-  const [wishlist, setWishlist] = useState<number[]>([]);
+  const { isFavourited, toggleFavourite } = useFavourites();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilters, setActiveFilters] = useState<{[key: string]: string}>({});
   const [sortBy, setSortBy] = useState(t.shop.sortOptions.newest);
@@ -352,12 +354,10 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
     setCurrentPage(1);
   }, [searchQuery, activeFilters, sortBy]);
 
-  const toggleWishlist = (productId: number) => {
-    setWishlist(prev => 
-      prev.includes(productId) 
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
+  const handleFavouriteClick = async (e: { stopPropagation: () => void }, productId: number) => {
+    e.stopPropagation();
+    const result = await toggleFavourite(productId);
+    if (!result.success && result.message) toast.error(result.message);
   };
 
   const removeFilter = (filterKey: string) => {
@@ -501,9 +501,9 @@ export function ShopPage({ onProductClick, language: languageProp }: ShopPagePro
                       <span className="view-details-text">{t.shop.viewDetails}</span>
                     </div>
 
-                    {/* Wishlist Button */}
-                    <motion.button onClick={(e) => { e.stopPropagation(); toggleWishlist(product.id); }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
-                      <Heart size={18} color="#9F8151" fill={wishlist.includes(product.id) ? '#9F8151' : 'none'} />
+                    {/* Favourite (item_user) - persisted via API */}
+                    <motion.button onClick={(e) => handleFavouriteClick(e, product.id)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className="wishlist-btn">
+                      <Heart size={18} color="#9F8151" fill={isFavourited(product.id) ? '#9F8151' : 'none'} />
                     </motion.button>
                   </div>
 

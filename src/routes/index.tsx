@@ -19,6 +19,7 @@ import { NewOrderConfirmation } from '../components/NewOrderConfirmation';
 import { BecomeSellerOnboarding } from '../components/BecomeSellerOnboarding';
 import ClosetPage from '../components/ClosetPage';
 import { ComingSoonPage } from '../pages/ComingSoonPage';
+import { SupportPage } from '../pages/SupportPage';
 import { RequireAdmin } from './RequireAdmin';
 import { RequireAuth } from './RequireAuth';
 
@@ -155,6 +156,14 @@ export const router = createBrowserRouter([
         element: (
           <RequireAuth>
             <BecomeSellerOnboarding />
+          </RequireAuth>
+        ),
+      },
+      {
+        path: 'support',
+        element: (
+          <RequireAuth>
+            <SupportPage />
           </RequireAuth>
         ),
       },

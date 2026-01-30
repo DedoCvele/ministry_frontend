@@ -1,0 +1,350 @@
+/* Support page – contact site owners (auth required) */
+
+.support-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #F0ECE3;
+}
+
+.support-hero {
+  background: linear-gradient(to bottom, #0A4834, #0d5a42);
+  padding: 120px 24px 64px;
+  text-align: center;
+}
+
+.support-hero-content {
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.support-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  margin-bottom: 24px;
+}
+
+.support-icon {
+  width: 32px;
+  height: 32px;
+  color: #9F8151;
+}
+
+.support-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 42px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin: 0 0 16px;
+  letter-spacing: -0.5px;
+}
+
+.support-subtitle {
+  font-family: 'Manrope', sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.support-main {
+  flex: 1;
+  padding: 48px 24px 80px;
+}
+
+.support-layout {
+  max-width: 1000px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 48px;
+  align-items: start;
+}
+
+/* Sidebar info */
+.support-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.support-info-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(10, 72, 52, 0.06);
+  border: 1px solid rgba(10, 72, 52, 0.08);
+}
+
+.support-info-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0A4834;
+  margin: 0 0 12px;
+}
+
+.support-info-list {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  color: #0A4834;
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.8;
+  opacity: 0.9;
+}
+
+.support-info-response,
+.support-info-email {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.support-info-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: #9F8151;
+  margin-top: 2px;
+}
+
+.support-info-text {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  color: #0A4834;
+  margin: 0;
+  line-height: 1.5;
+  opacity: 0.9;
+}
+
+.support-info-text strong {
+  color: #0A4834;
+  font-weight: 600;
+}
+
+/* Form container */
+.support-form-wrap {
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 40px;
+  box-shadow: 0 4px 20px rgba(10, 72, 52, 0.08);
+  border: 1px solid rgba(10, 72, 52, 0.08);
+}
+
+.support-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.support-label {
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0A4834;
+  display: block;
+}
+
+.support-required {
+  color: #9F8151;
+}
+
+.support-input,
+.support-select,
+.support-textarea {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  color: #0A4834;
+  background: #F8F6F3;
+  border: 1px solid rgba(10, 72, 52, 0.15);
+  border-radius: 12px;
+  padding: 14px 18px;
+  width: 100%;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.support-input::placeholder,
+.support-textarea::placeholder {
+  color: rgba(10, 72, 52, 0.5);
+}
+
+.support-input:focus,
+.support-select:focus,
+.support-textarea:focus {
+  outline: none;
+  border-color: #9F8151;
+  box-shadow: 0 0 0 3px rgba(159, 129, 81, 0.2);
+}
+
+.support-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230A4834' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 44px;
+}
+
+.support-textarea {
+  min-height: 160px;
+  resize: vertical;
+}
+
+.support-submit {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #9F8151 0%, #8A6F46 100%);
+  border: none;
+  border-radius: 12px;
+  padding: 16px 28px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  margin-top: 8px;
+}
+
+.support-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(159, 129, 81, 0.4);
+}
+
+.support-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.support-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.support-submit-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.support-submit-loading {
+  opacity: 0.9;
+}
+
+/* Success state */
+.support-success {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.support-success-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(159, 129, 81, 0.15);
+  color: #9F8151;
+  border-radius: 50%;
+}
+
+.support-success-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.support-success-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #0A4834;
+  margin: 0 0 12px;
+}
+
+.support-success-text {
+  font-family: 'Manrope', sans-serif;
+  font-size: 16px;
+  color: rgba(10, 72, 52, 0.85);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.support-success-btn {
+  font-family: 'Manrope', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #9F8151;
+  background: transparent;
+  border: 2px solid #9F8151;
+  border-radius: 12px;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.support-success-btn:hover {
+  background: #9F8151;
+  color: #FFFFFF;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .support-hero {
+    padding: 100px 20px 48px;
+  }
+
+  .support-title {
+    font-size: 34px;
+  }
+
+  .support-subtitle {
+    font-size: 16px;
+  }
+
+  .support-main {
+    padding: 32px 20px 64px;
+  }
+
+  .support-layout {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .support-form-wrap {
+    padding: 28px 24px;
+    border-radius: 16px;
+  }
+
+  .support-info-card {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .support-hero {
+    padding: 88px 16px 40px;
+  }
+
+  .support-title {
+    font-size: 28px;
+  }
+
+  .support-form-wrap {
+    padding: 24px 20px;
+  }
+
+  .support-input,
+  .support-select,
+  .support-textarea {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+}

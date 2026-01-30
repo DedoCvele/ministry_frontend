@@ -10,6 +10,10 @@ import { FooterAlt } from './FooterAlt';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslation } from '../translations';
+import { apiClient } from '../api/apiClient';
+import { toast } from 'sonner';
+import { useFavourites } from '../hooks/useFavourites';
+import { Heart } from 'lucide-react';
 import './styles/ClosetPage.css';
 
 const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
@@ -102,9 +106,13 @@ export default function ClosetPage({
 
   const [selectedFilter, setSelectedFilter] = useState(t.closet.filters.all);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
   const [showContactPopup, setShowContactPopup] = useState(false);
+  const { isFavourited, toggleFavourite } = useFavourites();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -126,52 +134,24 @@ export default function ClosetPage({
   const fallbackImage =
     'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
 
-  // FETCH DATA
+  // FETCH DATA (use apiClient so backend can return is_followed when authenticated)
   useEffect(() => {
     const fetchCloset = async () => {
       try {
-        // Fetch closet data (user + items)
-        const response = await fetch(`${API_BASE_URL}/closets/${userId}`, {
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-          },
-          credentials: 'include',
-        });
-
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.includes('application/json')) {
-          const fallbackText = await response.text();
-          throw new Error(
-            `Unexpected response (${response.status}). ${fallbackText.slice(0, 120)}`
-          );
-        }
-
-        const data = await response.json();
+        const response = await apiClient.get(`/closets/${userId}`).catch(() => null);
+        const data = response?.data;
         const payload = data?.data || data?.user || data;
         const items = data?.items || payload?.items || [];
 
         // Try to get social links from closet response first
         let rawSocialLinks = payload?.social_links || payload?.socialLinks || [];
-        
-        // If no social links in closet response, try fetching from users endpoint
-        if (!rawSocialLinks || rawSocialLinks.length === 0) {
+        if (!rawSocialLinks?.length && payload?.id) {
           try {
-            const userResponse = await fetch(`${API_BASE_URL}/users/${payload?.id || userId}`, {
-              headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-              },
-              credentials: 'include',
-            });
-            
-            if (userResponse.ok) {
-              const userData = await userResponse.json();
-              const userPayload = userData?.data || userData;
-              rawSocialLinks = userPayload?.social_links || userPayload?.socialLinks || [];
-            }
-          } catch (userErr) {
-            // Users endpoint not available, continue without social links
+            const userRes = await apiClient.get(`/users/${payload.id}`);
+            const userPayload = userRes.data?.data || userRes.data;
+            rawSocialLinks = userPayload?.social_links || userPayload?.socialLinks || [];
+          } catch {
+            // ignore
           }
         }
 
@@ -211,6 +191,24 @@ export default function ClosetPage({
 
         setUserProfile(normalizedUser);
         setClosetItems(normalizedItems);
+        setFollowersCount(Number(payload?.followers_count ?? 0));
+        setFollowingCount(Number(payload?.following_count ?? 0));
+        if (typeof payload?.is_followed === 'boolean') {
+          setIsFollowing(payload.is_followed);
+        } else {
+          // Fallback: check /me/following when logged in
+          const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+          if (token && normalizedUser.id) {
+            try {
+              const followingRes = await apiClient.get('/me/following', { params: { 'per-page': 100 } });
+              const list = followingRes.data?.data ?? followingRes.data ?? [];
+              const ids = Array.isArray(list) ? list.map((u: any) => Number(u?.id)) : [];
+              setIsFollowing(ids.includes(normalizedUser.id));
+            } catch {
+              setIsFollowing(false);
+            }
+          }
+        }
       } catch (err) {
         console.error('Closet fetch error:', err);
       }
@@ -245,7 +243,35 @@ export default function ClosetPage({
     return () => container.removeEventListener('scroll', onScroll);
   }, []);
 
-  const handleFollowToggle = () => setIsFollowing(!isFollowing);
+  const handleFollowToggle = async () => {
+    if (!userProfile?.id) return;
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    if (!token) {
+      toast.error(t.closet.loginToFollow ?? 'Please log in to follow.');
+      return;
+    }
+    if (isOwnCloset) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await apiClient.delete(`/me/users/${userProfile.id}/unfollow`);
+        setIsFollowing(false);
+        setFollowersCount((c) => Math.max(0, c - 1));
+        toast.success(t.closet.unfollowed ?? 'Unfollowed.');
+      } else {
+        await apiClient.post(`/me/users/${userProfile.id}/follow`, {});
+        setIsFollowing(true);
+        setFollowersCount((c) => c + 1);
+        toast.success(t.closet.followed ?? 'You are now following.');
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.response?.data?.errors?.user?.[0];
+      if (err.response?.status === 401) toast.error(t.closet.loginToFollow ?? 'Please log in to follow.');
+      else toast.error(msg || 'Could not update follow.');
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   const formatCount = (num: number) =>
     num >= 1000 ? `${(num / 1000).toFixed(1)}k` : num;
@@ -342,7 +368,7 @@ export default function ClosetPage({
 
                   <p className="closet-font-manrope-xl closet-stats">
                     <span className="font-semibold">{closetItems.length}</span>{' '}
-                    {t.closet.items} • {formatCount(1200)} {t.closet.followers} • 342 {t.closet.following}
+                    {t.closet.items} • {formatCount(followersCount)} {t.closet.followers} • {formatCount(followingCount)} {t.closet.following}
                   </p>
 
                   <p className="closet-font-manrope closet-location">
@@ -353,23 +379,26 @@ export default function ClosetPage({
                   </p>
 
                   <div className="flex gap-3 mt-4 closet-action-buttons items-center flex-wrap">
-                    <Button
-                      onClick={handleFollowToggle}
-                      className={`rounded-xl px-6 ${
-                        isFollowing
-                          ? 'bg-white text-[#9F8151] border-[#9F8151] border-2'
-                          : 'bg-[#9F8151] text-white'
-                      }`}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <Check className="w-4 h-4 mr-2" />
-                          {t.closet.following}
-                        </>
-                      ) : (
-                        t.closet.follow
-                      )}
-                    </Button>
+                    {!isOwnCloset && (
+                      <Button
+                        onClick={handleFollowToggle}
+                        disabled={followLoading}
+                        className={`rounded-xl px-6 ${
+                          isFollowing
+                            ? 'bg-white text-[#9F8151] border-[#9F8151] border-2'
+                            : 'bg-[#9F8151] text-white'
+                        }`}
+                      >
+                        {followLoading ? '...' : isFollowing ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            {t.closet.following}
+                          </>
+                        ) : (
+                          t.closet.follow
+                        )}
+                      </Button>
+                    )}
 
                     {/* Social Media Links */}
                     {userProfile.socialLinks && userProfile.socialLinks.length > 0 && (
@@ -471,7 +500,7 @@ export default function ClosetPage({
               <button
                 key={item.id}
                 onClick={() => handleItemClick(item.id)}
-                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer closet-item-card"
+                className="group bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition cursor-pointer closet-item-card relative"
               >
                 <div className="aspect-square overflow-hidden relative">
                   <ImageWithFallback
@@ -480,6 +509,19 @@ export default function ClosetPage({
                     alt={item.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition"
                   />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavourite(item.id).then((r) => {
+                        if (!r.success && r.message) toast.error(r.message);
+                      });
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-full bg-white/90 hover:bg-white shadow-sm text-[#9F8151]"
+                    aria-label={isFavourited(item.id) ? 'Remove from favourites' : 'Add to favourites'}
+                  >
+                    <Heart size={18} fill={isFavourited(item.id) ? '#9F8151' : 'none'} stroke="#9F8151" />
+                  </button>
                 </div>
 
                 <div className="p-4 closet-item-content">

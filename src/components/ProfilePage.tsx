@@ -35,15 +35,16 @@ import { useLanguage } from '../context/LanguageContext';
 import { EditProfileModal } from './EditProfileModal';
 import './styles/ProfilePage.css';
 
-// API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const API_ROOT = `${API_BASE_URL}/api`;
-const BACKEND_BASE_URL = API_BASE_URL;
+// API Configuration — use VITE_API_ROOT so image base URL matches rest of app
+const API_ROOT_ORIGIN = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
+const API_BASE_URL = API_ROOT_ORIGIN;
+const API_ROOT = `${API_ROOT_ORIGIN}/api`;
+const BACKEND_BASE_URL = API_ROOT_ORIGIN;
 
 /** Normalize image URL (relative → absolute, protocol-less → https). */
 const normalizeImageUrl = (url?: string | null): string => {
   if (!url) return '';
-  const trimmed = url.trim();
+  const trimmed = String(url).trim();
   if (!trimmed || trimmed.includes('via.placeholder.com')) return '';
   if (trimmed.match(/^https?:\/\//i)) return trimmed;
   if (trimmed.startsWith('//')) return `https:${trimmed}`;
@@ -65,15 +66,22 @@ const normalizeImageUrl = (url?: string | null): string => {
   return `${BACKEND_BASE_URL}${cleanPath}`;
 };
 
+/** Placeholder when item has no image (avoids broken image on profile). */
+const PLACEHOLDER_ITEM_IMAGE = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=400&q=80';
+
 /** Extract first image URL from an item (mainImage, images, item_images, itemImages, etc.). */
 const getFirstImageUrl = (item: any): string => {
   if (!item) return '';
-  const asStr = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : '');
-  const fromObj = (o: any) =>
-    asStr(o?.url ?? o?.image_url ?? o?.src ?? o?.path ?? o?.file_url);
+  const asStr = (v: unknown) => (typeof v === 'string' && String(v).trim() ? String(v).trim() : '');
+  const fromObj = (o: any) => {
+    if (o == null) return '';
+    return asStr(o.url ?? o.image_url ?? o.src ?? o.path ?? o.file_url);
+  };
   const fromArr = (arr: any[]): string => {
     if (!Array.isArray(arr) || arr.length === 0) return '';
-    const first = arr[0];
+    // Prefer image with position 1 (main) if present
+    const byPosition = arr.find((x: any) => x?.position === 1 || x?.position === '1');
+    const first = byPosition ?? arr[0];
     return fromObj(first) || asStr(first);
   };
   return (
@@ -81,9 +89,7 @@ const getFirstImageUrl = (item: any): string => {
     fromObj(item.main_image) ||
     asStr(item.mainImage) ||
     asStr(item.main_image) ||
-    fromArr(item.item_images) ||
-    fromArr(item.itemImages) ||
-    fromArr(item.images) ||
+    fromArr(item.images ?? item.item_images ?? item.itemImages ?? []) ||
     asStr(item.first_image_url) ||
     asStr(item.thumbnail) ||
     asStr(item.image_url) ||
@@ -491,7 +497,8 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
   // Get image URL for item (uses mainImage, images, item_images, etc. + normalized URL)
   const getItemImageUrl = (item: any): string => {
-    return normalizeImageUrl(getFirstImageUrl(item));
+    const url = normalizeImageUrl(getFirstImageUrl(item));
+    return url || PLACEHOLDER_ITEM_IMAGE;
   };
 
   // Load user orders - DISABLED: Orders are not displayed in the UI, so no need to fetch them
@@ -546,50 +553,45 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   //   tryEndpoint();
   // }, [userId]);
 
-  // Load favourites from API
+  // Load favourites from API (item_user: GET /api/me/favourites).
+  // Favourites list does not include images relation; fetch full item (GET /api/items/{id}) for each to get images, same as "my items".
   const loadFavorites = async () => {
     const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
-    console.log('📥 Loading favorites, token:', token ? 'exists' : 'missing');
-    
     if (!token) {
       setFavourites([]);
       return;
     }
-
     try {
-      const url = `${API_ROOT}/me/favourites`;
-      console.log('📡 Fetching favorites from:', url);
-      
-      const res = await axios.get(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-        },
-        withCredentials: true,
-      });
-      console.log('✅ Favorites API response:', res.data);
-      
-      const data = res.data?.favorites || res.data?.favourites || res.data?.data || [];
-      if (Array.isArray(data)) {
-        // Map API response to FavouriteItem format
-        const mappedFavorites: FavouriteItem[] = data.map((item: any) => ({
-          id: item.id,
-          type: 'item' as const,
-          name: item.title || item.name || 'Item',
-          price: item.price || 0,
-          seller: item.user?.name || item.seller || 'Unknown Seller',
-          image: getItemImageUrl(item),
-        }));
-        setFavourites(mappedFavorites);
-        console.log('✅ Favourites loaded:', mappedFavorites);
-      } else {
-        console.log('⚠️ No favorites array in response');
+      const res = await apiClient.get('/me/favourites', { params: { 'per-page': 100 } });
+      const raw = res.data?.data ?? res.data?.favourites ?? res.data?.favorites ?? res.data;
+      const data = Array.isArray(raw) ? raw : [];
+      if (data.length === 0) {
         setFavourites([]);
+        return;
       }
-    } catch (err: any) {
-      console.error('❌ Error loading favourites:', err);
-      console.error('Error response:', err.response?.data);
-      console.error('Error status:', err.response?.status);
+      // Fetch full item details (with images) for each favourite, same as /me/items
+      const fullItems = await Promise.all(
+        data.map(async (item: any) => {
+          try {
+            const itemRes = await apiClient.get(`/items/${item.id}`);
+            const full = itemRes.data?.data ?? itemRes.data;
+            return full ?? item;
+          } catch {
+            return item;
+          }
+        })
+      );
+      const mappedFavorites: FavouriteItem[] = fullItems.map((item: any) => ({
+        id: item.id,
+        type: 'item' as const,
+        name: item.title || item.name || 'Item',
+        price: item.price ?? 0,
+        seller: item.user?.name || item.seller || 'Unknown Seller',
+        image: getItemImageUrl(item),
+      }));
+      setFavourites(mappedFavorites);
+    } catch (err) {
+      console.error('[Profile favourites] Error loading favourites:', err);
       setFavourites([]);
     }
   };

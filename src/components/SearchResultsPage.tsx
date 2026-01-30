@@ -4,6 +4,8 @@ import { Search, SlidersHorizontal, X, Heart } from 'lucide-react';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { HeaderAlt } from './HeaderAlt';
 import { FooterAlt } from './FooterAlt';
+import { useFavourites } from '../hooks/useFavourites';
+import { toast } from 'sonner';
 
 interface SearchResultsPageProps {
   initialQuery?: string;
@@ -15,6 +17,7 @@ export function SearchResultsPage({ initialQuery = '', onBack, onProductClick }:
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState<string[]>([]);
+  const { isFavourited, toggleFavourite } = useFavourites();
   
   const filterCategories = [
     {
@@ -403,6 +406,13 @@ export function SearchResultsPage({ initialQuery = '', onBack, onProductClick }:
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   <motion.button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFavourite(item.id).then((r) => {
+                        if (!r.success && r.message) toast.error(r.message);
+                      });
+                    }}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     style={{
@@ -421,7 +431,7 @@ export function SearchResultsPage({ initialQuery = '', onBack, onProductClick }:
                       backdropFilter: 'blur(10px)',
                     }}
                   >
-                    <Heart size={18} color="#0A4834" />
+                    <Heart size={18} color="#0A4834" fill={isFavourited(item.id) ? '#0A4834' : 'none'} />
                   </motion.button>
                   <div style={{
                     position: 'absolute',

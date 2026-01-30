@@ -9,6 +9,8 @@ import { HeaderAlt } from './HeaderAlt';
 import { ShareModal } from './ShareModal';
 import { type Language, getTranslation } from '../translations';
 import { useLanguage } from '../context/LanguageContext';
+import { apiClient } from '../api/apiClient';
+import { toast } from 'sonner';
 import './styles/ClosetsPage.css';
 
 const API_ROOT = import.meta.env.VITE_API_ROOT ?? 'http://localhost:8000';
@@ -50,6 +52,7 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
   const [loading, setLoading] = useState(true);
 
   const [following, setFollowing] = useState<number[]>([]);
+  const [followLoading, setFollowLoading] = useState<number | null>(null); // closet id being toggled
   const [activeFilter, setActiveFilter] = useState(t.closets.filters.allClosets);
   const [newsletterOpen, setNewsletterOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -235,12 +238,54 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const toggleFollow = (closetId: number) => {
-    setFollowing(prev =>
-      prev.includes(closetId)
-        ? prev.filter(i => i !== closetId)
-        : [...prev, closetId]
-    );
+  // Fetch "users I follow" when authenticated (user_user: follower_id = me, user_id = followed)
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    if (!token) {
+      setFollowing([]);
+      return;
+    }
+    const fetchFollowing = async () => {
+      try {
+        const res = await apiClient.get('/me/following', { params: { 'per-page': 100 } });
+        const raw = res.data?.data ?? res.data?.following ?? res.data;
+        const list = Array.isArray(raw) ? raw : [];
+        const ids = list.map((u: { id?: number }) => Number(u?.id)).filter(Boolean);
+        setFollowing(ids);
+      } catch {
+        setFollowing([]);
+      }
+    };
+    fetchFollowing();
+  }, []);
+
+  const toggleFollow = async (closetId: number) => {
+    const token = typeof window !== 'undefined' ? window.localStorage.getItem('auth_token') : null;
+    if (!token) {
+      toast.error(t.closets.loginToFollow ?? 'Please log in to follow closets.');
+      return;
+    }
+    const isCurrentlyFollowing = following.includes(closetId);
+    setFollowLoading(closetId);
+    try {
+      if (isCurrentlyFollowing) {
+        await apiClient.delete(`/me/users/${closetId}/unfollow`);
+        setFollowing((prev) => prev.filter((id) => id !== closetId));
+        toast.success(t.closets.unfollowed ?? 'Unfollowed.');
+      } else {
+        await apiClient.post(`/me/users/${closetId}/follow`, {});
+        setFollowing((prev) => [...prev, closetId]);
+        toast.success(t.closets.followed ?? 'You are now following this closet.');
+      }
+    } catch (err: any) {
+      const status = err.response?.status;
+      const msg = err.response?.data?.message || err.response?.data?.errors?.user?.[0];
+      if (status === 401) toast.error(t.closets.loginToFollow ?? 'Please log in to follow.');
+      else if (status === 422) toast.error(msg || 'Could not update follow.');
+      else toast.error(msg || 'Something went wrong.');
+    } finally {
+      setFollowLoading(null);
+    }
   };
 
   const handleShareCloset = (closet: Closet) => {
@@ -327,18 +372,25 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
                   </motion.div>
 
                   <div className="closet-cover-overlay">
-                    <div className="closet-profile-bubble">{closet.profilePhoto}</div>
+                    <div className="closet-profile-bubble">
+                      {(closet.profilePhoto && (closet.profilePhoto.startsWith('http') || closet.profilePhoto.startsWith('/') || closet.profilePhoto.startsWith('storage'))) || closet.avatar ? (
+                        <ImageWithFallback
+                          src={resolveImageUrl(closet.avatar || closet.profilePhoto)}
+                          alt={closet.name?.[0] ?? 'C'}
+                          className="closet-profile-bubble-img"
+                        />
+                      ) : (
+                        <span className="closet-profile-initial">{closet.name?.[0] ?? closet.profilePhoto ?? 'C'}</span>
+                      )}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <h3 className="closet-featured-quote">{closet.name}</h3>
-                      <p>@{closet.username}</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom */}
+                {/* Bottom: pieces, followers, actions only — no tagline so all cards stay same height */}
                 <div className="closet-card-content">
-                  <p className="closet-tagline">{closet.tagline}</p>
-
                   <div className="closet-stats-row">
                     <div className="closet-stat"><Package size={16} color="#9F8151" /><span>{closet.pieces} {t.closets.pieces}</span></div>
                     <div className="closet-stat"><Users size={16} color="#9F8151" /><span>{closet.followers} {t.closets.followers}</span></div>
@@ -351,15 +403,17 @@ export function ClosetsPage({ onClosetClick, language: languageProp }: ClosetsPa
 
                     <motion.button
                       onClick={(e) => { e.stopPropagation(); toggleFollow(closet.id); }}
+                      disabled={followLoading === closet.id}
                       className="closet-action-follow"
                       style={{
                         border: following.includes(closet.id) ? '1px solid #0A4834' : '1px solid #9F8151',
                         background: following.includes(closet.id) ? '#0A4834' : 'transparent',
-                        color: following.includes(closet.id) ? '#fff' : '#9F8151'
+                        color: following.includes(closet.id) ? '#fff' : '#9F8151',
+                        opacity: followLoading === closet.id ? 0.7 : 1,
                       }}
                     >
                       <Heart size={16} fill={following.includes(closet.id) ? '#FFFFFF' : 'none'} />
-                      {following.includes(closet.id) ? t.closets.following : t.closets.follow}
+                      {followLoading === closet.id ? '...' : (following.includes(closet.id) ? t.closets.following : t.closets.follow)}
                     </motion.button>
                   </div>
                 </div>
