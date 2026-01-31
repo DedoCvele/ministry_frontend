@@ -477,6 +477,7 @@ Same fields as create; all except noted are optional when using `sometimes` rule
 
 - `title` (string, required, min 4, max 255)
 - `content` (string, required, min 30, max 5000)
+- `short_content` (string, required, min 10, max 400)
 - `image` (file, optional) — image, `mimes: png, jpg, jpeg, webp`
 - `status` (required) — BlogStatus: `1` (Draft) or `2` (Published)
 
@@ -492,8 +493,10 @@ Same fields as create; all except noted are optional when using `sometimes` rule
 
 #### PUT/PATCH `/api/me/blogs/{blog}` — Update blog
 
-Same fields as create; all optional with `sometimes`.  
+Same fields as create; all optional with `sometimes`: `title`, `content`, `short_content`, `image`, `status`.  
 `image` (file, optional): if sent, replaces the previous blog image (ImageKit handled in job).
+
+**Note:** The new image is processed by the `StoreBlogImage` queue job. For the `image` and `image_kit_id` columns to be updated in the database, a queue worker must be running (e.g. `php artisan queue:work`). If using the `database` queue driver, the immediate response may still show the old image until the job runs.
 
 **Response (200):** Single **BlogResource** with `user`.
 
@@ -767,7 +770,7 @@ Use this to understand IDs and how to combine responses (e.g. `category_id` on i
 **blogs**
 
 - `id` (PK)
-- `title`, `content`
+- `title`, `content`, `short_content` (string, max 400)
 - `user_id` (FK → users)
 - `image`, `image_kit_id` (nullable)
 - `status` (tinyint, default 1)
@@ -1008,7 +1011,7 @@ Use these to type your frontend models and API clients.
 
 **BlogResource**
 
-- `id`, `title`, `content`, `image`, `status`
+- `id`, `title`, `content`, `short_content`, `image`, `status`
 - `user` (UserResource or null)
 
 **CategoryResource**

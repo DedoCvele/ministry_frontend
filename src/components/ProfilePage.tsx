@@ -33,6 +33,7 @@ import { getTranslation } from '../translations';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { EditProfileModal } from './EditProfileModal';
+import { FollowersFollowingModal, FollowersFollowingMode } from './FollowersFollowingModal';
 import './styles/ProfilePage.css';
 
 // API Configuration — use VITE_API_ROOT so image base URL matches rest of app
@@ -402,6 +403,10 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [socialLinks, setSocialLinks] = useState<SocialLink[]>([]);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
+  const [followersModalMode, setFollowersModalMode] = useState<FollowersFollowingMode>('followers');
 
   // Load user data and get user_id from API
   useEffect(() => {
@@ -475,6 +480,36 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
 
     tryUserEndpoints();
   }, [authUser]);
+
+  // Load follower/following counts via GET /api/users/{id} (UserResource includes followers_count, following_count)
+  useEffect(() => {
+    if (!userId || userId < 1) return;
+    const fetchCounts = async () => {
+      try {
+        const res = await apiClient.get(`/users/${userId}`);
+        const userPayload = res.data?.data ?? res.data;
+        if (userPayload) {
+          setFollowersCount(Number(userPayload.followers_count ?? 0));
+          setFollowingCount(Number(userPayload.following_count ?? 0));
+        }
+      } catch (_err) {
+        setFollowersCount(0);
+        setFollowingCount(0);
+      }
+    };
+    fetchCounts();
+  }, [userId]);
+
+  const refreshFollowerCounts = () => {
+    if (!userId || userId < 1) return;
+    apiClient.get(`/users/${userId}`).then((res) => {
+      const userPayload = res.data?.data ?? res.data;
+      if (userPayload) {
+        setFollowersCount(Number(userPayload.followers_count ?? 0));
+        setFollowingCount(Number(userPayload.following_count ?? 0));
+      }
+    }).catch(() => {});
+  };
 
   // Load social links
   useEffect(() => {
@@ -1024,6 +1059,57 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
               margin: '0 0 12px 0',
             }}>
               {user?.username || (authUser ? `@${authUser.username}` : '@user')}
+            </p>
+            <p style={{
+              fontFamily: 'Manrope, sans-serif',
+              fontSize: '15px',
+              color: '#666',
+              margin: '0 0 12px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowersModalMode('followers');
+                  setFollowersModalOpen(true);
+                }}
+                className="profile-follow-stats-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  font: 'inherit',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#0A4834' }}>{followersCount}</span>{' '}
+                {t.profile.followers}
+              </button>
+              <span style={{ color: '#ccc' }}>•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowersModalMode('following');
+                  setFollowersModalOpen(true);
+                }}
+                className="profile-follow-stats-btn"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  font: 'inherit',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                }}
+              >
+                <span style={{ fontWeight: 600, color: '#0A4834' }}>{followingCount}</span>{' '}
+                {t.profile.following}
+              </button>
             </p>
             <p style={{
               fontFamily: 'Manrope, sans-serif',
@@ -2998,6 +3084,12 @@ export function ProfilePage({ isSeller = false, onClose, onUploadClick }: Profil
         currentBio={user?.bio || ''}
         currentAvatar={resolveAvatarForModal(user?.avatar)}
         onSave={handleSaveProfile}
+      />
+      <FollowersFollowingModal
+        open={followersModalOpen}
+        onOpenChange={setFollowersModalOpen}
+        initialMode={followersModalMode}
+        onCountsChange={refreshFollowerCounts}
       />
     </div>
   );
